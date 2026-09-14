@@ -37,19 +37,70 @@ function resolveOnPath(binary: string): string | null {
   }
 
   const rawPath = process.env.PATH ?? '';
-  const entries = rawPath.split(path.delimiter).filter((entry) => entry !== '');
+  const dirs = rawPath.split(path.delimiter).filter((entry) => entry !== '');
+  if (process.platform === 'win32') {
+    dirs.push(...windowsWellKnownDirs());
+  }
   const candidates =
     process.platform === 'win32'
       ? WINDOWS_EXECUTABLE_EXTENSIONS.map((ext) => `${binary}${ext}`)
       : [binary];
 
-  for (const dir of entries) {
+  for (const dir of dirs) {
     for (const candidate of candidates) {
       const full = path.join(dir, candidate);
       if (isExecutableFile(full)) return full;
     }
   }
   return null;
+}
+
+/**
+ * Where real ffmpeg executables live on Windows even when PATH is stale.
+ *
+ * The most common Scrub failure on Windows is a terminal opened before the
+ * winget install: the installer's PATH links exist, but the terminal still
+ * holds its pre-install environment. Searching the known install locations
+ * directly means Scrub works there instead of telling the user to open a new
+ * terminal. Only directories holding real executables are listed — scoop and
+ * chocolatey ship .exe shims, which spawn without a shell just fine.
+ */
+function windowsWellKnownDirs(): readonly string[] {
+  const dirs: string[] = [];
+
+  dirs.push(path.join(process.env.USERPROFILE ?? '', 'scoop', 'shims'));
+  dirs.push('C:\\ProgramData\\chocolatey\\bin');
+
+  // Gyan.FFmpeg installs into a versioned folder under the winget package root,
+  // e.g. ...\Gyan.FFmpeg_...\ffmpeg-9.0.1-full_build\bin. The version changes,
+  // so it cannot be hardcoded.
+  const packagesRoot = path.join(
+    process.env.LOCALAPPDATA ?? '',
+    'Microsoft',
+    'WinGet',
+    'Packages',
+  );
+  let packages: string[];
+  try {
+    packages = fs.readdirSync(packagesRoot);
+  } catch {
+    return dirs;
+  }
+  for (const pkg of packages) {
+    if (!pkg.toLowerCase().startsWith('gyan.ffmpeg')) continue;
+    const pkgDir = path.join(packagesRoot, pkg);
+    let versions: string[];
+    try {
+      versions = fs.readdirSync(pkgDir);
+    } catch {
+      continue;
+    }
+    for (const version of versions) {
+      if (!version.toLowerCase().startsWith('ffmpeg-')) continue;
+      dirs.push(path.join(pkgDir, version, 'bin'));
+    }
+  }
+  return dirs;
 }
 
 function isExecutableFile(candidate: string): boolean {
@@ -126,7 +177,7 @@ export function requireFfmpeg(): FfmpegTools {
   process.stderr.write(
     [
       '',
-      `Scrub cannot start: ${missing} was not found on PATH, or would not run.`,
+      `Scrub cannot start: ${missing} was not found on PATH or in the usual install locations, or would not run.`,
       '',
       'Scrub is a front-end for ffmpeg. It does not bundle one, so you need it installed:',
       '',

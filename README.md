@@ -42,7 +42,9 @@ sudo dnf install ffmpeg
 sudo pacman -S ffmpeg
 ```
 
-On Windows, open a new terminal afterwards so the updated PATH is picked up.
+On Windows, open a new terminal afterwards so the updated PATH is picked up. If
+you're in an old terminal, Scrub also searches the standard winget, scoop and
+chocolatey install locations directly, so it usually finds the binaries anyway.
 
 Scrub spawns the executable directly, never through a shell, so a `.bat` or `.cmd`
 wrapper will not work — it needs the real binary. If yours lives somewhere unusual,
