@@ -14,6 +14,28 @@ import type { AudioFormat, VideoContainer, VideoGif } from './operations.js';
 import type { ProbeResult } from './probe.js';
 import { formatSeconds } from './time.js';
 
+/**
+ * Values pass two needs that only pass one can produce.
+ *
+ * They appear in the argv as `@measured_I@` and so on, and the server swaps them
+ * for real numbers once it has parsed pass one's JSON. Marking them rather than
+ * omitting them keeps the command bar honest: it shows that pass two takes five
+ * measurements from pass one, instead of quietly showing a command that is not
+ * the one which runs.
+ */
+export const LOUDNORM_MEASURED = [
+  'measured_I',
+  'measured_TP',
+  'measured_LRA',
+  'measured_thresh',
+  'offset',
+] as const;
+
+/** `@measured_I@` — deliberately not valid ffmpeg, so an unsubstituted one fails loudly. */
+export function measuredPlaceholder(key: string): string {
+  return `@${key}@`;
+}
+
 /** Clamp a start/end pair against the real duration and turn it into a length. */
 export function trimWindow(
   startSec: number,
@@ -522,7 +544,14 @@ export function buildLoudness(
           '-i',
           io.inputPath,
           '-af',
-          `loudnorm=${targets}:linear=true`,
+          [
+            `loudnorm=${targets}`,
+            ...LOUDNORM_MEASURED.map((key) => `${key}=${measuredPlaceholder(key)}`),
+            // With the measurements in hand the correction is a single linear
+            // gain. Without them this filter is a compressor working blind, and
+            // it pumps audibly — which is the whole reason for two passes.
+            'linear=true',
+          ].join(':'),
           ...keepVideo,
           OVERWRITE_ARG,
           io.outputPath,

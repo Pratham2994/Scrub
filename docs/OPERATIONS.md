@@ -241,7 +241,21 @@ pass 2: ffmpeg -i in.wav -af loudnorm=I=-16:TP=-1.5:LRA=11:measured_I=…:measur
 
 This is the only operation where a pass needs data from the one before it, which is
 what `CommandPass.capture: 'loudnorm-json'` marks. Pass 1 measures and prints a JSON
-block **on stderr**; parse it and feed the five measured values into pass 2.
+block **on stderr**; the five measured values go into pass 2.
+
+Pass 2's argv carries them as `@measured_I@`, `@measured_TP@`, `@measured_LRA@`,
+`@measured_thresh@` and `@offset@`, and the server substitutes them once it has
+parsed pass 1. Marking them rather than omitting them keeps the command bar
+honest — it shows that pass 2 depends on pass 1, instead of displaying a command
+that is not the one which runs.
+
+The markers are deliberately invalid ffmpeg syntax. A pass that somehow reached
+`spawn` unsubstituted has to fail loudly, because the alternative is normalising
+against nothing — silently producing the blind, pumping result that two passes
+exist to avoid.
+
+Verified end to end: a track at -43.85 LUFS normalised to a -16 target comes out
+at -16.03.
 
 Single-pass loudnorm is a dynamic normaliser working blind and it pumps audibly.
 Two-pass is a linear gain calculated from real measurements.

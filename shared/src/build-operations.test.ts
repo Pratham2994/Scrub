@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { buildArgs, type CommandIo, TRANSPORT_ARGS } from './build-args.js';
+import { LOUDNORM_MEASURED, measuredPlaceholder } from './build-operations.js';
 import { InvalidOperation } from './errors.js';
 import { OPERATIONS, type Operation } from './operations.js';
 import type { ProbeResult } from './probe.js';
@@ -224,5 +225,34 @@ describe('operations that must not touch what they were not asked to', () => {
   it('resizing copies the audio rather than re-encoding it', () => {
     const { argv } = buildArgs({ kind: 'resize', width: 640 }, meta, io).passes[0]!;
     expect(argv[argv.indexOf('-c:a') + 1]).toBe('copy');
+  });
+});
+
+describe('loudness pass two declares what pass one must give it', () => {
+  const plan = buildArgs(
+    { kind: 'loudness', targetI: -16, targetTP: -1.5, targetLRA: 11 },
+    meta,
+    io,
+  );
+
+  it('marks all five measurements in the second pass', () => {
+    const filter = plan.passes[1]!.argv.join(' ');
+    for (const key of LOUDNORM_MEASURED) {
+      expect(filter).toContain(`${key}=${measuredPlaceholder(key)}`);
+    }
+  });
+
+  it('does not put placeholders in the measuring pass', () => {
+    expect(plan.passes[0]!.argv.join(' ')).not.toContain('@');
+  });
+
+  /**
+   * The placeholder has to be invalid ffmpeg. If an unsubstituted pass ever
+   * reached spawn, it must fail loudly rather than normalise against nothing —
+   * which is exactly the silent, pumping result two passes exist to avoid.
+   */
+  it('uses a marker ffmpeg cannot mistake for a value', () => {
+    expect(measuredPlaceholder('measured_I')).toBe('@measured_I@');
+    expect(Number.isFinite(Number.parseFloat(measuredPlaceholder('measured_I')))).toBe(false);
   });
 });

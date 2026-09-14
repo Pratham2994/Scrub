@@ -4,6 +4,7 @@ import fs from 'node:fs/promises';
 
 import type { CommandPlan } from '@scrub/shared';
 
+import { applyMeasurement, type LoudnormMeasurement, parseLoudnorm } from './ffmpeg/loudnorm.js';
 import type { FfmpegTool } from './ffmpeg/locate.js';
 import { putFile } from './store.js';
 
@@ -116,12 +117,24 @@ async function runPasses(job: Job, options: StartJobOptions): Promise<void> {
   const passes = options.plan.passes;
   let lastEmit = 0;
 
+  /**
+   * What an earlier pass measured, for the passes that need it.
+   *
+   * Only loudnorm uses this, and it is the reason the plan is a list of passes
+   * rather than one command: pass two cannot be written until pass one has run.
+   */
+  let measurement: LoudnormMeasurement | null = null;
+
   try {
     for (const [index, pass] of passes.entries()) {
+      // The placeholders are substituted here and nowhere else, so what spawns
+      // is the pass's own argv with exactly the marked values filled in.
+      const argv = measurement === null ? pass.argv : applyMeasurement(pass.argv, measurement);
+
       const result = await runPass(
         job,
         options.ffmpeg,
-        pass.argv,
+        argv,
         (fraction) => {
           const now = Date.now();
           // Always let a completed pass through, so the bar never stalls at 97%
@@ -148,6 +161,19 @@ async function runPasses(job: Job, options: StartJobOptions): Promise<void> {
         emit(job, { type: 'cancelled' });
         await fs.rm(options.outputPath, { force: true }).catch(() => undefined);
         return;
+      }
+
+      if (pass.capture === 'loudnorm-json') {
+        measurement = parseLoudnorm(result.stderr);
+        if (measurement === null && result.code === 0) {
+          job.status = 'failed';
+          emit(job, {
+            type: 'error',
+            message: 'Could not read the loudness measurement from ffmpeg.',
+            detail: lastLines(result.stderr, 15),
+          });
+          return;
+        }
       }
 
       if (result.code !== 0) {
