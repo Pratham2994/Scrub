@@ -1,10 +1,30 @@
 import { Settings } from 'lucide-react';
 import { Link } from 'react-router';
 
+import { formatTimecode, type ProbeResult } from '@scrub/shared';
+
 import { CommandBar } from '@/components/CommandBar';
 import { Rail } from '@/components/Rail';
-import { SAMPLE_ARGV } from '@/lib/sample-command';
+import { useCommand } from '@/lib/use-command';
 import { useScrubStore } from '@/store/use-scrub-store';
+
+/** The micro line under the file name: what ffprobe actually found. */
+function summarise(meta: ProbeResult): string {
+  const parts = [formatTimecode(meta.durationSec)];
+  if (meta.video) {
+    parts.push(`${String(meta.video.width)}×${String(meta.video.height)}`, meta.video.codec);
+    if (meta.video.fps !== null) parts.push(`${String(meta.video.fps)} fps`);
+  }
+  if (meta.audio) parts.push(meta.audio.codec);
+  if (meta.sizeBytes > 0) parts.push(formatBytes(meta.sizeBytes));
+  return parts.join('  ·  ');
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes >= 1_073_741_824) return `${(bytes / 1_073_741_824).toFixed(1)} GB`;
+  if (bytes >= 1_048_576) return `${(bytes / 1_048_576).toFixed(1)} MB`;
+  return `${(bytes / 1024).toFixed(0)} KB`;
+}
 
 /**
  * One workspace: header, rail, centre, command bar. Routes swap the centre panel
@@ -16,6 +36,8 @@ import { useScrubStore } from '@/store/use-scrub-store';
  */
 export function AppShell({ children }: { readonly children: React.ReactNode }) {
   const meta = useScrubStore((state) => state.meta);
+  const activeOperation = useScrubStore((state) => state.activeOperation);
+  const command = useCommand(activeOperation);
 
   return (
     // `grid-cols-[minmax(0,1fr)]` is load-bearing: a grid's implicit column is
@@ -64,7 +86,10 @@ export function AppShell({ children }: { readonly children: React.ReactNode }) {
         </Link>
         <div className="min-w-0 flex-1 text-center">
           {meta ? (
-            <p className="text-body text-ink truncate">{meta.displayName}</p>
+            <>
+              <p className="text-body text-ink truncate">{meta.displayName}</p>
+              <p className="text-micro text-muted truncate tabular-nums">{summarise(meta)}</p>
+            </>
           ) : (
             <p className="text-label text-muted truncate">No file loaded</p>
           )}
@@ -84,7 +109,7 @@ export function AppShell({ children }: { readonly children: React.ReactNode }) {
         <main className="min-h-0 overflow-auto p-6">{children}</main>
       </div>
 
-      <CommandBar argv={SAMPLE_ARGV} placeholder />
+      <CommandBar argv={command.argv} placeholder={command.placeholder} />
     </div>
   );
 }

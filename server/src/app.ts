@@ -24,7 +24,7 @@ export function createApp(tools: FfmpegTools): Express {
   app.use(express.json({ limit: '256kb' }));
 
   app.use(healthRouter(tools));
-  app.use(uploadRouter());
+  app.use(uploadRouter(tools));
   app.use(metaRouter());
   app.use(runRouter());
   app.use(downloadRouter());
