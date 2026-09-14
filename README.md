@@ -95,7 +95,7 @@ That starts the API on `http://127.0.0.1:5174` and the client on
 | `npm run typecheck` | TypeScript across every workspace                    |
 | `npm run lint`      | ESLint                                               |
 | `npm run test`      | Vitest — `buildArgs` argv snapshots                  |
-| `npm run test:e2e`  | Playwright                                           |
+| `npm run test:e2e`  | Playwright — real flows against a real ffmpeg        |
 | `npm run verify`    | All of the above                                     |
 
 ## A note on the network

@@ -14,12 +14,15 @@ export default defineConfig({
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
-    // The client only. The smoke spec renders the shell, which has no server calls
-    // yet, and starting the API here would make the suite fail on a machine without
-    // ffmpeg for reasons that have nothing to do with the test.
-    command: 'npm run dev --workspace @scrub/client',
+    /**
+     * Both halves. These flows upload, probe and encode for real, so the API has
+     * to be up — and that means ffmpeg has to be installed. That is not an
+     * awkward dependency to work around: an ffmpeg GUI whose tests never run
+     * ffmpeg would be testing the half of the product that was never in doubt.
+     */
+    command: 'npm run dev',
     url: `http://localhost:${String(PORT)}`,
     reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    timeout: 180_000,
   },
 });

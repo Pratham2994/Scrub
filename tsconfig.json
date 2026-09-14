@@ -4,7 +4,9 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "noEmit": true,
-    "types": ["node"]
+    "types": ["node"],
+    // Playwright specs run code inside the browser via page.evaluate.
+    "lib": ["ES2023", "DOM"]
   },
   "include": ["e2e/**/*.ts", "playwright.config.ts"]
 }
