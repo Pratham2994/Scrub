@@ -1,0 +1,42 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+*.tsbuildinfo
+
+# environment
+.env
+.env.*
+!.env.example
+
+# scrub working directory — uploaded sources and encoded outputs
+.tmp/
+
+# test + tooling artefacts
+coverage/
+playwright-report/
+test-results/
+blob-report/
+.playwright/
+/playwright/.cache/
+
+# editor + OS junk
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.swp
+*~
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# logs
+*.log
+npm-debug.log*

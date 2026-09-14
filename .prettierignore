@@ -1,0 +1,8 @@
+node_modules
+dist
+coverage
+.tmp
+playwright-report
+test-results
+client/public/fonts
+**/*.snap

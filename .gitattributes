@@ -1,0 +1,10 @@
+# Prettier is configured with `endOfLine: "lf"`. Without this, git's autocrlf on
+# Windows hands a contributor CRLF files on clone and `npm run format:check` fails
+# on every file in the repo before they have changed anything.
+* text=auto eol=lf
+
+*.woff2 binary
+*.png binary
+*.jpg binary
+*.mp4 binary
+*.mov binary

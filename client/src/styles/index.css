@@ -1,0 +1,149 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import './fonts.css';
+
+/* ─── Scrub tokens, from DESIGN.md ───────────────────────────────────────────
+   Light chrome, dark well. The dark is where the picture is and nowhere else.
+   The palette is cool and neutral on purpose: the frame in the well is the only
+   thing on screen that should carry colour, and warm chrome would shift how the
+   user reads it. */
+
+@theme {
+  --color-paper: #f1f2f4;
+  --color-surface: #ffffff;
+  --color-line: #dfe1e5;
+  /* Not in DESIGN.md's list. `--line` is 1.31:1 on white, which is fine for a
+     decorative hairline but fails WCAG 1.4.11's 3:1 for the border of a control
+     the user is meant to find and operate. This is the same grey, darkened to
+     3.0:1, and it is used only on interactive borders. */
+  --color-line-strong: #8e949e;
+  --color-ink: #14161a;
+  /* DESIGN.md's `--muted` is a *text* colour, so this reads as `text-muted`.
+     shadcn's `muted` is a background; if a generated component reaches for
+     `bg-muted` it will be wrong and should use `bg-paper` instead. */
+  --color-muted: #5e646e;
+  --color-well: #0e1013;
+  --color-accent: #3a4fe0;
+  /* Reserved. Amber anywhere that is not an operation in progress is a misuse. */
+  --color-signal: #e8a33d;
+
+  /* Command bar syntax, by token role, all on --well. */
+  --color-token-binary: #e7e9ec;
+  --color-token-flag: #8aa0ff;
+  --color-token-value: #e8a33d;
+  --color-token-path: #7fd1a8;
+  /* Flags ffmpeg needs to talk to Scrub rather than to do the user's work.
+     Dimmed, but still 4.58:1 on --well — it is readable text, not decoration. */
+  --color-token-transport: #757d89;
+
+  --font-sans: 'Switzer', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'Commit Mono', ui-monospace, 'SFMono-Regular', 'Cascadia Mono', Menlo, monospace;
+
+  /* Sentence case throughout, no all-caps labels. */
+  --text-display: 28px;
+  --text-display--line-height: 32px;
+  --text-display--letter-spacing: -0.02em;
+  --text-heading: 17px;
+  --text-heading--line-height: 24px;
+  --text-heading--letter-spacing: -0.01em;
+  --text-body: 14px;
+  --text-body--line-height: 20px;
+  --text-label: 13px;
+  --text-label--line-height: 18px;
+  --text-mono: 13px;
+  --text-mono--line-height: 18px;
+  --text-micro: 11px;
+  --text-micro--line-height: 14px;
+
+  /* Not one radius on everything. */
+  --radius-well: 6px;
+  --radius-control: 6px;
+  --radius-button: 4px;
+
+  --spacing-rail: 180px;
+  --spacing-commandbar: 64px;
+
+  /* DESIGN.md: usable down to 900px, below which the rail becomes a horizontal
+     scroller. Mobile-first, so the `workspace:` variant is the full layout. */
+  --breakpoint-workspace: 900px;
+}
+
+/* ─── shadcn semantic layer ──────────────────────────────────────────────────
+   Mapped onto Scrub's palette so anything added with `npx shadcn@latest add`
+   arrives wearing Scrub's clothes instead of shadcn's defaults. */
+
+@theme inline {
+  --color-background: var(--color-paper);
+  --color-foreground: var(--color-ink);
+  --color-card: var(--color-surface);
+  --color-card-foreground: var(--color-ink);
+  --color-popover: var(--color-surface);
+  --color-popover-foreground: var(--color-ink);
+  --color-primary: var(--color-accent);
+  --color-primary-foreground: #ffffff;
+  --color-secondary: var(--color-surface);
+  --color-secondary-foreground: var(--color-ink);
+  --color-muted-foreground: var(--color-muted);
+  --color-accent-foreground: var(--color-ink);
+  /* DESIGN.md has no error colour, deliberately: an ffmpeg failure is rendered as
+     what ffmpeg printed, in mono, not as a red panel. This exists only because
+     shadcn components reference it. */
+  --color-destructive: #b4291d;
+  --color-border: var(--color-line);
+  --color-input: var(--color-line-strong);
+  --color-ring: var(--color-accent);
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 6px;
+  --radius-xl: 8px;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    /* The app owns the viewport; only the centre well scrolls. */
+    height: 100%;
+  }
+
+  body {
+    @apply bg-paper text-ink font-sans text-body;
+    height: 100%;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  #root {
+    height: 100%;
+  }
+
+  /* Visible everywhere, in accent, 2px, offset 2px. Non-negotiable in DESIGN.md's
+     quality floor and the easiest thing in a build to lose by accident. */
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  /* Timecodes and durations must not jitter while the scrubber moves. */
+  code,
+  kbd,
+  samp,
+  pre {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}

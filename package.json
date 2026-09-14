@@ -1,0 +1,48 @@
+{
+  "name": "scrub",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A local ffmpeg GUI. Drop a file in, pick an operation, get a file out.",
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "shared",
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "predev": "npm run build --workspace @scrub/shared",
+    "dev": "concurrently --names shared,server,client --prefix-colors magenta,cyan,green --kill-others-on-fail \"npm:dev:shared\" \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:shared": "npm run dev --workspace @scrub/shared",
+    "dev:server": "npm run dev --workspace @scrub/server",
+    "dev:client": "npm run dev --workspace @scrub/client",
+    "build": "npm run build --workspace @scrub/shared && npm run build --workspace @scrub/server && npm run build --workspace @scrub/client",
+    "typecheck": "npm run build --workspace @scrub/shared && npm run typecheck --workspace @scrub/server && npm run typecheck --workspace @scrub/client && tsc -p tsconfig.json",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "npm run test --workspace @scrub/shared",
+    "test:e2e": "playwright test",
+    "verify": "npm run typecheck && npm run lint && npm run format:check && npm run test"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.38.0",
+    "@playwright/test": "^1.56.0",
+    "@types/node": "^22.18.0",
+    "concurrently": "^9.2.1",
+    "eslint": "^9.38.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^6.1.1",
+    "eslint-plugin-react-refresh": "^0.4.24",
+    "globals": "^16.4.0",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.46.0"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true
+  }
+}
