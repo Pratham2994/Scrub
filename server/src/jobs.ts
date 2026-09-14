@@ -103,9 +103,18 @@ export function startJob(options: StartJobOptions): string {
   return id;
 }
 
+/**
+ * ffmpeg emits a progress block far more often than a person can read one, and
+ * every one of them crosses the SSE stream and re-renders the client. Ten a
+ * second is already smoother than the eye resolves; the rest is just work.
+ * The final frame of each pass is never dropped — see below.
+ */
+const PROGRESS_INTERVAL_MS = 100;
+
 async function runPasses(job: Job, options: StartJobOptions): Promise<void> {
   const startedAt = Date.now();
   const passes = options.plan.passes;
+  let lastEmit = 0;
 
   try {
     for (const [index, pass] of passes.entries()) {
@@ -114,6 +123,11 @@ async function runPasses(job: Job, options: StartJobOptions): Promise<void> {
         options.ffmpeg,
         pass.argv,
         (fraction) => {
+          const now = Date.now();
+          // Always let a completed pass through, so the bar never stalls at 97%
+          // because the last update happened to arrive inside the window.
+          if (fraction < 1 && now - lastEmit < PROGRESS_INTERVAL_MS) return;
+          lastEmit = now;
           emit(job, {
             type: 'progress',
             // Passes are treated as equal slices. GIF's palettegen is much shorter

@@ -70,9 +70,17 @@ export function CommandBar({
     setDraft(null);
   }, [argv]);
 
+  /**
+   * Only parse and lint when there is something hand-written to check.
+   *
+   * `text` follows the generated command when there is no draft, so without this
+   * guard every drag of a trim handle re-parsed and re-linted a command Scrub
+   * wrote itself — sixty times a second, to reach the same conclusion each time.
+   */
+  const active = editing || draft !== null;
   const analysis = useMemo(
-    () => (lintContext ? analyse(text, lintContext) : null),
-    [text, lintContext],
+    () => (active && lintContext ? analyse(text, lintContext) : null),
+    [active, text, lintContext],
   );
   const blocked = dirty && analysis !== null && hasBlockingError(analysis);
   const edited = useMemo(() => {
@@ -86,6 +94,9 @@ export function CommandBar({
   // What the collapsed bar renders: the edit if there is one, otherwise the
   // generated command. Either way it is what Run will execute.
   const shown = edited ?? argv;
+  // Tokenising is pure and the result only changes when the command does, but
+  // this component re-renders on every progress tick during an encode.
+  const tokens = useMemo(() => tokenizeCommand(shown), [shown]);
 
   const measure = useCallback(() => {
     const el = scrollRef.current;
@@ -101,10 +112,9 @@ export function CommandBar({
     );
   }, []);
 
-  // Re-measure when the command changes or the window resizes: whether a fade
-  // belongs there is a fact about the content, not about scrolling.
+  // One observer for the element's lifetime. It reports size changes; tearing it
+  // down and rebuilding it whenever the command changed was pure overhead.
   useEffect(() => {
-    measure();
     const el = scrollRef.current;
     if (!el) return undefined;
     const observer = new ResizeObserver(measure);
@@ -112,7 +122,11 @@ export function CommandBar({
     return () => {
       observer.disconnect();
     };
-  }, [measure, argv]);
+  }, [measure]);
+
+  // Whether a fade belongs there is a fact about the content, so re-measure when
+  // the content changes.
+  useEffect(measure, [measure, tokens]);
 
   return (
     <div
@@ -136,7 +150,7 @@ export function CommandBar({
             )}
             aria-label={placeholder ? 'Example command' : 'Command that will run'}
           >
-            {tokenizeCommand(shown).map((token, index) => (
+            {tokens.map((token, index) => (
               <span
                 key={`${token.full}-${String(index)}`}
                 className={ROLE_CLASS[token.role]}

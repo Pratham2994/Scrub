@@ -1,4 +1,5 @@
 import { formatTimecode, type ProbeResult } from '@scrub/shared';
+import { useEffect, useRef } from 'react';
 
 import { cn } from '@/lib/utils';
 import { useScrubStore } from '@/store/use-scrub-store';
@@ -157,11 +158,26 @@ function TimecodeField({
   readonly max: number;
   readonly onCommit: (seconds: number) => void;
 }) {
+  const ref = useRef<HTMLInputElement>(null);
+
+  /**
+   * Follow the store, but never while the field has focus.
+   *
+   * This used to be `key={seconds}`, which tore the input out of the DOM and
+   * rebuilt it on every store update — once per pointer move while a handle was
+   * being dragged, and mid-word if the value changed while someone was typing.
+   */
+  useEffect(() => {
+    const element = ref.current;
+    if (!element || document.activeElement === element) return;
+    element.value = formatTimecode(seconds);
+  }, [seconds]);
+
   return (
     <label className="block">
       <span className="text-label text-muted mb-1 block">{label}</span>
       <input
-        key={seconds}
+        ref={ref}
         defaultValue={formatTimecode(seconds)}
         inputMode="decimal"
         aria-label={`${label} timecode`}
