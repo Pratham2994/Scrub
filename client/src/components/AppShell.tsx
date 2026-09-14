@@ -23,7 +23,43 @@ export function AppShell({ children }: { readonly children: React.ReactNode }) {
     // operations sets the width of the whole page and the body scrolls sideways.
     <div className="grid h-full grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)_auto]">
       <header className="border-line bg-paper flex items-center gap-4 border-b px-4 py-3">
-        <Link to="/" className="text-heading text-ink rounded-button font-semibold">
+        <Link
+          to="/"
+          className="text-heading text-ink flex items-center gap-2 rounded-button font-semibold"
+        >
+          {/* The favicon mark: a filmstrip with the accent cursor bar. Small enough
+              to be a signature, real enough not to be decoration — it is the tool. */}
+          <svg aria-hidden width="16" height="16" viewBox="0 0 32 32">
+            <rect width="32" height="32" rx="6" fill="var(--color-well)" />
+            <rect
+              x="6"
+              y="12"
+              width="4"
+              height="8"
+              rx="1"
+              fill="var(--color-token-binary)"
+              opacity="0.45"
+            />
+            <rect
+              x="12"
+              y="12"
+              width="4"
+              height="8"
+              rx="1"
+              fill="var(--color-token-binary)"
+              opacity="0.45"
+            />
+            <rect
+              x="22"
+              y="12"
+              width="4"
+              height="8"
+              rx="1"
+              fill="var(--color-token-binary)"
+              opacity="0.45"
+            />
+            <rect x="19" y="6" width="2" height="20" rx="1" fill="var(--color-accent)" />
+          </svg>
           Scrub
         </Link>
         <div className="min-w-0 flex-1 text-center">
