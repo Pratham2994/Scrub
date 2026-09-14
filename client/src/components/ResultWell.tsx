@@ -1,7 +1,7 @@
 import { Download, RotateCcw } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
-import { downloadUrl, sourceUrl } from '@/lib/api';
+import { downloadUrl, outputExists, sourceUrl } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
 type Side = 'result' | 'source';
@@ -38,15 +38,68 @@ export function ResultWell({
   const isImage = /\.(gif|png|jpe?g|webp)$/i.test(outputName);
   const ratio = sourceBytes > 0 ? sizeBytes / sourceBytes : null;
 
+  /**
+   * The result can be swept out from under this panel.
+   *
+   * Working files expire on a TTL and are evicted against a size ceiling, so a
+   * result left on screen while the user goes and does something else may not
+   * be there when they come back. `<a download>` has no way to notice: it
+   * saved the 404 body under the output's name, so pressing Save produced an
+   * 84-byte JSON error called `clip-muted.mp4` and said nothing.
+   */
+  const [missing, setMissing] = useState(false);
+
+  useEffect(() => {
+    setMissing(false);
+  }, [outputId]);
+
+  /**
+   * Re-check on the way back to the tab. The media element reports a file that
+   * was already gone when it loaded, but not one that disappeared afterwards —
+   * and "left it open and came back later" is exactly how the TTL catches
+   * someone.
+   */
+  useEffect(() => {
+    let cancelled = false;
+    const check = (): void => {
+      if (document.visibilityState !== 'visible') return;
+      void outputExists(outputId).then((exists) => {
+        if (!cancelled) setMissing(!exists);
+      });
+    };
+    document.addEventListener('visibilitychange', check);
+    return () => {
+      cancelled = true;
+      document.removeEventListener('visibilitychange', check);
+    };
+  }, [outputId]);
+
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
       <div className="bg-well border-well-edge relative flex min-h-48 flex-1 items-center justify-center overflow-hidden rounded-well border">
-        {side === 'result' && isImage ? (
+        {missing && side === 'result' ? (
+          /**
+           * Say what happened and why, in the place the file used to be. The
+           * settings above are untouched, so running it again is one press.
+           */
+          <div className="max-w-md px-6 text-center">
+            <p className="text-body text-token-binary">
+              This result is no longer in Scrub&rsquo;s working folder.
+            </p>
+            <p className="text-micro text-token-transport mt-1.5 leading-relaxed">
+              Working files are cleared after a while, and when the folder gets too large. Nothing
+              was lost from your own disk. Run it again to make another copy.
+            </p>
+          </div>
+        ) : side === 'result' && isImage ? (
           // A GIF is a picture, not a video. An <img> loops it the way the file
           // will actually behave wherever it ends up.
           <img
             src={downloadUrl(outputId)}
             alt={`The ${outputName} Scrub produced`}
+            onError={() => {
+              setMissing(true);
+            }}
             className="h-full max-h-full w-full object-contain"
           />
         ) : (
@@ -60,6 +113,11 @@ export function ResultWell({
               // Same reason as the main well: a focused video steals Space and
               // the arrows from Scrub's own shortcuts.
               event.currentTarget.blur();
+            }}
+            onError={() => {
+              // Only the result can go missing. The source is held for as long
+              // as the file is loaded.
+              if (side === 'result') setMissing(true);
             }}
             className="h-full max-h-full w-full object-contain"
           />
@@ -89,6 +147,7 @@ export function ResultWell({
         <div className="min-w-0 flex-1">
           <p className="text-body text-ink truncate font-mono">{outputName}</p>
           <p className="text-micro text-muted mt-0.5 tabular-nums">
+            {missing && 'No longer on disk, was '}
             {formatBytes(sizeBytes)}
             {ratio !== null && (
               <>
@@ -114,14 +173,26 @@ export function ResultWell({
             <RotateCcw aria-hidden size={14} />
             Adjust and run again
           </button>
-          <a
-            href={downloadUrl(outputId)}
-            download={outputName}
-            className="text-label bg-accent text-on-accent flex items-center gap-1.5 rounded-button px-3 py-2 font-medium"
-          >
-            <Download aria-hidden size={14} />
-            Save
-          </a>
+          {missing ? (
+            // Not a link. Saving now would write the 404 body to their disk
+            // under a name that says it is a video.
+            <span
+              className="text-label text-muted border-line flex cursor-not-allowed items-center gap-1.5 rounded-button border px-3 py-2"
+              title="The file is no longer in Scrub's working folder"
+            >
+              <Download aria-hidden size={14} />
+              Nothing to save
+            </span>
+          ) : (
+            <a
+              href={downloadUrl(outputId)}
+              download={outputName}
+              className="text-label bg-accent text-on-accent flex items-center gap-1.5 rounded-button px-3 py-2 font-medium"
+            >
+              <Download aria-hidden size={14} />
+              Save
+            </a>
+          )}
         </div>
       </div>
     </div>

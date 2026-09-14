@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -288,6 +289,43 @@ test.describe('operations that do not fit the file', () => {
 
     await expect(page.getByRole('button', { name: 'Run' })).toBeEnabled();
     expect(await commandText(page)).toContain('loudnorm');
+  });
+});
+
+test.describe('a result that is no longer there', () => {
+  /**
+   * Working files expire on a TTL and are evicted against a size ceiling, so a
+   * result can be swept while the panel offering it is still on screen.
+   * `<a download>` cannot notice a 404: it saved the error body under the
+   * output's name, so Save produced an 84-byte JSON file called
+   * `clip-muted.mp4` and said nothing at all about it.
+   */
+  test('withdraws Save when the output has been swept', async ({ page }) => {
+    await page.goto('/op/mute');
+    await loadFixture(page);
+    await page.getByRole('button', { name: 'Run' }).click();
+
+    const save = page.getByRole('link', { name: 'Save' });
+    await expect(save).toBeVisible({ timeout: 60_000 });
+
+    const tmp = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '.tmp');
+    const swept = fs.readdirSync(tmp).find((name) => name.includes('-muted'));
+    expect(swept, 'the output should be on disk before it is swept').toBeDefined();
+    fs.rmSync(path.join(tmp, swept ?? ''));
+
+    // Returning to the tab is what prompts the re-check.
+    await page.evaluate(() => {
+      for (const state of ['hidden', 'visible']) {
+        Object.defineProperty(document, 'visibilityState', { value: state, configurable: true });
+        document.dispatchEvent(new Event('visibilitychange'));
+      }
+    });
+
+    await expect(save).toBeHidden();
+    // A regex for the apostrophe: the copy uses a typographic one.
+    await expect(page.getByText(/no longer in Scrub.s working folder/)).toBeVisible();
+    // The settings are untouched, so making another copy is one press.
+    await expect(page.getByRole('button', { name: /run again/i })).toBeVisible();
   });
 });
 

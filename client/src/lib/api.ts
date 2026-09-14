@@ -123,6 +123,30 @@ export function downloadUrl(id: string): string {
   return `${BASE}/download/${id}`;
 }
 
+/**
+ * Whether a finished result is still on disk.
+ *
+ * The working directory is swept on a TTL and evicted against a size ceiling,
+ * so a result can be gone while the panel offering it is still on screen. A
+ * plain `<a download>` cannot notice: it saved the 404 body under the output's
+ * name, handing the user an 84-byte JSON error called `clip-muted.mp4`.
+ *
+ * HEAD, so this costs nothing on a file that may be gigabytes.
+ */
+export async function outputExists(id: string): Promise<boolean> {
+  try {
+    const response = await fetch(`${BASE}/download/${id}`, {
+      method: 'HEAD',
+      headers: { [CLIENT_HEADER]: '1' },
+    });
+    return response.ok;
+  } catch {
+    // The server being unreachable is a different problem, and claiming the
+    // file is missing would send the user off to re-run something that is fine.
+    return true;
+  }
+}
+
 export type HealthResponse = {
   readonly ok: true;
   readonly ffmpeg: { readonly version: string; readonly path: string };
