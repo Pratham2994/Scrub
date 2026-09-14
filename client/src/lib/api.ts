@@ -135,6 +135,30 @@ export async function fetchHealth(): Promise<HealthResponse> {
   return (await response.json()) as HealthResponse;
 }
 
+export type StorageUsage = {
+  readonly bytes: number;
+  readonly files: number;
+  readonly capBytes: number;
+};
+
+export async function fetchStorage(): Promise<StorageUsage> {
+  const response = await fetch(`${BASE}/storage`, { headers: { [CLIENT_HEADER]: '1' } });
+  if (!response.ok) throw await toApiError(response);
+  return (await response.json()) as StorageUsage;
+}
+
+/** Empties the working directory, optionally sparing the file on screen. */
+export async function clearStorage(keepId: string | null): Promise<StorageUsage> {
+  const query = keepId === null ? '' : `?keep=${encodeURIComponent(keepId)}`;
+  const response = await fetch(`${BASE}/storage${query}`, {
+    method: 'DELETE',
+    headers: { [CLIENT_HEADER]: '1' },
+  });
+  if (!response.ok) throw await toApiError(response);
+  const body = (await response.json()) as { usage: StorageUsage };
+  return body.usage;
+}
+
 export type JobEvent =
   | {
       readonly type: 'progress';

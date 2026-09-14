@@ -7,8 +7,9 @@ import multer from 'multer';
 
 import { config } from '../config.js';
 import type { FfmpegTools } from '../ffmpeg/locate.js';
+import { fingerprintFile } from '../ffmpeg/fingerprint.js';
 import { ProbeFailed, probeFile } from '../ffmpeg/probe.js';
-import { putFile } from '../store.js';
+import { findByFingerprint, putFile } from '../store.js';
 import type { ApiError } from './errors.js';
 
 /**
@@ -64,6 +65,22 @@ export function uploadRouter(tools: FfmpegTools): Router {
 
     void (async () => {
       try {
+        /**
+         * The same file dropped twice is the same file.
+         *
+         * Without this, re-dropping a clip to start again copied it again, and
+         * a session of ordinary use left dozens of identical multi-gigabyte
+         * files on disk. The duplicate just written is removed and the existing
+         * upload is handed back, so its filmstrip and waveform stay warm too.
+         */
+        const fingerprint = await fingerprintFile(file.path);
+        const existing = findByFingerprint(fingerprint);
+        if (existing?.meta) {
+          await fs.rm(file.path, { force: true }).catch(() => undefined);
+          res.status(200).json({ id: existing.id, meta: existing.meta });
+          return;
+        }
+
         const meta = await probeFile(tools.ffprobe, file.path, file.originalname);
         const id = randomUUID();
         putFile({
@@ -73,6 +90,7 @@ export function uploadRouter(tools: FfmpegTools): Router {
           meta,
           kind: 'source',
           createdAt: Date.now(),
+          fingerprint,
         });
         res.status(201).json({ id, meta });
       } catch (error) {

@@ -17,6 +17,8 @@ export type StoredFile = {
   readonly meta: ProbeResult | null;
   readonly kind: 'source' | 'output';
   readonly createdAt: number;
+  /** Set for uploads, so the same file dropped twice is recognised. */
+  readonly fingerprint?: string;
 };
 
 /**
@@ -47,4 +49,23 @@ export function getFile(id: string): StoredFile | null {
 
 export function forgetFile(id: string): void {
   files.delete(id);
+}
+
+/**
+ * An upload of this exact file that Scrub already has.
+ *
+ * Dropping the same clip twice used to copy it twice. One session of ordinary
+ * testing left 125 copies of one file on disk, which is the kind of waste nobody
+ * notices until the disk is full.
+ */
+export function findByFingerprint(fingerprint: string): StoredFile | null {
+  for (const file of files.values()) {
+    if (file.kind !== 'source' || file.fingerprint !== fingerprint) continue;
+    if (!fs.existsSync(file.path)) {
+      files.delete(file.id);
+      continue;
+    }
+    return file;
+  }
+  return null;
 }

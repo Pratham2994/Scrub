@@ -7,6 +7,7 @@ import type { ApiError } from './routes/errors.js';
 import { healthRouter } from './routes/health.js';
 import { metaRouter } from './routes/meta.js';
 import { runRouter } from './routes/run.js';
+import { storageRouter } from './routes/storage.js';
 import { uploadRouter } from './routes/upload.js';
 import { localOnly } from './security.js';
 
@@ -30,6 +31,7 @@ export function createApp(tools: FfmpegTools): Express {
   app.use(runRouter(tools));
   app.use(downloadRouter());
   app.use(filmstripRouter(tools));
+  app.use(storageRouter());
 
   app.use((_req, res) => {
     res.status(404).json({

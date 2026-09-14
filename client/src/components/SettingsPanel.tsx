@@ -1,8 +1,15 @@
 import { Monitor, Moon, Settings, Sun } from 'lucide-react';
 import { Fragment, useEffect, useRef, useState } from 'react';
 
-import { fetchHealth, type HealthResponse } from '@/lib/api';
+import {
+  clearStorage,
+  fetchHealth,
+  fetchStorage,
+  type HealthResponse,
+  type StorageUsage,
+} from '@/lib/api';
 import { type Theme, useTheme } from '@/lib/use-theme';
+import { useScrubStore } from '@/store/use-scrub-store';
 import { cn } from '@/lib/utils';
 
 const THEMES: readonly {
@@ -27,6 +34,9 @@ export function SettingsPanel() {
   const { theme, setTheme } = useTheme();
   const [open, setOpen] = useState(false);
   const [health, setHealth] = useState<HealthResponse | null>(null);
+  const [storage, setStorage] = useState<StorageUsage | null>(null);
+  const [clearing, setClearing] = useState(false);
+  const uploadId = useScrubStore((state) => state.uploadId);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Fetched when the panel first opens, not on mount: it is a detail nobody
@@ -37,6 +47,11 @@ export function SettingsPanel() {
       .then(setHealth)
       .catch(() => {
         setHealth(null);
+      });
+    fetchStorage()
+      .then(setStorage)
+      .catch(() => {
+        setStorage(null);
       });
   }, [open, health]);
 
@@ -135,6 +150,60 @@ export function SettingsPanel() {
 
           <hr className="border-line my-4" />
 
+          {storage !== null && (
+            /**
+             * The working directory, made visible.
+             *
+             * Every file loaded and every run made leaves something here, on the
+             * user's own disk. Before this was on screen a long session could
+             * quietly reach gigabytes with nothing ever mentioning it.
+             */
+            <div className="mb-4">
+              <p className="text-label text-muted mb-2">Working files</p>
+              <p className="text-micro text-ink tabular-nums">
+                {formatBytes(storage.bytes)} in {storage.files}{' '}
+                {storage.files === 1 ? 'file' : 'files'}
+              </p>
+              <div className="bg-line mt-1.5 h-1 overflow-hidden rounded-full">
+                <div
+                  className={cn(
+                    'h-full transition-[width] duration-200',
+                    storage.bytes / storage.capBytes > 0.8 ? 'bg-signal' : 'bg-accent',
+                  )}
+                  style={{
+                    width: `${String(Math.min(100, (storage.bytes / storage.capBytes) * 100))}%`,
+                  }}
+                />
+              </div>
+              <p className="text-micro text-muted mt-1.5">
+                Cleared automatically past {formatBytes(storage.capBytes)}, oldest first, and after
+                six hours.
+              </p>
+              <button
+                type="button"
+                disabled={clearing || storage.files === 0}
+                onClick={() => {
+                  setClearing(true);
+                  clearStorage(uploadId)
+                    .then(setStorage)
+                    .catch(() => undefined)
+                    .finally(() => {
+                      setClearing(false);
+                    });
+                }}
+                className="text-label text-ink border-line hover:border-line-strong mt-2 rounded-button border px-3 py-1.5 transition-colors duration-100 disabled:opacity-40"
+              >
+                {clearing
+                  ? 'Clearing'
+                  : uploadId === null
+                    ? 'Clear now'
+                    : 'Clear all but this file'}
+              </button>
+            </div>
+          )}
+
+          <hr className="border-line my-4" />
+
           <div>
             <p className="text-label text-muted mb-2">Keyboard</p>
             <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
@@ -164,6 +233,12 @@ export function SettingsPanel() {
       )}
     </div>
   );
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes >= 1_073_741_824) return `${(bytes / 1_073_741_824).toFixed(1)} GB`;
+  if (bytes >= 1_048_576) return `${(bytes / 1_048_576).toFixed(0)} MB`;
+  return `${(bytes / 1024).toFixed(0)} KB`;
 }
 
 /** "ffmpeg version 9.0.1-full_build-www.gyan.dev Copyright…" -> "9.0.1-full_build". */
