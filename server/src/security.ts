@@ -35,6 +35,28 @@ function deny(res: Response, reason: string): void {
   res.status(403).json({ error: { code: 'FORBIDDEN', message: reason } });
 }
 
+/**
+ * Which routes must carry the custom header.
+ *
+ * A few GETs are exempt, and the reason is mechanical rather than a relaxation:
+ * the browser APIs that reach them cannot set a request header at all.
+ * `<video src>` and `<a download>` cannot, and neither can `EventSource` — so
+ * requiring one would make the preview, the download and the progress stream
+ * impossible rather than secure.
+ *
+ * Every exempt route is side-effect free and needs an unguessable uuid, and the
+ * Host and Origin checks above still apply to all of them. Everything that
+ * changes state — uploading, running, cancelling — keeps the requirement, and
+ * those are the routes a hostile page would actually want.
+ */
+function requiresClientHeader(method: string, path: string): boolean {
+  if (method !== 'GET') return true;
+  if (path === '/health') return false;
+  if (/^\/(source|download)\//.test(path)) return false;
+  // The SSE progress stream, opened by EventSource.
+  return !/^\/run\/[^/]+\/events$/.test(path);
+}
+
 export function localOnly(req: Request, res: Response, next: NextFunction): void {
   const host = req.headers.host;
   if (host === undefined || !ALLOWED_HOSTS.has(host.toLowerCase())) {
@@ -60,11 +82,12 @@ export function localOnly(req: Request, res: Response, next: NextFunction): void
     return;
   }
 
-  // GET /health stays reachable with curl so "is the server up" needs no ceremony.
-  // It is a read with no side effects, and an unapproved origin still cannot read
-  // the response because no CORS header was sent above.
-  const isHealthCheck = req.method === 'GET' && req.path === '/health';
-  if (!isHealthCheck && req.headers[CLIENT_HEADER] === undefined) {
+  if (!requiresClientHeader(req.method, req.path)) {
+    next();
+    return;
+  }
+
+  if (req.headers[CLIENT_HEADER] === undefined) {
     deny(res, `Missing ${CLIENT_HEADER} header.`);
     return;
   }

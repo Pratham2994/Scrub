@@ -12,10 +12,27 @@ import { putFile } from '../store.js';
 import type { ApiError } from './errors.js';
 
 /**
+ * A filename built from the user's, reduced to characters that cannot mean
+ * anything to a path: no separators, no dots, no leading dash, capped in length.
+ * A short uuid is appended so two uploads of the same name cannot collide.
+ *
+ * The point is the command bar. It shows the real path's basename, so a stored
+ * name of `holiday-clip-3036c17e.mp4` makes the displayed command readable while
+ * still being exactly the file that gets spawned — readability without the
+ * preview and the execution drifting apart.
+ */
+function safeStem(originalName: string): string {
+  const stem = path.basename(originalName, path.extname(originalName));
+  const cleaned = stem
+    .replace(/[^a-zA-Z0-9._-]/g, '-')
+    .replace(/^[-.]+/, '')
+    .slice(0, 60);
+  return cleaned === '' ? 'upload' : cleaned;
+}
+
+/**
  * Disk storage, never memory: a 4 GiB upload buffered in RAM takes the process
- * with it. The stored name is a uuid plus the original extension — the uuid so
- * nothing the user named can steer a path, the extension because some
- * demuxers use it as a hint.
+ * with it. The extension is kept because some demuxers use it as a hint.
  */
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => {
@@ -24,7 +41,7 @@ const storage = multer.diskStorage({
   filename: (_req, file, cb) => {
     // path.extname on the *original* name, never the name itself.
     const ext = path.extname(file.originalname).slice(0, 10);
-    cb(null, `${randomUUID()}${ext}`);
+    cb(null, `${safeStem(file.originalname)}-${randomUUID().slice(0, 8)}${ext}`);
   },
 });
 

@@ -1,4 +1,4 @@
-import type { ProbeResult } from '@scrub/shared';
+import type { Operation, ProbeResult } from '@scrub/shared';
 
 /**
  * The server requires this header on everything but the health check. A simple
@@ -98,4 +98,83 @@ export async function fetchMeta(id: string): Promise<ProbeResult> {
   const response = await fetch(`${BASE}/meta/${id}`, { headers: { [CLIENT_HEADER]: '1' } });
   if (!response.ok) throw await toApiError(response);
   return (await response.json()) as ProbeResult;
+}
+
+/**
+ * `<video src>` and `<a download>` cannot set a request header, so these two
+ * routes are the only ones the server lets through without one. Both are
+ * side-effect free and need an unguessable id.
+ */
+export function sourceUrl(id: string): string {
+  return `${BASE}/source/${id}`;
+}
+
+export function downloadUrl(id: string): string {
+  return `${BASE}/download/${id}`;
+}
+
+export type JobEvent =
+  | {
+      readonly type: 'progress';
+      readonly progress: number;
+      readonly passIndex: number;
+      readonly passCount: number;
+      readonly passLabel: string;
+      readonly elapsedMs: number;
+    }
+  | {
+      readonly type: 'done';
+      readonly outputId: string;
+      readonly outputName: string;
+      readonly sizeBytes: number;
+      readonly elapsedMs: number;
+    }
+  | { readonly type: 'error'; readonly message: string; readonly detail: readonly string[] }
+  | { readonly type: 'cancelled' };
+
+export async function startRun(id: string, op: Operation): Promise<string> {
+  const response = await fetch(`${BASE}/run`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', [CLIENT_HEADER]: '1' },
+    body: JSON.stringify({ id, op }),
+  });
+  if (!response.ok) throw await toApiError(response);
+  const body = (await response.json()) as { jobId: string };
+  return body.jobId;
+}
+
+/**
+ * Attaches to a job's progress stream. Returns a detach function.
+ *
+ * The server replays what already happened before this connected, because POST
+ * /run and this GET are two round trips and a stream copy can finish inside that
+ * gap — a fast trim of a short clip regularly does.
+ */
+export function subscribeToJob(jobId: string, onEvent: (event: JobEvent) => void): () => void {
+  const source = new EventSource(`${BASE}/run/${jobId}/events`);
+
+  source.addEventListener('message', (event: MessageEvent<string>) => {
+    const parsed = JSON.parse(event.data) as JobEvent;
+    onEvent(parsed);
+    if (parsed.type !== 'progress') source.close();
+  });
+
+  source.addEventListener('error', () => {
+    // EventSource reconnects on its own, but the server ends the stream after a
+    // terminal event — so a closed connection here means "finished", not "broken".
+    if (source.readyState === EventSource.CLOSED) return;
+    source.close();
+    onEvent({ type: 'error', message: 'Lost the connection to Scrub.', detail: [] });
+  });
+
+  return () => {
+    source.close();
+  };
+}
+
+export async function cancelRun(jobId: string): Promise<void> {
+  await fetch(`${BASE}/run/${jobId}`, {
+    method: 'DELETE',
+    headers: { [CLIENT_HEADER]: '1' },
+  });
 }

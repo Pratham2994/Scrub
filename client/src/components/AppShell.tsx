@@ -6,6 +6,8 @@ import { formatTimecode, type ProbeResult } from '@scrub/shared';
 import { CommandBar } from '@/components/CommandBar';
 import { Rail } from '@/components/Rail';
 import { useCommand } from '@/lib/use-command';
+import { useRun } from '@/lib/use-run';
+import { useRestoreUpload } from '@/lib/use-upload';
 import { useScrubStore } from '@/store/use-scrub-store';
 
 /** The micro line under the file name: what ffprobe actually found. */
@@ -37,7 +39,13 @@ function formatBytes(bytes: number): string {
 export function AppShell({ children }: { readonly children: React.ReactNode }) {
   const meta = useScrubStore((state) => state.meta);
   const activeOperation = useScrubStore((state) => state.activeOperation);
+  const run = useScrubStore((state) => state.run);
+  const clearFile = useScrubStore((state) => state.clearFile);
   const command = useCommand(activeOperation);
+  const { start, cancel } = useRun(command.operation);
+
+  // Puts the workspace back after a reload, before anything renders an empty state.
+  useRestoreUpload();
 
   return (
     // `grid-cols-[minmax(0,1fr)]` is load-bearing: a grid's implicit column is
@@ -94,6 +102,15 @@ export function AppShell({ children }: { readonly children: React.ReactNode }) {
             <p className="text-label text-muted truncate">No file loaded</p>
           )}
         </div>
+        {meta && (
+          <button
+            type="button"
+            onClick={clearFile}
+            className="text-label text-muted hover:text-ink hover:bg-surface shrink-0 rounded-button px-2 py-1.5 transition-colors duration-100"
+          >
+            Close file
+          </button>
+        )}
         <button
           type="button"
           aria-label="Settings"
@@ -109,7 +126,14 @@ export function AppShell({ children }: { readonly children: React.ReactNode }) {
         <main className="min-h-0 overflow-auto p-6">{children}</main>
       </div>
 
-      <CommandBar argv={command.argv} placeholder={command.placeholder} />
+      <CommandBar
+        argv={command.argv}
+        placeholder={command.placeholder}
+        run={run}
+        canRun={command.operation !== null}
+        onRun={start}
+        onCancel={cancel}
+      />
     </div>
   );
 }

@@ -1,8 +1,10 @@
-import { Copy, Pencil, Play } from 'lucide-react';
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Check, Copy, Download, Play, X } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { type CommandToken, tokenizeCommand } from '@/lib/command-tokens';
+import { commandToString, type CommandToken, tokenizeCommand } from '@/lib/command-tokens';
+import { downloadUrl } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import type { RunState } from '@/store/use-scrub-store';
 
 const ROLE_CLASS: Record<CommandToken['role'], string> = {
   binary: 'text-token-binary font-medium',
@@ -14,8 +16,11 @@ const ROLE_CLASS: Record<CommandToken['role'], string> = {
 
 type CommandBarProps = {
   readonly argv: readonly string[];
-  /** The empty state shows a real command, dimmed, so the bar is legible from second one. */
   readonly placeholder?: boolean;
+  readonly run: RunState;
+  readonly canRun: boolean;
+  readonly onRun: () => void;
+  readonly onCancel: () => void;
 };
 
 /**
@@ -23,49 +28,43 @@ type CommandBarProps = {
  * window edges, and the one element carrying a shadow — an upward hairline.
  *
  * A real command does not fit on one line at any window size, so the row scrolls
- * horizontally under a fade instead of truncating or wrapping the bar to an
- * unpredictable height.
+ * horizontally under fades. It scrolls when the user scrolls it and at no other
+ * time: moving someone's viewport for them, especially onto a command they were
+ * already reading from the start, is disorienting.
  */
-export function CommandBar({ argv, placeholder = false }: CommandBarProps) {
+export function CommandBar({
+  argv,
+  placeholder = false,
+  run,
+  canRun,
+  onRun,
+  onCancel,
+}: CommandBarProps) {
   const tokens = tokenizeCommand(argv);
-  const firstOperationIndex = tokens.findIndex(
-    (token) => token.role !== 'binary' && token.role !== 'transport',
-  );
-
   const scrollRef = useRef<HTMLElement>(null);
-  const operationRef = useRef<HTMLSpanElement>(null);
-  const [atStart, setAtStart] = useState(true);
+  const [edges, setEdges] = useState({ left: false, right: false });
 
-  /**
-   * Open on the part of the command the user's controls actually move.
-   *
-   * The transport flags are genuinely in the executed argv and are never hidden —
-   * scrolling left reaches them. But they are four tokens of harness plumbing, and
-   * leading with them means that at 900px, the narrowest width Scrub supports, the
-   * bar is all chrome and no command.
-   */
-  useLayoutEffect(() => {
-    const scroller = scrollRef.current;
-    const operation = operationRef.current;
-    if (!scroller || !operation) return;
-    scroller.scrollLeft +=
-      operation.getBoundingClientRect().left - scroller.getBoundingClientRect().left;
-    setAtStart(scroller.scrollLeft <= 0);
-  }, [argv]);
-
-  const handleScroll = useCallback(() => {
-    const scroller = scrollRef.current;
-    if (scroller) setAtStart(scroller.scrollLeft <= 0);
+  const measure = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setEdges({
+      left: el.scrollLeft > 1,
+      right: el.scrollLeft + el.clientWidth < el.scrollWidth - 1,
+    });
   }, []);
 
+  // Re-measure when the command changes or the window resizes: whether a fade
+  // belongs there is a fact about the content, not about scrolling.
   useEffect(() => {
-    const scroller = scrollRef.current;
-    if (!scroller) return undefined;
-    scroller.addEventListener('scroll', handleScroll, { passive: true });
+    measure();
+    const el = scrollRef.current;
+    if (!el) return undefined;
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
     return () => {
-      scroller.removeEventListener('scroll', handleScroll);
+      observer.disconnect();
     };
-  }, [handleScroll]);
+  }, [measure, argv]);
 
   return (
     <div
@@ -75,11 +74,11 @@ export function CommandBar({ argv, placeholder = false }: CommandBarProps) {
       <div className="relative min-w-0 flex-1">
         <code
           ref={scrollRef}
+          onScroll={measure}
+          tabIndex={0}
           className={cn(
             'text-mono block overflow-x-auto whitespace-nowrap tabular-nums',
             '[scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
-            // Contrast, not taste: at 60% the brightest token still clears 6:1 on
-            // --well, which keeps the placeholder readable while reading as inert.
             placeholder && 'opacity-60',
           )}
           aria-label={placeholder ? 'Example command' : 'Command that will run'}
@@ -87,7 +86,6 @@ export function CommandBar({ argv, placeholder = false }: CommandBarProps) {
           {tokens.map((token, index) => (
             <span
               key={`${token.full}-${String(index)}`}
-              ref={index === firstOperationIndex ? operationRef : undefined}
               className={ROLE_CLASS[token.role]}
               title={token.text === token.full ? undefined : token.full}
             >
@@ -96,65 +94,178 @@ export function CommandBar({ argv, placeholder = false }: CommandBarProps) {
             </span>
           ))}
         </code>
-        <div
-          aria-hidden
-          className={cn(
-            'from-well pointer-events-none absolute inset-y-0 left-0 w-8 bg-gradient-to-r to-transparent transition-opacity duration-100',
-            atStart && 'opacity-0',
-          )}
-        />
-        <div
-          aria-hidden
-          className="from-well pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l to-transparent"
-        />
+        <Fade side="left" visible={edges.left} />
+        <Fade side="right" visible={edges.right} />
       </div>
 
-      <div className="flex shrink-0 items-center gap-1">
-        <BarButton label="Copy command" disabled={placeholder}>
-          <Copy aria-hidden size={15} />
-        </BarButton>
-        <BarButton label="Edit command" disabled={placeholder}>
-          <Pencil aria-hidden size={15} />
-        </BarButton>
-      </div>
-
-      <button
-        type="button"
-        disabled={placeholder}
-        className={cn(
-          'text-body flex shrink-0 items-center gap-1.5 rounded-button px-4 py-2 font-medium',
-          'bg-accent text-white transition-opacity duration-100',
-          'disabled:cursor-not-allowed disabled:opacity-40',
-        )}
-      >
-        Run
-        <Play aria-hidden size={13} fill="currentColor" />
-      </button>
+      <CopyButton argv={argv} disabled={placeholder} />
+      <RunControl run={run} canRun={canRun && !placeholder} onRun={onRun} onCancel={onCancel} />
     </div>
   );
 }
 
-function BarButton({
-  label,
+function Fade({ side, visible }: { readonly side: 'left' | 'right'; readonly visible: boolean }) {
+  return (
+    <div
+      aria-hidden
+      className={cn(
+        'from-well pointer-events-none absolute inset-y-0 w-10 to-transparent transition-opacity duration-100',
+        side === 'left' ? 'left-0 bg-gradient-to-r' : 'right-0 bg-gradient-to-l',
+        visible ? 'opacity-100' : 'opacity-0',
+      )}
+    />
+  );
+}
+
+function CopyButton({
+  argv,
   disabled,
-  children,
 }: {
-  readonly label: string;
+  readonly argv: readonly string[];
   readonly disabled: boolean;
-  readonly children: React.ReactNode;
 }) {
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!copied) return undefined;
+    const timer = setTimeout(() => {
+      setCopied(false);
+    }, 1400);
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [copied]);
+
   return (
     <button
       type="button"
-      aria-label={label}
-      title={label}
+      aria-label={copied ? 'Command copied' : 'Copy command'}
+      title={copied ? 'Copied' : 'Copy command'}
       disabled={disabled}
+      onClick={() => {
+        // The full argv, including the real paths the bar abbreviates. What is
+        // copied has to be what runs, or the bar is decoration.
+        navigator.clipboard.writeText(commandToString(argv)).then(
+          () => {
+            setCopied(true);
+          },
+          () => {
+            // Clipboard permission can be refused outright. Saying nothing is
+            // better than a false tick claiming it was copied.
+            setCopied(false);
+          },
+        );
+      }}
       className={cn(
-        'text-token-binary rounded-button p-2 transition-colors duration-100',
+        'shrink-0 rounded-button p-2 transition-colors duration-100',
+        copied ? 'text-token-path' : 'text-token-binary',
         'hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent',
       )}
     >
-      {children}
+      {copied ? <Check aria-hidden size={15} /> : <Copy aria-hidden size={15} />}
     </button>
   );
+}
+
+/**
+ * The Run button *becomes* the progress bar, rather than a progress row
+ * appearing elsewhere and shifting the layout. The thing you pressed is the
+ * thing that reports.
+ *
+ * The label is drawn twice — once dark, clipped to the filled region, once light
+ * over the unfilled one. A single colour cannot work, because the text sits
+ * across the moving boundary and white on `--signal` is only 2.2:1.
+ */
+function RunControl({
+  run,
+  canRun,
+  onRun,
+  onCancel,
+}: {
+  readonly run: RunState;
+  readonly canRun: boolean;
+  readonly onRun: () => void;
+  readonly onCancel: () => void;
+}) {
+  if (run.status === 'running') {
+    const percent = Math.round(run.progress * 100);
+    const label = `${run.passCount > 1 ? `${run.passLabel} · ` : ''}${String(percent)}%  ${formatElapsed(run.elapsedMs)}`;
+    return (
+      <div className="flex shrink-0 items-center gap-1">
+        <div
+          className="bg-well relative overflow-hidden rounded-button border border-white/15"
+          role="progressbar"
+          aria-valuenow={percent}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label="Operation progress"
+        >
+          <div className="text-mono px-4 py-2 whitespace-nowrap text-white tabular-nums">
+            {label}
+          </div>
+          <div
+            className="bg-signal absolute inset-y-0 left-0 overflow-hidden transition-[width] duration-150"
+            style={{ width: `${String(percent)}%` }}
+          >
+            <div className="text-mono text-well px-4 py-2 whitespace-nowrap tabular-nums">
+              {label}
+            </div>
+          </div>
+        </div>
+        <button
+          type="button"
+          aria-label="Cancel"
+          title="Cancel"
+          onClick={onCancel}
+          className="text-token-binary shrink-0 rounded-button p-2 transition-colors duration-100 hover:bg-white/10"
+        >
+          <X aria-hidden size={15} />
+        </button>
+      </div>
+    );
+  }
+
+  if (run.status === 'done') {
+    return (
+      <a
+        href={downloadUrl(run.outputId)}
+        download={run.outputName}
+        className="text-body bg-token-path text-well flex shrink-0 items-center gap-1.5 rounded-button px-4 py-2 font-medium tabular-nums"
+      >
+        <Download aria-hidden size={14} />
+        {formatBytes(run.sizeBytes)}, {formatElapsed(run.elapsedMs)}
+      </a>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      disabled={!canRun}
+      onClick={onRun}
+      className={cn(
+        'text-body flex shrink-0 items-center gap-1.5 rounded-button px-4 py-2 font-medium',
+        'bg-accent text-white transition-opacity duration-100',
+        'disabled:cursor-not-allowed disabled:opacity-40',
+      )}
+    >
+      Run
+      <Play aria-hidden size={13} fill="currentColor" />
+    </button>
+  );
+}
+
+function formatElapsed(ms: number): string {
+  // A stream copy of a short clip genuinely finishes in tens of milliseconds.
+  // Rounding that to "0.0s" reads as a broken timer rather than a fast one.
+  if (ms < 1000) return `${String(Math.max(1, Math.round(ms)))}ms`;
+  const seconds = ms / 1000;
+  if (seconds < 60) return `${seconds.toFixed(1)}s`;
+  return `${String(Math.floor(seconds / 60))}m ${String(Math.round(seconds % 60))}s`;
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes >= 1_073_741_824) return `${(bytes / 1_073_741_824).toFixed(1)} GB`;
+  if (bytes >= 1_048_576) return `${(bytes / 1_048_576).toFixed(1)} MB`;
+  return `${(bytes / 1024).toFixed(0)} KB`;
 }

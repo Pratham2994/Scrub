@@ -8,62 +8,65 @@ export type LiveCommand = {
   readonly argv: readonly string[];
   /** True when this is the dimmed example, not a command anything can run. */
   readonly placeholder: boolean;
-  /** Set when the chosen operation has no argv yet. */
-  readonly unavailable: string | null;
+  /** The operation to send to /run, or null when there is nothing runnable. */
+  readonly operation: Operation | null;
+  /** Set when an operation is selected but has no argv yet. */
+  readonly unavailable: OperationKind | null;
 };
 
 /**
- * The command the bar shows.
+ * The command the bar shows, and the operation the Run button sends.
  *
- * There is no second code path here: this calls the same `buildArgs` the server
- * calls before it spawns. When nothing is loaded the bar falls back to the
- * dimmed example so the tool explains itself from the first second.
+ * Both come from here so they cannot describe different work: the argv is built
+ * from exactly the `Operation` that gets posted, and the server rebuilds it from
+ * that same value with the same function.
  */
 export function useCommand(kind: OperationKind | null): LiveCommand {
   const meta = useScrubStore((state) => state.meta);
   const uploadId = useScrubStore((state) => state.uploadId);
 
   return useMemo<LiveCommand>(() => {
-    if (!meta || !uploadId || !kind) {
-      return { argv: SAMPLE_ARGV, placeholder: true, unavailable: null };
-    }
+    const empty = {
+      argv: SAMPLE_ARGV,
+      placeholder: true,
+      operation: null,
+    } as const;
+
+    if (!meta || !uploadId || !kind) return { ...empty, unavailable: null };
 
     const op = defaultOperation(kind, meta.durationSec);
-    if (!op) {
-      return { argv: SAMPLE_ARGV, placeholder: true, unavailable: kind };
-    }
+    if (!op) return { ...empty, unavailable: kind };
 
     try {
       const plan = buildArgs(op, meta, {
         inputPath: meta.path,
-        // The server mints the real output id; the bar shows where it will land.
+        // The server mints the real output path; this mirrors its naming so the
+        // bar shows where the file will land.
         outputPath: outputPathFor(meta.path, kind),
         workDir: meta.path.replace(/[\\/][^\\/]+$/, ''),
       });
       const [first] = plan.passes;
-      if (!first) return { argv: SAMPLE_ARGV, placeholder: true, unavailable: kind };
-      return { argv: first.argv, placeholder: false, unavailable: null };
+      if (!first) return { ...empty, unavailable: kind };
+      return { argv: first.argv, placeholder: false, operation: op, unavailable: null };
     } catch (error) {
-      if (error instanceof NotImplemented) {
-        return { argv: SAMPLE_ARGV, placeholder: true, unavailable: kind };
-      }
+      if (error instanceof NotImplemented) return { ...empty, unavailable: kind };
       throw error;
     }
   }, [meta, uploadId, kind]);
 }
 
 /**
- * Starting parameters for each operation. These are what the controls will be
- * initialised to, so the bar shows a runnable command the moment an operation is
- * picked rather than an empty one waiting to be filled in.
+ * Starting parameters for each operation, so the bar shows a runnable command
+ * the moment an operation is picked rather than an empty one waiting to be
+ * filled in. Trim defaults to the whole clip.
  */
 function defaultOperation(kind: OperationKind, durationSec: number): Operation | null {
   switch (kind) {
     case 'trim':
       return { kind: 'trim', startSec: 0, endSec: durationSec, mode: 'fast' };
     default:
-      // Every other operation throws NotImplemented in buildArgs anyway; returning
-      // null here keeps that one fact in one place.
+      // Everything else throws NotImplemented in buildArgs anyway; returning null
+      // keeps that one fact in one place.
       return null;
   }
 }
