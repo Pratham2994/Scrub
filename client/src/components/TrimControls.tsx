@@ -1,6 +1,7 @@
 import { formatTimecode, type ProbeResult } from '@scrub/shared';
 import { useEffect, useRef } from 'react';
 
+import { Filmstrip } from '@/components/Filmstrip';
 import { cn } from '@/lib/utils';
 import { useScrubStore } from '@/store/use-scrub-store';
 
@@ -13,11 +14,12 @@ import { useScrubStore } from '@/store/use-scrub-store';
  * landing on an exact frame with a mouse is the thing Scrub exists to make less
  * painful.
  */
-export function TrimControls({ meta }: { readonly meta: ProbeResult }) {
+export function TrimControls({ id, meta }: { readonly id: string; readonly meta: ProbeResult }) {
   const trim = useScrubStore((state) => state.trim);
   const setTrim = useScrubStore((state) => state.setTrim);
 
   const duration = meta.durationSec;
+  const hasFrames = meta.video !== null;
   // A hair of separation, so the handles can never cross into an empty clip.
   const minGap = Math.min(0.1, duration / 100);
   const startPercent = (trim.startSec / duration) * 100;
@@ -25,30 +27,40 @@ export function TrimControls({ meta }: { readonly meta: ProbeResult }) {
 
   return (
     <div className="border-line bg-surface flex flex-col gap-4 rounded-control border p-4">
-      <div className="relative h-8">
-        {/* The track, with the kept region marked. */}
-        <div className="bg-line absolute inset-x-0 top-1/2 h-1.5 -translate-y-1/2 rounded-full" />
-        <div
-          className="bg-accent absolute top-1/2 h-1.5 -translate-y-1/2 rounded-full"
-          style={{ left: `${String(startPercent)}%`, right: `${String(100 - endPercent)}%` }}
+      {hasFrames ? (
+        <Filmstrip
+          id={id}
+          durationSec={duration}
+          startSec={trim.startSec}
+          endSec={trim.endSec}
+          onChange={setTrim}
         />
-        <RangeHandle
-          label="Start"
-          value={trim.startSec}
-          max={duration}
-          onChange={(value) => {
-            setTrim({ startSec: Math.min(value, trim.endSec - minGap) });
-          }}
-        />
-        <RangeHandle
-          label="End"
-          value={trim.endSec}
-          max={duration}
-          onChange={(value) => {
-            setTrim({ endSec: Math.max(value, trim.startSec + minGap) });
-          }}
-        />
-      </div>
+      ) : (
+        // Audio has no frames to show, so the range falls back to a plain track.
+        <div className="relative h-8">
+          <div className="bg-line absolute inset-x-0 top-1/2 h-1.5 -translate-y-1/2 rounded-full" />
+          <div
+            className="bg-accent absolute top-1/2 h-1.5 -translate-y-1/2 rounded-full"
+            style={{ left: `${String(startPercent)}%`, right: `${String(100 - endPercent)}%` }}
+          />
+          <RangeHandle
+            label="Start"
+            value={trim.startSec}
+            max={duration}
+            onChange={(value) => {
+              setTrim({ startSec: Math.min(value, trim.endSec - minGap) });
+            }}
+          />
+          <RangeHandle
+            label="End"
+            value={trim.endSec}
+            max={duration}
+            onChange={(value) => {
+              setTrim({ endSec: Math.max(value, trim.startSec + minGap) });
+            }}
+          />
+        </div>
+      )}
 
       <div className="flex flex-wrap items-end gap-6">
         <TimecodeField

@@ -9,6 +9,7 @@ import { Rail } from '@/components/Rail';
 import { SettingsPanel } from '@/components/SettingsPanel';
 import { useCommand } from '@/lib/use-command';
 import { useRun } from '@/lib/use-run';
+import { useShortcuts } from '@/lib/use-shortcuts';
 import { useRestoreUpload } from '@/lib/use-upload';
 import { useScrubStore } from '@/store/use-scrub-store';
 
@@ -55,6 +56,8 @@ export function AppShell({ children }: { readonly children: React.ReactNode }) {
 
   // Puts the workspace back after a reload, before anything renders an empty state.
   useRestoreUpload();
+  // Space, [ and ], and the arrows. See DESIGN.md's quality floor.
+  useShortcuts();
 
   return (
     <DropTarget>

@@ -1,5 +1,5 @@
 import { Monitor, Moon, Settings, Sun } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 
 import { fetchHealth, type HealthResponse } from '@/lib/api';
 import { type Theme, useTheme } from '@/lib/use-theme';
@@ -131,6 +131,27 @@ export function SettingsPanel() {
                 <code className="font-mono">npm run dev</code>.
               </p>
             )}
+          </div>
+
+          <hr className="border-line my-4" />
+
+          <div>
+            <p className="text-label text-muted mb-2">Keyboard</p>
+            <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+              {(
+                [
+                  ['Space', 'Play or pause'],
+                  ['[  ]', 'Set start / end here'],
+                  ['← →', 'Nudge one frame'],
+                  ['⇧ ← →', 'Nudge one second'],
+                ] as const
+              ).map(([keys, what]) => (
+                <Fragment key={keys}>
+                  <dt className="text-micro text-ink font-mono">{keys}</dt>
+                  <dd className="text-micro text-muted">{what}</dd>
+                </Fragment>
+              ))}
+            </dl>
           </div>
 
           <hr className="border-line my-4" />

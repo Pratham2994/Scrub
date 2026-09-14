@@ -2,6 +2,7 @@ import express, { type Express, type NextFunction, type Request, type Response }
 
 import type { FfmpegTools } from './ffmpeg/locate.js';
 import { downloadRouter } from './routes/download.js';
+import { filmstripRouter } from './routes/filmstrip.js';
 import type { ApiError } from './routes/errors.js';
 import { healthRouter } from './routes/health.js';
 import { metaRouter } from './routes/meta.js';
@@ -28,6 +29,7 @@ export function createApp(tools: FfmpegTools): Express {
   app.use(metaRouter());
   app.use(runRouter(tools));
   app.use(downloadRouter());
+  app.use(filmstripRouter(tools));
 
   app.use((_req, res) => {
     res.status(404).json({

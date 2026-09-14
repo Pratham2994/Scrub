@@ -2,6 +2,7 @@ import type { ProbeResult } from '@scrub/shared';
 import { useEffect, useRef, useState } from 'react';
 
 import { sourceUrl } from '@/lib/api';
+import { registerVideo } from '@/lib/playback';
 
 /**
  * Codecs a browser will reliably decode. Everything outside this list gets the
@@ -40,6 +41,7 @@ export function MediaWell({ id, meta }: MediaWellProps) {
   useEffect(
     () => () => {
       const element = videoRef.current;
+      registerVideo(null);
       if (!element) return;
       element.pause();
       element.removeAttribute('src');
@@ -89,12 +91,32 @@ export function MediaWell({ id, meta }: MediaWellProps) {
       {/* Letterboxed inside the well: `object-contain` so the frame is never
           cropped, and the well keeps its size so the layout does not jump. */}
       <video
-        ref={videoRef}
+        ref={(node) => {
+          videoRef.current = node;
+          // The filmstrip's playhead and the keyboard shortcuts both drive the
+          // element through this, rather than reaching across the component tree.
+          registerVideo(node);
+        }}
         key={id}
         src={sourceUrl(id)}
         controls
         playsInline
         preload="metadata"
+        onPointerUp={(event) => {
+          /**
+           * Hand keyboard focus back after a click.
+           *
+           * A focused `<video controls>` answers Space and the arrows from the
+           * browser's own shadow DOM, which the page cannot cancel — not even
+           * from a capture-phase listener. So clicking the picture silently
+           * changed what every shortcut did: Space stopped working and an arrow
+           * moved the native seek step instead of one frame.
+           *
+           * Only pointer focus is dropped. Someone who deliberately Tabs to the
+           * video still gets the native controls and their keys.
+           */
+          event.currentTarget.blur();
+        }}
         onError={() => {
           // The allowlist above catches the known cases; this catches the rest,
           // so an exotic codec degrades to the explanation instead of a void.

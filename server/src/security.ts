@@ -40,9 +40,9 @@ function deny(res: Response, reason: string): void {
  *
  * A few GETs are exempt, and the reason is mechanical rather than a relaxation:
  * the browser APIs that reach them cannot set a request header at all.
- * `<video src>` and `<a download>` cannot, and neither can `EventSource` — so
- * requiring one would make the preview, the download and the progress stream
- * impossible rather than secure.
+ * `<video src>`, `<img src>` and `<a download>` cannot, and neither can
+ * `EventSource` — so requiring one would make the preview, the filmstrip, the
+ * download and the progress stream impossible rather than secure.
  *
  * Every exempt route is side-effect free and needs an unguessable uuid, and the
  * Host and Origin checks above still apply to all of them. Everything that
@@ -52,7 +52,7 @@ function deny(res: Response, reason: string): void {
 function requiresClientHeader(method: string, path: string): boolean {
   if (method !== 'GET') return true;
   if (path === '/health') return false;
-  if (/^\/(source|download)\//.test(path)) return false;
+  if (/^\/(source|download|filmstrip)\//.test(path)) return false;
   // The SSE progress stream, opened by EventSource.
   return !/^\/run\/[^/]+\/events$/.test(path);
 }

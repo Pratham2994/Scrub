@@ -52,7 +52,7 @@ export function OperationPanel() {
         />
       )}
 
-      {hasFile && kind === 'trim' && <TrimControls meta={meta} />}
+      {hasFile && kind === 'trim' && <TrimControls id={uploadId} meta={meta} />}
 
       <div className="border-line bg-surface rounded-control border p-4">
         {run.status === 'failed' ? (

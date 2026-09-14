@@ -109,6 +109,11 @@ export function sourceUrl(id: string): string {
   return `${BASE}/source/${id}`;
 }
 
+/** The timeline's frames, as one image. Loaded by an <img>, so no header. */
+export function filmstripUrl(id: string): string {
+  return `${BASE}/filmstrip/${id}`;
+}
+
 export function downloadUrl(id: string): string {
   return `${BASE}/download/${id}`;
 }
