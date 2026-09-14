@@ -34,7 +34,7 @@ export function Rail() {
             <div aria-hidden className="bg-line mx-2 w-px shrink-0 self-stretch workspace:hidden" />
           )}
           <div className="flex shrink-0 items-center gap-1 workspace:mb-5 workspace:block workspace:last:mb-0">
-            <h2 className="text-muted text-micro shrink-0 pr-1 workspace:px-2 workspace:pr-0 workspace:pb-2">
+            <h2 className="text-label text-ink shrink-0 pr-1 font-medium workspace:px-2 workspace:pr-0 workspace:pb-2">
               {group.label}
             </h2>
             {OPERATIONS.filter((op) => op.group === group.id).map((op) => (

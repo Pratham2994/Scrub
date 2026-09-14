@@ -13,14 +13,15 @@ The bold element is the **command bar**: a full-width dark strip fixed to the bo
 ### Colour
 
 ```
---paper     #F1F2F4   app background, cool grey, not cream
---surface   #FFFFFF   panels, controls
---line      #DFE1E5   hairlines and control borders
---ink       #14161A   primary text
---muted     #5E646E   labels, secondary text
---well      #0E1013   video well, command bar
---accent    #3A4FE0   interactive, focus rings, the Run button
---signal    #E8A33D   running state only, nothing else
+--paper        #E3E6EB   app background, cool grey, never white or cream
+--surface      #FFFFFF   panels, controls — white is for surfaces, not the app
+--line         #C6CBD2   hairlines
+--line-strong  #8E949E   control borders and the dropzone outline (3:1 on white)
+--ink          #14161A   primary text
+--muted        #5E646E   labels, secondary text
+--well         #0E1013   video well, command bar
+--accent       #3A4FE0   interactive, focus rings, the Run button
+--signal       #E8A33D   running state only, nothing else
 ```
 
 Warm cream with a terracotta accent is the current default look for generated interfaces. So is near-black with one acid-green accent. Neither is used here. The palette is cool and neutral because the picture in the well is the only thing that should carry colour, and a warm chrome would shift how you read it.
@@ -80,7 +81,7 @@ One workspace. Left rail of operations, centre well, fixed command bar. Left ali
 └──────────┴───────────────────────────────────────────┘
 ```
 
-Rail: 180px, labels only, no icons. Ten operations with icons would mean ten icons that each half-describe a verb, and "compress" has no good glyph. Words are unambiguous and this audience reads.
+Rail: 180px, labels only, no icons. Eleven operations with icons would mean eleven icons that each half-describe a verb, and "compress" has no good glyph. Words are unambiguous and this audience reads. The Video/Audio group headings sit at label size in ink, medium weight — they are structure, not decoration.
 
 Well: `--well` background, 6px radius, and the video letterboxed inside it. The well keeps its size when the operation changes so the layout does not jump.
 
@@ -114,7 +115,7 @@ Operation names are verbs the user already has in their head: Trim, Compress, Co
 
 Button says what happens and the result echoes it. "Run" produces "Done — 4.2 MB, 12s". Never "Submit", never "Processing…".
 
-Empty state: `Drop a video or audio file` on `--paper`, dashed `--line` border, plus one line of `--muted` micro text listing what it can do. An empty screen is an invitation, not a mood.
+Empty state: `Drop a video or audio file` on `--paper`, dashed `--line-strong` border, plus one line of `--muted` micro text listing what it can do. An empty screen is an invitation, not a mood.
 
 Errors are specific and never apologise. If ffmpeg fails, the message is what it printed, in mono, with the exit code. If preview is unavailable because the source is HEVC: `Preview unavailable — this file is HEVC, which browsers can't decode. Trimming still works; the timecode fields are exact.` The user needs to know that the tool is not broken.
 
