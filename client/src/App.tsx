@@ -1,16 +1,16 @@
 import { Route, Routes } from 'react-router';
 
 import { AppShell } from '@/components/AppShell';
-import { EmptyState } from '@/routes/EmptyState';
+import { Home } from '@/routes/Home';
 import { OperationPanel } from '@/routes/OperationPanel';
 
 export function App() {
   return (
     <AppShell>
       <Routes>
-        <Route path="/" element={<EmptyState />} />
+        <Route path="/" element={<Home />} />
         <Route path="/op/:name" element={<OperationPanel />} />
-        <Route path="*" element={<EmptyState />} />
+        <Route path="*" element={<Home />} />
       </Routes>
     </AppShell>
   );

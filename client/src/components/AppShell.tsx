@@ -4,6 +4,7 @@ import { Link } from 'react-router';
 import { formatTimecode, type LintContext, type ProbeResult } from '@scrub/shared';
 
 import { CommandBar } from '@/components/CommandBar';
+import { DropTarget } from '@/components/DropTarget';
 import { Rail } from '@/components/Rail';
 import { SettingsPanel } from '@/components/SettingsPanel';
 import { useCommand } from '@/lib/use-command';
@@ -56,86 +57,88 @@ export function AppShell({ children }: { readonly children: React.ReactNode }) {
   useRestoreUpload();
 
   return (
-    // `grid-cols-[minmax(0,1fr)]` is load-bearing: a grid's implicit column is
-    // `auto`, which resolves to max-content, so without it the rail's row of
-    // operations sets the width of the whole page and the body scrolls sideways.
-    <div className="grid h-full grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)_auto]">
-      <header className="border-line bg-paper flex items-center gap-4 border-b px-4 py-3">
-        <Link
-          to="/"
-          className="text-heading text-ink flex items-center gap-2 rounded-button font-semibold"
-        >
-          {/* The favicon mark: a filmstrip with the accent cursor bar. Small enough
-              to be a signature, real enough not to be decoration — it is the tool. */}
-          <svg aria-hidden width="16" height="16" viewBox="0 0 32 32">
-            <rect width="32" height="32" rx="6" fill="var(--color-well)" />
-            <rect
-              x="6"
-              y="12"
-              width="4"
-              height="8"
-              rx="1"
-              fill="var(--color-token-binary)"
-              opacity="0.45"
-            />
-            <rect
-              x="12"
-              y="12"
-              width="4"
-              height="8"
-              rx="1"
-              fill="var(--color-token-binary)"
-              opacity="0.45"
-            />
-            <rect
-              x="22"
-              y="12"
-              width="4"
-              height="8"
-              rx="1"
-              fill="var(--color-token-binary)"
-              opacity="0.45"
-            />
-            <rect x="19" y="6" width="2" height="20" rx="1" fill="var(--color-accent)" />
-          </svg>
-          Scrub
-        </Link>
-        <div className="min-w-0 flex-1 text-center">
-          {meta ? (
-            <>
-              <p className="text-body text-ink truncate">{meta.displayName}</p>
-              <p className="text-micro text-muted truncate tabular-nums">{summarise(meta)}</p>
-            </>
-          ) : (
-            <p className="text-label text-muted truncate">No file loaded</p>
-          )}
-        </div>
-        {meta && (
-          <button
-            type="button"
-            onClick={clearFile}
-            className="text-label text-muted hover:text-ink hover:bg-surface shrink-0 rounded-button px-2 py-1.5 transition-colors duration-100"
+    <DropTarget>
+      {/* `grid-cols-[minmax(0,1fr)]` is load-bearing: a grid's implicit column is
+        `auto`, which resolves to max-content, so without it the rail's row of
+        operations sets the width of the whole page and the body scrolls sideways. */}
+      <div className="grid h-full grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)_auto]">
+        <header className="border-line bg-paper flex items-center gap-4 border-b px-4 py-3">
+          <Link
+            to="/"
+            className="text-heading text-ink flex items-center gap-2 rounded-button font-semibold"
           >
-            Close file
-          </button>
-        )}
-        <SettingsPanel />
-      </header>
+            {/* The favicon mark: a filmstrip with the accent cursor bar. Small enough
+              to be a signature, real enough not to be decoration — it is the tool. */}
+            <svg aria-hidden width="16" height="16" viewBox="0 0 32 32">
+              <rect width="32" height="32" rx="6" fill="var(--color-well)" />
+              <rect
+                x="6"
+                y="12"
+                width="4"
+                height="8"
+                rx="1"
+                fill="var(--color-token-binary)"
+                opacity="0.45"
+              />
+              <rect
+                x="12"
+                y="12"
+                width="4"
+                height="8"
+                rx="1"
+                fill="var(--color-token-binary)"
+                opacity="0.45"
+              />
+              <rect
+                x="22"
+                y="12"
+                width="4"
+                height="8"
+                rx="1"
+                fill="var(--color-token-binary)"
+                opacity="0.45"
+              />
+              <rect x="19" y="6" width="2" height="20" rx="1" fill="var(--color-accent)" />
+            </svg>
+            Scrub
+          </Link>
+          <div className="min-w-0 flex-1 text-center">
+            {meta ? (
+              <>
+                <p className="text-body text-ink truncate">{meta.displayName}</p>
+                <p className="text-micro text-muted truncate tabular-nums">{summarise(meta)}</p>
+              </>
+            ) : (
+              <p className="text-label text-muted truncate">No file loaded</p>
+            )}
+          </div>
+          {meta && (
+            <button
+              type="button"
+              onClick={clearFile}
+              className="text-label text-muted hover:text-ink hover:bg-surface shrink-0 rounded-button px-2 py-1.5 transition-colors duration-100"
+            >
+              Close file
+            </button>
+          )}
+          <SettingsPanel />
+        </header>
 
-      <div className="grid min-h-0 grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)] workspace:grid-cols-[var(--spacing-rail)_minmax(0,1fr)] workspace:grid-rows-1">
-        <Rail />
-        <main className="min-h-0 overflow-auto p-6">{children}</main>
+        <div className="grid min-h-0 grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)] workspace:grid-cols-[var(--spacing-rail)_minmax(0,1fr)] workspace:grid-rows-1">
+          <Rail />
+          <main className="min-h-0 overflow-auto p-6">{children}</main>
+        </div>
+
+        <CommandBar
+          argv={command.argv}
+          placeholder={command.placeholder}
+          run={run}
+          canRun={command.operation !== null}
+          lintContext={lintContext}
+          onRun={start}
+          onCancel={cancel}
+        />
       </div>
-
-      <CommandBar
-        argv={command.argv}
-        placeholder={command.placeholder}
-        run={run}
-        canRun={command.operation !== null}
-        lintContext={lintContext}
-        onRun={start}
-        onCancel={cancel}
-      />
-    </div>
+    </DropTarget>
   );
 }

@@ -40,7 +40,20 @@ export function useCommand(kind: OperationKind | null): LiveCommand {
       operation: null,
     } as const;
 
-    if (!meta || !uploadId || !kind) return { ...empty, unavailable: null };
+    if (!meta || !uploadId) return { ...empty, unavailable: null };
+
+    if (!kind) {
+      // A file is loaded but no operation is chosen yet. Showing the example
+      // about someone else's holiday clip here is the one moment it actively
+      // misleads — the user has just uploaded and is looking for proof it
+      // worked. Their own file, dimmed, says so.
+      return {
+        argv: skeletonArgv(meta.path, outputPathFor(meta.path, 'convert')),
+        placeholder: true,
+        operation: null,
+        unavailable: null,
+      };
+    }
 
     const op = operationFor(kind, trim);
     if (!op) {

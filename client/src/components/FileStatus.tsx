@@ -1,12 +1,20 @@
 import { Dropzone } from '@/components/Dropzone';
 import { useScrubStore } from '@/store/use-scrub-store';
 
+type FileStatusProps = {
+  readonly headline: string;
+  readonly hint: string;
+};
+
 /**
- * An empty screen is an invitation, not a mood. The one place in Scrub with
- * centred text, and the only place the dropzone is the whole surface rather than
- * the well.
+ * What the centre panel shows when no file is loaded yet.
+ *
+ * Both routes render this rather than each deciding for itself. When they did
+ * decide separately, `/op/:name` fell back to the dropzone mid-upload and threw
+ * the progress away — you dropped a file and the screen looked like it had not
+ * noticed.
  */
-export function EmptyState() {
+export function FileStatus({ headline, hint }: FileStatusProps) {
   const load = useScrubStore((state) => state.load);
 
   if (load.status === 'restoring') {
@@ -20,7 +28,7 @@ export function EmptyState() {
   if (load.status === 'uploading') {
     return (
       <Frame>
-        <p className="text-display text-ink">{load.fileName}</p>
+        <p className="text-display text-ink max-w-full truncate">{load.fileName}</p>
         <p className="text-label text-muted tabular-nums">
           Copying into Scrub — {Math.round(load.progress * 100)}%
         </p>
@@ -34,12 +42,7 @@ export function EmptyState() {
     );
   }
 
-  return (
-    <Dropzone
-      headline="Drop a video or audio file"
-      hint="Trim, compress, convert, resize, make a GIF, extract or replace audio, or normalise loudness. The exact ffmpeg command is shown before anything runs."
-    />
-  );
+  return <Dropzone headline={headline} hint={hint} />;
 }
 
 function Frame({ children }: { readonly children: React.ReactNode }) {

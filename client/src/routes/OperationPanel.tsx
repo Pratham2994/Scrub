@@ -2,7 +2,7 @@ import { isOperationKind, operationDescriptor } from '@scrub/shared';
 import { useEffect } from 'react';
 import { Navigate, useParams } from 'react-router';
 
-import { Dropzone } from '@/components/Dropzone';
+import { FileStatus } from '@/components/FileStatus';
 import { MediaWell } from '@/components/MediaWell';
 import { TrimControls } from '@/components/TrimControls';
 import { useScrubStore } from '@/store/use-scrub-store';
@@ -16,7 +16,6 @@ export function OperationPanel() {
   const { name } = useParams();
   const meta = useScrubStore((state) => state.meta);
   const uploadId = useScrubStore((state) => state.uploadId);
-  const load = useScrubStore((state) => state.load);
   const run = useScrubStore((state) => state.run);
   const setActiveOperation = useScrubStore((state) => state.setActiveOperation);
 
@@ -42,16 +41,12 @@ export function OperationPanel() {
 
       {hasFile ? (
         <MediaWell id={uploadId} meta={meta} />
-      ) : load.status === 'restoring' ? (
-        <div className="bg-well border-well-edge flex min-h-48 flex-1 items-center justify-center rounded-well border">
-          <p className="text-label text-token-transport">Looking for the file you had open…</p>
-        </div>
       ) : (
         // Landing here from a bookmark or a reload with nothing loaded used to be
         // a dead end that just said "No file loaded". The way forward has to be
         // on the screen the user actually arrived at — and at the same size as on
         // the home page, because it is the same invitation.
-        <Dropzone
+        <FileStatus
           headline={`Drop a file to ${descriptor.label.toLowerCase()}`}
           hint="Nothing is loaded yet. Drop a video or audio file here, or choose one. Trim, compress, convert, resize, GIF, extract or replace audio, or normalise loudness."
         />
