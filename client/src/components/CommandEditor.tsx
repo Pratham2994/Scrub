@@ -120,7 +120,7 @@ export function CommandEditor({ text, onTextChange, result }: CommandEditorProps
           }}
           className="text-micro text-token-transport self-start hover:text-token-binary"
         >
-          {hidden} more — hide all
+          {hidden} more. Hide all
         </button>
       )}
     </div>

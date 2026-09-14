@@ -105,8 +105,8 @@ export function SettingsPanel() {
               ))}
             </div>
             <p className="text-micro text-muted mt-2">
-              Light is the default — Scrub is a utility you open for a minute, not a suite you sit
-              in. The video well stays the darkest thing on screen either way.
+              Light is the default, because Scrub is a utility you open for a minute rather than a
+              suite you sit in. The video well stays the darkest thing on screen either way.
             </p>
           </fieldset>
 

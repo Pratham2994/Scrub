@@ -93,9 +93,15 @@ test.describe('the command bar', () => {
     await loadFixture(page);
 
     expect(await commandText(page)).toContain('-crf 23');
-    await page.getByLabel('Quality (CRF) value').fill('31');
-    await page.getByLabel('Quality (CRF) value').blur();
+
+    // The displayed value is typeable, not only draggable.
+    const quality = page.getByLabel('Quality value');
+    await quality.fill('31');
+    await quality.blur();
     await expect.poll(async () => await commandText(page)).toContain('-crf 31');
+
+    // And the readout says what the setting does to this file.
+    await expect(page.getByText(/percent|depends on the picture/)).toBeVisible();
   });
 
   test('shows every pass of a two-pass operation', async ({ page }) => {
@@ -159,11 +165,12 @@ test.describe('running an operation', () => {
 
     await page.getByRole('button', { name: 'Run' }).click();
 
-    const download = page.locator('a[download]');
-    await expect(download).toBeVisible({ timeout: 60_000 });
-    // The chip reports what was actually produced.
-    await expect(download).toContainText(/KB|MB/);
-    await expect(download).toHaveAttribute('download', /clip-trim\.mp4/);
+    // The result panel takes over the well and owns saving the file.
+    const save = page.getByRole('link', { name: 'Save' });
+    await expect(save).toBeVisible({ timeout: 60_000 });
+    await expect(save).toHaveAttribute('download', /clip-trim\.mp4/);
+    // What was actually produced, next to what it came from.
+    await expect(page.getByRole('button', { name: 'Original' })).toBeVisible();
   });
 
   test('makes a GIF through both passes', async ({ page }) => {
@@ -171,9 +178,11 @@ test.describe('running an operation', () => {
     await loadFixture(page);
 
     await page.getByRole('button', { name: 'Run' }).click();
-    const download = page.locator('a[download]');
-    await expect(download).toBeVisible({ timeout: 90_000 });
-    await expect(download).toHaveAttribute('download', /\.gif$/);
+    const save = page.getByRole('link', { name: 'Save' });
+    await expect(save).toBeVisible({ timeout: 90_000 });
+    await expect(save).toHaveAttribute('download', /\.gif$/);
+    // A GIF is a picture, so the result is shown as one rather than in a player.
+    await expect(page.getByRole('img', { name: /Scrub produced/ })).toBeVisible();
   });
 
   test("surfaces ffmpeg's own words when a command fails", async ({ page }) => {

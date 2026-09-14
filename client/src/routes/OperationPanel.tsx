@@ -5,6 +5,7 @@ import { Navigate, useParams } from 'react-router';
 import { FileStatus } from '@/components/FileStatus';
 import { MediaWell } from '@/components/MediaWell';
 import { OperationControls } from '@/components/OperationControls';
+import { ResultWell } from '@/components/ResultWell';
 import { useScrubStore } from '@/store/use-scrub-store';
 
 /**
@@ -18,6 +19,7 @@ export function OperationPanel() {
   const uploadId = useScrubStore((state) => state.uploadId);
   const run = useScrubStore((state) => state.run);
   const setActiveOperation = useScrubStore((state) => state.setActiveOperation);
+  const setRun = useScrubStore((state) => state.setRun);
 
   const kind = name !== undefined && isOperationKind(name) ? name : null;
 
@@ -39,7 +41,24 @@ export function OperationPanel() {
         <p className="text-micro text-muted mt-0.5">{descriptor.blurb}</p>
       </div>
 
-      {hasFile ? (
+      {hasFile && run.status === 'done' ? (
+        /**
+         * The run finished, so the well shows what was made rather than what it
+         * was made from. Ending at a download chip left the only way to check
+         * the result as opening it somewhere else.
+         */
+        <ResultWell
+          sourceId={uploadId}
+          outputId={run.outputId}
+          outputName={run.outputName}
+          sizeBytes={run.sizeBytes}
+          elapsedMs={run.elapsedMs}
+          sourceBytes={meta.sizeBytes}
+          onDismiss={() => {
+            setRun({ status: 'idle' });
+          }}
+        />
+      ) : hasFile ? (
         <MediaWell id={uploadId} meta={meta} />
       ) : (
         // Landing here from a bookmark or a reload with nothing loaded used to be
@@ -67,8 +86,8 @@ export function OperationPanel() {
         ) : run.status === 'cancelled' ? (
           <p className="text-label text-muted">Cancelled. Nothing was written.</p>
         ) : run.status === 'done' ? (
-          <p className="text-label text-ink">
-            Done — {run.outputName}. Use the button in the command bar to save it.
+          <p className="text-label text-muted">
+            Compare the result with the original above, then save it or adjust and run again.
           </p>
         ) : (
           <p className="text-label text-muted">

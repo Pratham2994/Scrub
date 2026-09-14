@@ -59,7 +59,7 @@ export function MediaWell({ id, meta }: MediaWellProps) {
       <Well>
         <div className="max-w-md px-6 text-center">
           <p className="text-label text-token-binary">
-            Preview unavailable — this file is {meta.video.codec.toUpperCase()}, which browsers
+            Preview unavailable. This file is {meta.video.codec.toUpperCase()}, which browsers
             can&apos;t decode.
           </p>
           <p className="text-micro text-token-transport mt-1">

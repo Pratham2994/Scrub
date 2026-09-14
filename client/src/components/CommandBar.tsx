@@ -1,10 +1,9 @@
 import { formatCommandLine, type LintContext } from '@scrub/shared';
-import { Check, Copy, Download, Pencil, Play, X } from 'lucide-react';
+import { Check, Copy, Pencil, Play, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { analyse, CommandEditor, hasBlockingError } from '@/components/CommandEditor';
 import { commandToString, type CommandToken, tokenizeCommand } from '@/lib/command-tokens';
-import { downloadUrl } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import type { CommandPassView } from '@/lib/use-command';
 import type { RunState } from '@/store/use-scrub-store';
@@ -391,18 +390,12 @@ function RunControl({
     );
   }
 
-  if (run.status === 'done') {
-    return (
-      <a
-        href={downloadUrl(run.outputId)}
-        download={run.outputName}
-        className="text-body bg-token-path text-well flex shrink-0 items-center gap-1.5 rounded-button px-4 py-2 font-medium tabular-nums"
-      >
-        <Download aria-hidden size={14} />
-        {formatBytes(run.sizeBytes)}, {formatElapsed(run.elapsedMs)}
-      </a>
-    );
-  }
+  /**
+   * A finished run is reported by the result panel above, which shows what was
+   * made and offers to save it. Repeating the download here put two Save
+   * buttons on screen for one file, so the bar simply returns to Run: adjust
+   * something and go again.
+   */
 
   return (
     <button
@@ -428,10 +421,4 @@ function formatElapsed(ms: number): string {
   const seconds = ms / 1000;
   if (seconds < 60) return `${seconds.toFixed(1)}s`;
   return `${String(Math.floor(seconds / 60))}m ${String(Math.round(seconds % 60))}s`;
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes >= 1_073_741_824) return `${(bytes / 1_073_741_824).toFixed(1)} GB`;
-  if (bytes >= 1_048_576) return `${(bytes / 1_048_576).toFixed(1)} MB`;
-  return `${(bytes / 1024).toFixed(0)} KB`;
 }

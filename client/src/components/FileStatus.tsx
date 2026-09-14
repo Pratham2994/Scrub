@@ -30,7 +30,7 @@ export function FileStatus({ headline, hint }: FileStatusProps) {
       <Frame>
         <p className="text-display text-ink max-w-full truncate">{load.fileName}</p>
         <p className="text-label text-muted tabular-nums">
-          Copying into Scrub — {Math.round(load.progress * 100)}%
+          Copying into Scrub, {Math.round(load.progress * 100)}%
         </p>
         <div className="bg-line mt-2 h-1 w-64 overflow-hidden rounded-full">
           <div
