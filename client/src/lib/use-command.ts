@@ -99,6 +99,14 @@ export function useCommand(kind: OperationKind | null): LiveCommand {
         // bar shows where the file will land.
         outputPath: outputPathFor(meta.path, kind),
         workDir: meta.path.replace(/[\\/][^\\/]+$/, ''),
+        /**
+         * Only replace-audio takes a second input, and only once a track has
+         * been chosen. Without it the preview threw and Run stayed disabled
+         * even though the file was right there on screen.
+         */
+        ...(params.replaceAudio.audioPath === null
+          ? {}
+          : { secondaryInputPath: params.replaceAudio.audioPath }),
       });
       const passes = plan.passes.map((pass) => ({ argv: pass.argv, label: pass.label }));
       const [first] = passes;
@@ -162,8 +170,7 @@ function operationFor(
     case 'mute':
       return { kind };
     case 'replace-audio':
-      // Needs a second upload, which Scrub cannot hold yet. Returning null puts
-      // the editable command bar in charge, which is what it is for.
+      // Nothing to run until the replacement track has been chosen.
       return params.replaceAudio.audioId === null
         ? null
         : { kind, audioId: params.replaceAudio.audioId };

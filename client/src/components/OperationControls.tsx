@@ -1,6 +1,16 @@
-import type { AudioFormat, OperationKind, ProbeResult, VideoContainer } from '@scrub/shared';
+import {
+  type AudioFormat,
+  formatTimecode as formatSeconds,
+  type OperationKind,
+  type ProbeResult,
+  type VideoContainer,
+} from '@scrub/shared';
+
+import { useRef, useState } from 'react';
 
 import { Choice, Note, NumberField, Panel, Readout, Row } from '@/components/controls/Field';
+import { ApiError, uploadFile } from '@/lib/api';
+import { cn } from '@/lib/utils';
 import { Filmstrip } from '@/components/Filmstrip';
 import { TrimControls } from '@/components/TrimControls';
 import { useScrubStore } from '@/store/use-scrub-store';
@@ -40,7 +50,7 @@ export function OperationControls({
     case 'mute':
       return <Mute meta={meta} />;
     case 'replace-audio':
-      return <ReplaceAudio />;
+      return <ReplaceAudio meta={meta} />;
     case 'audio-convert':
       return <AudioConvert meta={meta} />;
     case 'audio-trim':
@@ -440,13 +450,134 @@ function Mute({ meta }: { readonly meta: ProbeResult }) {
   );
 }
 
-function ReplaceAudio() {
+function ReplaceAudio({ meta }: { readonly meta: ProbeResult }) {
+  const replacement = useScrubStore((state) => state.params.replaceAudio);
+  const setParams = useScrubStore((state) => state.setParams);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [over, setOver] = useState(false);
+
+  const accept = (file: File | undefined | null): void => {
+    if (!file) return;
+    setParams('replaceAudio', { status: 'loading', error: null, audioName: file.name });
+    uploadFile(file, () => undefined)
+      .then((result) => {
+        if (result.meta.audio === null) {
+          setParams('replaceAudio', {
+            status: 'failed',
+            error: 'That file has no audio track in it.',
+            audioId: null,
+          });
+          return;
+        }
+        setParams('replaceAudio', {
+          status: 'idle',
+          error: null,
+          audioId: result.id,
+          audioName: result.meta.displayName,
+          audioPath: result.meta.path,
+          durationSec: result.meta.durationSec,
+        });
+      })
+      .catch((error: unknown) => {
+        setParams('replaceAudio', {
+          status: 'failed',
+          error: error instanceof ApiError ? error.message : 'That file could not be read.',
+          audioId: null,
+        });
+      });
+  };
+
+  const chosen = replacement.audioId !== null;
+  const shorter =
+    chosen && replacement.durationSec !== null && replacement.durationSec < meta.durationSec;
+
   return (
     <Panel>
+      <div>
+        <p className="text-micro text-muted mb-2 tracking-wide">The sound to use</p>
+        <div
+          onClick={() => inputRef.current?.click()}
+          onDragOver={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            setOver(true);
+          }}
+          onDragLeave={() => {
+            setOver(false);
+          }}
+          onDrop={(event) => {
+            event.preventDefault();
+            // The window-wide drop target would otherwise replace the video.
+            event.stopPropagation();
+            setOver(false);
+            accept(event.dataTransfer.files[0]);
+          }}
+          className={cn(
+            'flex cursor-pointer flex-col items-center gap-1 rounded-control border border-dashed px-6 py-8 text-center transition-colors duration-100',
+            over ? 'border-accent bg-accent/[0.06]' : 'border-line-strong',
+          )}
+        >
+          {replacement.status === 'loading' ? (
+            <p className="text-body text-ink">Loading {replacement.audioName}</p>
+          ) : chosen ? (
+            <>
+              <p className="text-body text-ink font-mono">{replacement.audioName}</p>
+              <p className="text-micro text-muted">Click or drop another to change it.</p>
+            </>
+          ) : (
+            <>
+              <p className="text-body text-ink">Drop an audio or video file</p>
+              <p className="text-micro text-muted">
+                Its sound replaces the sound on your video. Anything with an audio track works.
+              </p>
+            </>
+          )}
+          {replacement.error !== null && (
+            <p className="text-micro text-accent mt-1">{replacement.error}</p>
+          )}
+        </div>
+        <input
+          ref={inputRef}
+          type="file"
+          accept="audio/*,video/*"
+          className="hidden"
+          onChange={(event) => {
+            accept(event.target.files?.[0]);
+            event.target.value = '';
+          }}
+        />
+      </div>
+
+      <Readout
+        lines={[
+          {
+            label: 'Picture',
+            from: meta.video?.codec ?? 'none',
+            to: `${meta.video?.codec ?? 'none'}, copied`,
+          },
+          {
+            label: 'Sound',
+            from: meta.audio?.codec ?? 'none',
+            to: chosen
+              ? `${replacement.audioName ?? 'the new track'}, as aac`
+              : 'nothing chosen yet',
+          },
+          {
+            label: 'Length',
+            from: formatSeconds(meta.durationSec),
+            to: chosen
+              ? formatSeconds(Math.min(meta.durationSec, replacement.durationSec ?? Infinity))
+              : formatSeconds(meta.durationSec),
+          },
+        ]}
+      />
+
       <Note>
-        Replacing audio needs a second file, and Scrub can only hold one at a time so far. The
-        command bar below is already set up for it: it takes the picture from the first input and
-        the sound from the second. Point that second input at the file you want, then press Run.
+        The picture is copied across untouched and only the sound is encoded. The result ends when
+        the shorter of the two runs out.{' '}
+        {shorter
+          ? 'The track you chose is shorter than the video, so the video will be cut to match it.'
+          : 'Your track is at least as long as the video, so the whole picture is kept.'}
       </Note>
     </Panel>
   );

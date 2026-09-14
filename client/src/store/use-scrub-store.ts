@@ -92,7 +92,22 @@ export type OperationParams = {
     readonly useRange: boolean;
   };
   readonly extractAudio: { readonly format: AudioFormat };
-  readonly replaceAudio: { readonly audioId: string | null; readonly audioName: string | null };
+  readonly replaceAudio: {
+    readonly audioId: string | null;
+    readonly audioName: string | null;
+    /**
+     * The replacement's path on the server.
+     *
+     * The command bar builds its preview with the same buildArgs the server
+     * uses, and that needs both inputs. Without the second path the preview
+     * threw and Run stayed disabled even though the file was chosen.
+     */
+    readonly audioPath: string | null;
+    readonly durationSec: number | null;
+    /** Set while the second file is being uploaded, or when it failed. */
+    readonly status: 'idle' | 'loading' | 'failed';
+    readonly error: string | null;
+  };
   readonly audioConvert: { readonly format: AudioFormat; readonly bitrateKbps: number | null };
   readonly loudness: {
     readonly targetI: number;
@@ -107,7 +122,14 @@ const DEFAULT_PARAMS: OperationParams = {
   resize: { width: 1280 },
   gif: { fps: 12, width: 480, useRange: true },
   extractAudio: { format: 'mp3' },
-  replaceAudio: { audioId: null, audioName: null },
+  replaceAudio: {
+    audioId: null,
+    audioName: null,
+    audioPath: null,
+    durationSec: null,
+    status: 'idle',
+    error: null,
+  },
   audioConvert: { format: 'mp3', bitrateKbps: 192 },
   loudness: { targetI: -16, targetTP: -1.5, targetLRA: 11 },
 };
@@ -197,7 +219,14 @@ export const useScrubStore = create<ScrubState>()((set) => ({
       params: {
         ...DEFAULT_PARAMS,
         resize: { width: evenWidth(meta.video?.width ?? 1280) },
-        replaceAudio: { audioId: null, audioName: null },
+        replaceAudio: {
+          audioId: null,
+          audioName: null,
+          audioPath: null,
+          durationSec: null,
+          status: 'idle',
+          error: null,
+        },
       },
     });
   },
