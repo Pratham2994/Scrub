@@ -251,3 +251,29 @@
 @utility token-change {
   animation: scrub-token-change 120ms ease-out;
 }
+
+/**
+ * A pass ffmpeg cannot report a fraction for. The band crosses the button and
+ * starts again; it never suggests a position, because there is none to suggest.
+ *
+ * Reduced motion keeps the fade and drops the travel, which still reads as
+ * working — see the opacity-only exemption above.
+ */
+@keyframes scrub-pass-working {
+  0% {
+    left: -33%;
+    opacity: 0;
+  }
+  20%,
+  80% {
+    opacity: 1;
+  }
+  100% {
+    left: 100%;
+    opacity: 0;
+  }
+}
+
+@theme {
+  --animate-pass-working: scrub-pass-working 1.4s ease-in-out infinite;
+}

@@ -171,9 +171,34 @@ test.describe('running an operation', () => {
     // The result panel takes over the well and owns saving the file.
     const save = page.getByRole('link', { name: 'Save' });
     await expect(save).toBeVisible({ timeout: 60_000 });
-    await expect(save).toHaveAttribute('download', /clip-trim\.mp4/);
+    // The range is in the name, so a second trim of the same clip does not land
+    // in the downloads folder as `clip-trim (1).mp4`.
+    await expect(save).toHaveAttribute('download', 'clip-trim-0s-2s.mp4');
     // What was actually produced, next to what it came from.
     await expect(page.getByRole('button', { name: 'Original' })).toBeVisible();
+  });
+
+  /**
+   * The command bar's one promise. It said `.mp4` for a WebM convert while
+   * ffmpeg wrote `.webm`, so a command copied out of the bar would have written
+   * VP9 and Opus into an MP4 — the extension is how ffmpeg picks its muxer.
+   */
+  test('shows the output path ffmpeg is actually given', async ({ page }) => {
+    await page.goto('/op/convert');
+    await loadFixture(page);
+    // The radio itself is sr-only; the card around it is what a user clicks.
+    await page.locator('label', { hasText: 'WebM' }).click();
+
+    // The bar shows the working copy's path, which carries the upload suffix;
+    // the saved name below is built from the name the user dropped in. The part
+    // that has to agree is the extension, because that is the muxer.
+    await expect(page.locator('code')).toContainText('-convert.webm');
+    await expect(page.locator('code')).not.toContainText('-convert.mp4');
+
+    await page.getByRole('button', { name: 'Run' }).click();
+    const save = page.getByRole('link', { name: 'Save' });
+    await expect(save).toBeVisible({ timeout: 120_000 });
+    await expect(save).toHaveAttribute('download', 'clip-convert.webm');
   });
 
   test('makes a GIF through both passes', async ({ page }) => {

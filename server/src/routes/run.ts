@@ -1,7 +1,12 @@
-import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 
-import { buildArgs, InvalidOperation, NotImplemented, type Operation } from '@scrub/shared';
+import {
+  buildArgs,
+  InvalidOperation,
+  NotImplemented,
+  outputNameFor,
+  outputPathFor,
+} from '@scrub/shared';
 import { Router } from 'express';
 
 import { config } from '../config.js';
@@ -10,40 +15,6 @@ import { cancelJob, getJob, type JobEvent, startJob, subscribe } from '../jobs.j
 import { runRequestSchema } from '../schemas.js';
 import { getFile } from '../store.js';
 import type { ApiError } from './errors.js';
-
-/**
- * The container each operation produces.
- *
- * ffmpeg picks its muxer from the output extension, so this is not cosmetic —
- * getting it wrong produces a file with the right bytes and the wrong wrapper.
- * Operations that do not change the container keep the source's.
- */
-function outputExtension(op: Operation, sourcePath: string): string {
-  switch (op.kind) {
-    case 'gif':
-      return '.gif';
-    case 'convert':
-      return `.${op.container}`;
-    case 'extract-audio':
-    case 'audio-convert':
-      // m4a is the container people expect around an AAC track. ".aac" makes
-      // ffmpeg write a raw ADTS stream, which many players will not open.
-      return op.format === 'aac' ? '.m4a' : `.${op.format}`;
-    case 'trim':
-    case 'compress':
-    case 'resize':
-    case 'mute':
-    case 'replace-audio':
-    case 'audio-trim':
-    case 'loudness':
-      return path.extname(sourcePath) || '.mp4';
-  }
-}
-
-function outputBaseName(displayName: string, kind: string, ext: string): string {
-  const stem = path.basename(displayName, path.extname(displayName));
-  return `${stem}-${kind}${ext}`;
-}
 
 /**
  * How long an edited command's output should be, for the progress denominator.
@@ -123,12 +94,14 @@ export function runRouter(tools: FfmpegTools): Router {
     }
 
     const op = parsed.data.op;
-    const ext = outputExtension(op, source.path);
-    const outputName = outputBaseName(source.displayName, op.kind, ext);
-    // Same readable-but-unique naming as uploads, so the output path in the
-    // command bar says what the file is rather than showing a bare uuid.
-    const outputStem = path.basename(outputName, path.extname(outputName));
-    const outputPath = path.join(config.tmpDir, `${outputStem}-${randomUUID().slice(0, 8)}${ext}`);
+    /**
+     * The same two calls the command bar made, against the same source path.
+     * The bar shows this exact string, so a command copied out of it writes the
+     * file Scrub would have written — including the extension, which is how
+     * ffmpeg chooses its muxer.
+     */
+    const outputPath = outputPathFor(source.path, op);
+    const outputName = outputNameFor(source.displayName, op, source.path);
 
     try {
       // The same call the command bar made. If these ever produced different

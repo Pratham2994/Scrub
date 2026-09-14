@@ -23,6 +23,12 @@ export type RunState =
       readonly status: 'running';
       readonly jobId: string;
       readonly progress: number;
+      /**
+       * Whether `progress` is a real fraction. GIF's palette pass writes one
+       * image, so ffmpeg has no output timeline to report against and the bar
+       * says it is working instead of showing a number that never moves.
+       */
+      readonly determinate: boolean;
       readonly passLabel: string;
       readonly passIndex: number;
       readonly passCount: number;

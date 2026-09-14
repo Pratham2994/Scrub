@@ -163,6 +163,8 @@ export type JobEvent =
   | {
       readonly type: 'progress';
       readonly progress: number;
+      /** False while a pass runs that ffmpeg cannot report a fraction for. */
+      readonly determinate: boolean;
       readonly passIndex: number;
       readonly passCount: number;
       readonly passLabel: string;

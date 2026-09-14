@@ -34,6 +34,8 @@ export function useRun(op: Operation | null): {
         status: 'running',
         jobId: '',
         progress: 0,
+        // Nothing has been reported yet, so there is no fraction to believe.
+        determinate: false,
         passLabel: '',
         passIndex: 0,
         passCount: 1,
@@ -53,6 +55,7 @@ export function useRun(op: Operation | null): {
                   status: 'running',
                   jobId,
                   progress: event.progress,
+                  determinate: event.determinate,
                   passLabel: event.passLabel,
                   passIndex: event.passIndex,
                   passCount: event.passCount,

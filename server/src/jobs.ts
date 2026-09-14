@@ -12,6 +12,15 @@ export type JobEvent =
   | {
       readonly type: 'progress';
       readonly progress: number;
+      /**
+       * Whether `progress` means anything yet.
+       *
+       * palettegen writes a single 16x16 image, so ffmpeg's -progress reports
+       * one line, at the end. There is no fraction to report during it and no
+       * honest way to invent one, so the pass says so and the bar shows that it
+       * is working rather than showing a number that is not moving.
+       */
+      readonly determinate: boolean;
       readonly passIndex: number;
       readonly passCount: number;
       readonly passLabel: string;
@@ -131,30 +140,62 @@ async function runPasses(job: Job, options: StartJobOptions): Promise<void> {
       // is the pass's own argv with exactly the marked values filled in.
       const argv = measurement === null ? pass.argv : applyMeasurement(pass.argv, measurement);
 
-      const result = await runPass(
-        job,
-        options.ffmpeg,
-        argv,
-        (fraction) => {
-          const now = Date.now();
-          // Always let a completed pass through, so the bar never stalls at 97%
-          // because the last update happened to arrive inside the window.
-          if (fraction < 1 && now - lastEmit < PROGRESS_INTERVAL_MS) return;
-          lastEmit = now;
-          emit(job, {
-            type: 'progress',
-            // Passes are treated as equal slices. GIF's palettegen is much shorter
-            // than its paletteuse, so the bar is honest about order but not about
-            // wall-clock weighting — better than a bar that restarts at zero.
-            progress: (index + fraction) / passes.length,
-            passIndex: index,
-            passCount: passes.length,
-            passLabel: pass.label,
-            elapsedMs: Date.now() - startedAt,
-          });
-        },
-        pass.outputDurationSec,
-      );
+      /**
+       * Passes are equal slices of the bar. That was a guess when it was
+       * written; on a 60s clip it measures as 47/53 for GIF's two passes and
+       * 42/58 for loudness, both of which decode the whole file twice. Equal
+       * is close enough that weighting them would be machinery for a couple of
+       * percent.
+       */
+      const report = (fraction: number, determinate: boolean): void => {
+        emit(job, {
+          type: 'progress',
+          progress: (index + fraction) / passes.length,
+          determinate,
+          passIndex: index,
+          passCount: passes.length,
+          passLabel: pass.label,
+          elapsedMs: Date.now() - startedAt,
+        });
+      };
+
+      const measurable = pass.outputDurationSec !== null && pass.outputDurationSec > 0;
+
+      /**
+       * A pass that cannot report still has to look alive.
+       *
+       * Without this the bar froze for the whole of GIF's palette pass — no
+       * percentage, no label, no elapsed time, on roughly half the job. A
+       * stopped timer on a working encode reads as a hang, and the first thing
+       * anyone does about a hang is kill it.
+       */
+      let heartbeat: NodeJS.Timeout | null = null;
+      if (!measurable) {
+        report(0, false);
+        heartbeat = setInterval(() => {
+          report(0, false);
+        }, PROGRESS_INTERVAL_MS * 3);
+      }
+
+      let result: PassResult;
+      try {
+        result = await runPass(
+          job,
+          options.ffmpeg,
+          argv,
+          (fraction) => {
+            const now = Date.now();
+            // Always let a completed pass through, so the bar never stalls at 97%
+            // because the last update happened to arrive inside the window.
+            if (fraction < 1 && now - lastEmit < PROGRESS_INTERVAL_MS) return;
+            lastEmit = now;
+            report(fraction, true);
+          },
+          pass.outputDurationSec,
+        );
+      } finally {
+        if (heartbeat !== null) clearInterval(heartbeat);
+      }
 
       if (job.cancelled) {
         job.status = 'cancelled';
@@ -162,6 +203,11 @@ async function runPasses(job: Job, options: StartJobOptions): Promise<void> {
         await fs.rm(options.outputPath, { force: true }).catch(() => undefined);
         return;
       }
+
+      // The slice this pass owns is finished, whether or not it could say so on
+      // the way through. Only on success: a bar that fills to the end of a pass
+      // and then reports a failure is claiming work that did not happen.
+      if (result.code === 0) report(1, true);
 
       if (pass.capture === 'loudnorm-json') {
         measurement = parseLoudnorm(result.stderr);

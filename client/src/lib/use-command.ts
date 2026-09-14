@@ -4,6 +4,7 @@ import {
   NotImplemented,
   type Operation,
   type OperationKind,
+  outputPathFor,
   OVERWRITE_ARG,
   TRANSPORT_ARGS,
   type VideoCompress,
@@ -66,7 +67,7 @@ export function useCommand(kind: OperationKind | null): LiveCommand {
       // about someone else's holiday clip here is the one moment it actively
       // misleads — the user has just uploaded and is looking for proof it
       // worked. Their own file, dimmed, says so.
-      const argv = skeletonArgv(meta.path, outputPathFor(meta.path, 'convert'));
+      const argv = skeletonArgv(meta.path, skeletonPath(meta.path, 'convert'));
       return {
         argv,
         passes: [{ argv, label: 'Ready' }],
@@ -82,7 +83,7 @@ export function useCommand(kind: OperationKind | null): LiveCommand {
       // dimmed example about someone else's file, show a real skeleton against
       // this one. It is the starting point for the editable command bar, which is
       // how anything outside the closed operation list gets done.
-      const argv = skeletonArgv(meta.path, outputPathFor(meta.path, kind));
+      const argv = skeletonArgv(meta.path, skeletonPath(meta.path, kind));
       return {
         argv,
         passes: [{ argv, label: 'Starting point' }],
@@ -95,9 +96,11 @@ export function useCommand(kind: OperationKind | null): LiveCommand {
     try {
       const plan = buildArgs(op, meta, {
         inputPath: meta.path,
-        // The server mints the real output path; this mirrors its naming so the
-        // bar shows where the file will land.
-        outputPath: outputPathFor(meta.path, kind),
+        // The same call the server makes, so the path in the bar is the path
+        // ffmpeg is given — extension included, which is how ffmpeg picks its
+        // muxer. These were computed separately once and disagreed: converting
+        // to WebM previewed as .mp4 and wrote .webm.
+        outputPath: outputPathFor(meta.path, op),
         workDir: meta.path.replace(/[\\/][^\\/]+$/, ''),
         /**
          * Only replace-audio takes a second input, and only once a track has
@@ -122,7 +125,7 @@ export function useCommand(kind: OperationKind | null): LiveCommand {
        * choice the rail already shows as unavailable.
        */
       if (error instanceof NotImplemented || error instanceof InvalidOperation) {
-        const argv = skeletonArgv(meta.path, outputPathFor(meta.path, kind));
+        const argv = skeletonArgv(meta.path, skeletonPath(meta.path, kind));
         return {
           argv,
           passes: [{ argv, label: 'Starting point' }],
@@ -201,7 +204,12 @@ function skeletonArgv(inputPath: string, outputPath: string): readonly string[] 
   return [...TRANSPORT_ARGS, '-i', inputPath, '-c', 'copy', OVERWRITE_ARG, outputPath];
 }
 
-function outputPathFor(inputPath: string, kind: OperationKind): string {
+/**
+ * A stand-in path for the two states with no operation to name from: nothing
+ * loaded, and an operation whose controls have not produced a valid one yet.
+ * Neither can run, so neither has a real output.
+ */
+function skeletonPath(inputPath: string, kind: OperationKind): string {
   const dot = inputPath.lastIndexOf('.');
   const stem = dot > 0 ? inputPath.slice(0, dot) : inputPath;
   const ext = dot > 0 ? inputPath.slice(dot) : '';

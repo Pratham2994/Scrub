@@ -365,16 +365,29 @@ function RunControl({
 }) {
   if (run.status === 'running') {
     const percent = Math.round(run.progress * 100);
-    const label = `${run.passCount > 1 ? `${run.passLabel} · ` : ''}${String(percent)}%  ${formatElapsed(run.elapsedMs)}`;
+    /**
+     * A pass ffmpeg cannot report a fraction for shows the pass name and the
+     * clock, and no percentage.
+     *
+     * GIF's palette pass writes a single image, so there is no output timeline
+     * to divide against. It used to leave the bar frozen at "0%  0ms" for
+     * roughly half the job, which is indistinguishable from a hang — and the
+     * first thing anyone does about a hang is kill it. A number that is not
+     * moving is worse than no number.
+     */
+    const waiting = !run.determinate;
+    const label = `${run.passCount > 1 ? `${run.passLabel} · ` : ''}${waiting ? '' : `${String(percent)}%  `}${formatElapsed(run.elapsedMs)}`;
     return (
       <div className="flex shrink-0 items-center gap-1">
         <div
           className="bg-well relative overflow-hidden rounded-button border border-white/15"
           role="progressbar"
-          aria-valuenow={percent}
+          // An indeterminate bar omits the value rather than claiming zero, which
+          // is exactly what a screen reader needs to announce it as busy.
+          aria-valuenow={waiting ? undefined : percent}
           aria-valuemin={0}
           aria-valuemax={100}
-          aria-label="Operation progress"
+          aria-label={waiting ? `${run.passLabel}, working` : 'Operation progress'}
         >
           <div className="text-mono px-4 py-2 whitespace-nowrap text-white tabular-nums">
             {label}
@@ -387,6 +400,20 @@ function RunControl({
               {label}
             </div>
           </div>
+          {waiting && (
+            /**
+             * A band travelling the length of the button, because the fill has
+             * no width to pulse: an unreportable pass starts at the floor of its
+             * own slice, which for GIF's first pass is zero. Travelling rather
+             * than filling is the point — it says work is happening without
+             * claiming to know how much is left.
+             */
+            <div
+              aria-hidden
+              data-motion="opacity"
+              className="animate-pass-working bg-signal/25 pointer-events-none absolute inset-y-0 w-1/3"
+            />
+          )}
         </div>
         <button
           type="button"
