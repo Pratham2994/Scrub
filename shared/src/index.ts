@@ -1,3 +1,4 @@
+export * from './availability.js';
 export * from './build-args.js';
 export * from './build-operations.js';
 export * from './errors.js';

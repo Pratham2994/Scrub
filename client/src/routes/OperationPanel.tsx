@@ -1,4 +1,11 @@
-import { isOperationKind, operationDescriptor } from '@scrub/shared';
+import {
+  availabilityOf,
+  isOperationKind,
+  type OperationKind,
+  operationDescriptor,
+} from '@scrub/shared';
+import { ArrowRight } from 'lucide-react';
+import { Link } from 'react-router';
 import { useEffect } from 'react';
 import { Navigate, useParams } from 'react-router';
 
@@ -33,6 +40,8 @@ export function OperationPanel() {
 
   const descriptor = operationDescriptor(kind);
   const hasFile = meta !== null && uploadId !== null;
+  // Whether this operation makes sense for the file that is actually loaded.
+  const status = meta === null ? null : availabilityOf(kind, meta);
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4">
@@ -71,7 +80,11 @@ export function OperationPanel() {
         />
       )}
 
-      {hasFile && <OperationControls kind={kind} id={uploadId} meta={meta} />}
+      {hasFile && status?.state === 'unavailable' ? (
+        <Unavailable reason={status.reason} instead={status.instead} />
+      ) : (
+        hasFile && <OperationControls kind={kind} id={uploadId} meta={meta} />
+      )}
 
       <div className="border-line bg-surface rounded-control border p-4">
         {run.status === 'failed' ? (
@@ -91,11 +104,46 @@ export function OperationPanel() {
           </p>
         ) : (
           <p className="text-label text-muted">
-            Set it up above, then Run. The command bar always shows exactly what will execute, and
-            you can edit it directly if you need something Scrub does not offer.
+            {status?.state === 'unavailable'
+              ? 'The command bar below still works if you want to write something by hand.'
+              : 'Set it up above, then Run. The command bar always shows exactly what will execute, and you can edit it directly if you need something Scrub does not offer.'}
           </p>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * The operation cannot apply to this file.
+ *
+ * Saying so here, rather than letting the command be built, is the whole point:
+ * ffmpeg ignores a scale filter on a file with no video and reports success, so
+ * a resize of an mp3 used to hand back an untouched copy and call it done.
+ *
+ * Where there is an operation that does what the user probably meant, it is one
+ * click away. Being told "no" is much less useful than being told "not this one,
+ * that one".
+ */
+function Unavailable({
+  reason,
+  instead,
+}: {
+  readonly reason: string;
+  readonly instead: OperationKind | null;
+}) {
+  return (
+    <div className="border-line bg-surface rounded-control border p-4">
+      <p className="text-body text-ink">{reason}</p>
+      {instead !== null && (
+        <Link
+          to={`/op/${instead}`}
+          className="text-label text-ink border-line-strong hover:border-accent hover:text-accent mt-3 inline-flex items-center gap-1.5 rounded-button border px-3 py-2 transition-colors duration-100"
+        >
+          Use {operationDescriptor(instead).label.toLowerCase()} instead
+          <ArrowRight aria-hidden size={13} />
+        </Link>
+      )}
     </div>
   );
 }

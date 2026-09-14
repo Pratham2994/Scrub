@@ -13,7 +13,10 @@ import { expect, type Page, test } from '@playwright/test';
  * The fixture is three seconds at 320x180 and about 47 kB — small enough to
  * commit, real enough to encode.
  */
-const FIXTURE = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures', 'clip.mp4');
+const FIXTURES = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures');
+const FIXTURE = path.join(FIXTURES, 'clip.mp4');
+/** Audio with no picture, for the operations that need to refuse. */
+const AUDIO_FIXTURE = path.join(FIXTURES, 'tone.m4a');
 
 /** The rail, so "Convert" does not also match the audio one or a quick pick. */
 const railLink = (page: Page, slug: string) => page.locator(`nav a[href="/op/${slug}"]`);
@@ -222,5 +225,43 @@ test.describe('the workspace', () => {
       );
       expect(overflow, `horizontal overflow at ${String(width)}px`).toBeLessThanOrEqual(0);
     }
+  });
+});
+
+test.describe('operations that do not fit the file', () => {
+  /**
+   * The silent-wrong-answer cases. ffmpeg ignores a scale filter on a file with
+   * no video and reports success, so resizing an audio file used to hand back an
+   * untouched copy and call it done.
+   */
+  test('withholds video operations from an audio file, and says why', async ({ page }) => {
+    await page.goto('/');
+    await page.setInputFiles('input[type=file]', AUDIO_FIXTURE);
+    await expect(page.locator('audio')).toBeVisible({ timeout: 30_000 });
+
+    await page.locator('nav a[href="/op/resize"]').click();
+    await expect(page.getByText(/no video, so there is no picture/i)).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Run' })).toBeDisabled();
+  });
+
+  test('points a video at the operation that does what it means', async ({ page }) => {
+    await page.goto('/op/trim');
+    await loadFixture(page);
+
+    // On a video, trimming the audio is trimming the video: same cut, same file.
+    await page.locator('nav a[href="/op/audio-trim"]').click();
+    await expect(page.getByText(/cuts the picture too/i)).toBeVisible();
+
+    await page.getByRole('link', { name: /instead/ }).click();
+    await expect(page).toHaveURL(/\/op\/trim$/);
+    await expect(page.getByRole('button', { name: 'Run' })).toBeEnabled();
+  });
+
+  test('still offers loudness on a video, which keeps the picture', async ({ page }) => {
+    await page.goto('/op/loudness');
+    await loadFixture(page);
+
+    await expect(page.getByRole('button', { name: 'Run' })).toBeEnabled();
+    expect(await commandText(page)).toContain('loudnorm');
   });
 });

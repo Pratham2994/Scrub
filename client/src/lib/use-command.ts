@@ -1,5 +1,6 @@
 import {
   buildArgs,
+  InvalidOperation,
   NotImplemented,
   type Operation,
   type OperationKind,
@@ -104,7 +105,24 @@ export function useCommand(kind: OperationKind | null): LiveCommand {
       if (!first) return { ...empty, unavailable: kind };
       return { argv: first.argv, passes, placeholder: false, operation: op, unavailable: null };
     } catch (error) {
-      if (error instanceof NotImplemented) return { ...empty, unavailable: kind };
+      /**
+       * An operation that cannot apply to this file, or has no argv yet.
+       *
+       * buildArgs now refuses a resize of an audio file rather than building a
+       * command ffmpeg would silently ignore, and that refusal arrives here as a
+       * throw. Letting it escape would take the whole workspace down over a
+       * choice the rail already shows as unavailable.
+       */
+      if (error instanceof NotImplemented || error instanceof InvalidOperation) {
+        const argv = skeletonArgv(meta.path, outputPathFor(meta.path, kind));
+        return {
+          argv,
+          passes: [{ argv, label: 'Starting point' }],
+          placeholder: false,
+          operation: null,
+          unavailable: kind,
+        };
+      }
       throw error;
     }
   }, [meta, uploadId, kind, trim, params]);

@@ -180,7 +180,7 @@ async function runPasses(job: Job, options: StartJobOptions): Promise<void> {
         job.status = 'failed';
         emit(job, {
           type: 'error',
-          message: `ffmpeg exited with code ${String(result.code)}.`,
+          message: `ffmpeg exited with code ${String(exitCode(result.code))}.`,
           detail: lastLines(result.stderr, 15),
         });
         await fs.rm(options.outputPath, { force: true }).catch(() => undefined);
@@ -223,6 +223,18 @@ async function runPasses(job: Job, options: StartJobOptions): Promise<void> {
 }
 
 type PassResult = { readonly code: number | null; readonly stderr: string };
+
+/**
+ * ffmpeg's exit code, as a number a person can look up.
+ *
+ * Windows hands back negative codes as unsigned 32-bit values, so ffmpeg's -22
+ * arrived as 4294967274. Nobody can search for that, and it reads as a crash
+ * rather than as the EINVAL it is.
+ */
+function exitCode(code: number | null): number | string {
+  if (code === null) return 'unknown';
+  return code > 0x7fffffff ? code - 0x100000000 : code;
+}
 
 function runPass(
   job: Job,

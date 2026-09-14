@@ -37,6 +37,39 @@ yields the true command, and nothing is appended downstream.
 operation and parameter combination a snapshot test, and CLAUDE.md is right that
 this is the highest-value test surface in the project.
 
+## What applies to what
+
+An mp4 can hold video, audio, or both, so the operation the user picked and the
+file they loaded do not always fit together. `availabilityOf(kind, meta)` in
+`shared` decides, and both the rail and `buildArgs` consult it.
+
+This is not defensive tidiness. Before it existed, a resize of an mp3 **reported
+success and handed back an untouched copy**, because ffmpeg silently ignores
+`-vf scale` on a file with no video. Compress did the same. GIF and mute failed
+with a bare exit code. A tool whose promise is showing you the command must not
+show you one that cannot work.
+
+| Operation                 | Audio only                 | Video, no sound | Video with sound  |
+| ------------------------- | -------------------------- | --------------- | ----------------- |
+| Trim                      | yes                        | yes             | yes               |
+| Compress, Convert, Resize | no picture                 | yes             | yes               |
+| GIF                       | no frames                  | yes             | yes               |
+| Mute                      | nothing left               | already silent  | yes               |
+| Replace audio             | no picture                 | yes             | yes               |
+| Extract audio             | already audio, use Convert | no track        | yes               |
+| Audio: Convert            | yes                        | no track        | use Extract audio |
+| Audio: Trim               | yes                        | no track        | use Trim          |
+| Loudness                  | yes                        | no track        | yes               |
+
+Two entries are about avoiding duplicates rather than impossibility. On a video,
+**Audio: Trim** is Trim under another name, because trimming a container cuts
+every stream in it, and **Audio: Convert** is Extract audio, because it drops
+the picture. Two routes to one result is how a closed operation list starts to
+rot, so those say which operation to use instead and link to it.
+
+**Loudness is the exception** among audio operations: on a video it corrects the
+sound and copies the picture through untouched, which nothing else does.
+
 ## Transport flags
 
 Every pass begins with `TRANSPORT_ARGS`:

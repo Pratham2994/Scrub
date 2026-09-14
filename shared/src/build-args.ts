@@ -1,3 +1,4 @@
+import { availabilityOf } from './availability.js';
 import {
   buildAudioConvert,
   buildAudioTrim,
@@ -11,6 +12,7 @@ import {
   buildResize,
   trimWindow,
 } from './build-operations.js';
+import { InvalidOperation } from './errors.js';
 import type { Operation, TrimMode } from './operations.js';
 import type { ProbeResult } from './probe.js';
 import { formatSeconds } from './time.js';
@@ -84,6 +86,20 @@ export type CommandIo = {
  * snapshot-testable, which CLAUDE.md calls the highest-value test surface here.
  */
 export function buildArgs(op: Operation, meta: ProbeResult, io: CommandIo): CommandPlan {
+  /**
+   * Refuse before building, not after ffmpeg fails.
+   *
+   * ffmpeg quietly ignores `-vf scale` on a file with no video, so a resize of
+   * an audio file used to report success and hand back an untouched copy. The
+   * check lives here rather than only in the interface because this function is
+   * what the server calls, and a command that cannot work must never be built,
+   * let alone displayed as though it will run.
+   */
+  const availability = availabilityOf(op.kind, meta);
+  if (availability.state === 'unavailable') {
+    throw new InvalidOperation(op.kind, availability.reason);
+  }
+
   switch (op.kind) {
     case 'trim':
       return buildTrim(op.startSec, op.endSec, op.mode, meta, io);

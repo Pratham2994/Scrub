@@ -1,8 +1,9 @@
-import { OPERATIONS, type OperationGroup } from '@scrub/shared';
+import { availabilityOf, OPERATIONS, type OperationGroup } from '@scrub/shared';
 import { Fragment } from 'react';
 import { NavLink } from 'react-router';
 
 import { cn } from '@/lib/utils';
+import { useScrubStore } from '@/store/use-scrub-store';
 
 const GROUPS: readonly { readonly id: OperationGroup; readonly label: string }[] = [
   { id: 'video', label: 'Video' },
@@ -27,6 +28,8 @@ const GROUPS: readonly { readonly id: OperationGroup; readonly label: string }[]
  * a bare vertical hairline keeps the groups apart.
  */
 export function Rail() {
+  const meta = useScrubStore((state) => state.meta);
+
   return (
     <nav
       aria-label="Operations"
@@ -43,39 +46,53 @@ export function Rail() {
           )}
           <GroupLegend label={group.label} spaced={index > 0} />
           <div className="flex shrink-0 items-center gap-1 workspace:block">
-            {OPERATIONS.filter((op) => op.group === group.id).map((op) => (
-              <NavLink
-                key={op.kind}
-                to={`/op/${op.kind}`}
-                /**
-                 * "Convert" and "Trim" each appear in both groups. Sighted users
-                 * tell them apart by the legend above; anyone listening hears
-                 * two identical links, so the accessible name carries the group
-                 * even though the visible label stays the short verb.
-                 */
-                aria-label={group.id === 'audio' ? `${op.label} audio` : op.label}
-                className={({ isActive }) =>
-                  cn(
-                    'text-body relative block shrink-0 rounded-button px-2 py-1.5 whitespace-nowrap transition-colors duration-100',
-                    isActive
-                      ? 'bg-well text-white font-medium'
-                      : 'text-muted hover:text-ink hover:bg-surface/70',
-                  )
-                }
-              >
-                {({ isActive }) => (
-                  <>
-                    {isActive && (
-                      <span
-                        aria-hidden
-                        className="bg-accent absolute top-1.5 bottom-1.5 left-0 w-0.5 rounded-full"
-                      />
-                    )}
-                    {op.label}
-                  </>
-                )}
-              </NavLink>
-            ))}
+            {OPERATIONS.filter((op) => op.group === group.id).map((op) => {
+              // Nothing loaded yet, so nothing is ruled out.
+              const status = meta === null ? null : availabilityOf(op.kind, meta);
+              const blocked = status?.state === 'unavailable';
+              return (
+                <NavLink
+                  key={op.kind}
+                  to={`/op/${op.kind}`}
+                  /**
+                   * Dimmed, not hidden, and still reachable. An operation that
+                   * vanishes leaves the user wondering whether they misremembered
+                   * it; one that is visibly unavailable and says why on the way in
+                   * teaches them something about their file.
+                   */
+                  title={blocked ? status.reason : undefined}
+                  /**
+                   * "Convert" and "Trim" each appear in both groups. Sighted users
+                   * tell them apart by the legend above; anyone listening hears
+                   * two identical links, so the accessible name carries the group
+                   * even though the visible label stays the short verb.
+                   */
+                  aria-label={group.id === 'audio' ? `${op.label} audio` : op.label}
+                  className={({ isActive }) =>
+                    cn(
+                      'text-body relative block shrink-0 rounded-button px-2 py-1.5 whitespace-nowrap transition-colors duration-100',
+                      isActive
+                        ? 'bg-well text-white font-medium'
+                        : blocked
+                          ? 'text-muted/45 hover:text-muted'
+                          : 'text-muted hover:text-ink hover:bg-surface/70',
+                    )
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      {isActive && (
+                        <span
+                          aria-hidden
+                          className="bg-accent absolute top-1.5 bottom-1.5 left-0 w-0.5 rounded-full"
+                        />
+                      )}
+                      {op.label}
+                    </>
+                  )}
+                </NavLink>
+              );
+            })}
           </div>
         </Fragment>
       ))}

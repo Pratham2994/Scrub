@@ -25,6 +25,16 @@ const io: CommandIo = {
 
 const withSecond: CommandIo = { ...io, secondaryInputPath: '/work/.tmp/replacement.m4a' };
 
+/**
+ * Audio operations are only offered on audio files, because on a video they
+ * duplicate Trim and Extract audio. The tests use the file each operation is
+ * actually reachable from.
+ */
+const audioMeta: ProbeResult = { ...meta, video: null, container: 'wav' };
+
+const metaFor = (kind: Operation['kind']): ProbeResult =>
+  kind === 'audio-convert' || kind === 'audio-trim' ? audioMeta : meta;
+
 const AUDIO_ID = '11111111-2222-4333-8444-555555555555';
 
 /** One representative of each kind, so no operation can be added without argv. */
@@ -48,7 +58,7 @@ describe('buildArgs — every operation', () => {
   });
 
   it.each(ALL)('$kind produces runnable passes', (op) => {
-    const plan = buildArgs(op, meta, withSecond);
+    const plan = buildArgs(op, metaFor(op.kind), withSecond);
     expect(plan.passes.length).toBeGreaterThan(0);
 
     for (const pass of plan.passes) {
@@ -63,7 +73,7 @@ describe('buildArgs — every operation', () => {
   // The rule the linter also enforces for hand-edited commands. Worth pinning on
   // the generated side too: a filter with `copy` fails, and it fails obscurely.
   it.each(ALL)('$kind never filters while stream-copying', (op) => {
-    for (const pass of buildArgs(op, meta, withSecond).passes) {
+    for (const pass of buildArgs(op, metaFor(op.kind), withSecond).passes) {
       const hasFilter = ['-vf', '-filter:v', '-lavfi'].some((f) => pass.argv.includes(f));
       if (!hasFilter) continue;
       const videoCodec = pass.argv[pass.argv.indexOf('-c:v') + 1];
@@ -138,11 +148,11 @@ describe('the trap in each operation', () => {
   });
 
   it('omits a bitrate for lossless formats, where it means nothing', () => {
-    const wav = buildArgs({ kind: 'audio-convert', format: 'wav', bitrateKbps: 192 }, meta, io)
+    const wav = buildArgs({ kind: 'audio-convert', format: 'wav', bitrateKbps: 192 }, audioMeta, io)
       .passes[0]!;
     expect(wav.argv).not.toContain('-b:a');
 
-    const mp3 = buildArgs({ kind: 'audio-convert', format: 'mp3', bitrateKbps: 192 }, meta, io)
+    const mp3 = buildArgs({ kind: 'audio-convert', format: 'mp3', bitrateKbps: 192 }, audioMeta, io)
       .passes[0]!;
     expect(mp3.argv).toContain('192k');
   });
