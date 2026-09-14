@@ -4,7 +4,7 @@
 
 Every video tool is dark. Premiere, Resolve, Final Cut, Handbrake, every ffmpeg wrapper on GitHub. Dark chrome exists in those tools for a real reason: you are judging colour for hours and surrounding brightness biases your eye.
 
-Scrub is not that. It is a utility you open for ninety seconds in the middle of the day, next to a browser, to cut thirty seconds off a clip. So the chrome is light and the video well is dark. The dark is where the picture is, and nowhere else. That single inversion is what makes it not look like every other ffmpeg GUI.
+Scrub is not that. It is a utility you open for ninety seconds in the middle of the day, next to a browser, to cut thirty seconds off a clip. So the chrome is light and the video well is dark. The dark belongs to the three places where work happens — the picture (the well), the command (the bar), and the selected operation (a dark chip in the rail) — and nowhere else. That inversion is what makes it not look like every other ffmpeg GUI.
 
 The bold element is the **command bar**: a full-width dark strip fixed to the bottom, monospace, syntax-coloured by token role, updating live as you move any control. It is the only loud thing on the screen. Everything else stays quiet so it can be loud.
 
@@ -13,9 +13,9 @@ The bold element is the **command bar**: a full-width dark strip fixed to the bo
 ### Colour
 
 ```
---paper        #E3E6EB   app background, cool grey, never white or cream
+--paper        #EAECF5   app background, a cool violet-cast grey, never white or cream
 --surface      #FFFFFF   panels, controls — white is for surfaces, not the app
---line         #C6CBD2   hairlines
+--line         #CFD4DE   hairlines
 --line-strong  #8E949E   control borders and the dropzone outline (3:1 on white)
 --ink          #14161A   primary text
 --muted        #5E646E   labels, secondary text
@@ -24,7 +24,7 @@ The bold element is the **command bar**: a full-width dark strip fixed to the bo
 --signal       #E8A33D   running state only, nothing else
 ```
 
-Warm cream with a terracotta accent is the current default look for generated interfaces. So is near-black with one acid-green accent. Neither is used here. The palette is cool and neutral because the picture in the well is the only thing that should carry colour, and a warm chrome would shift how you read it.
+Warm cream with a terracotta accent is the current default look for generated interfaces. So is near-black with one acid-green accent. Neither is used here. The palette is cool and neutral because the picture in the well is the only thing that should carry colour, and a warm chrome would shift how you read it. The paper's violet cast sits one step from the indigo accent, so the chrome reads as one palette rather than a default.
 
 `--signal` is reserved. If amber appears anywhere that is not an operation in progress, it has been misused.
 
@@ -64,24 +64,22 @@ One workspace. Left rail of operations, centre well, fixed command bar. Left ali
 ┌──────────────────────────────────────────────────────┐
 │ Scrub                          holiday-clip.mp4   ⚙  │
 ├──────────┬───────────────────────────────────────────┤
-│ Video    │ ┌───────────────────────────────────────┐ │
-│  Trim    │ │                                       │ │
-│  Compress│ │              video well               │ │
-│  Convert │ │                                       │ │
-│  Resize  │ └───────────────────────────────────────┘ │
-│  GIF     │ ▮▮▮▮▮▮▮▮▮▮▮▮  filmstrip + scrub handles   │
-│  Audio   │                                           │
-│  Mute    ├───────────────────────────────────────────┤
-│          │  Start 00:00:12.40    End 00:00:48.10     │
-│ Audio    │  ○ Fast  ● Precise                        │
-│  Convert │                                           │
-│  Trim    ├───────────────────────────────────────────┤
-│  Loudness│ ffmpeg -i in.mp4 -ss 12.4 -to 48.1 …  ⧉ ✎ │
+│ Trim     │ ┌───────────────────────────────────────┐ │
+│ Compress │ │                                       │ │
+│ Convert  │ │              video well               │ │
+│ Resize   │ │                                       │ │
+│ GIF      │ └───────────────────────────────────────┘ │
+│  Audio   │ ▮▮▮▮▮▮▮▮▮▮▮▮  filmstrip + scrub handles   │
+│ Mute     ├───────────────────────────────────────────┤
+│ ──────── │  Start 00:00:12.40    End 00:00:48.10     │
+│ Convert  │  ○ Fast  ● Precise                        │
+│ Trim     ├───────────────────────────────────────────┤
+│ Loudness │ ffmpeg -i in.mp4 -ss 12.4 -to 48.1 …  ⧉ ✎ │
 │          │                                  Run  ▸   │
 └──────────┴───────────────────────────────────────────┘
 ```
 
-Rail: 180px, labels only, no icons. Eleven operations with icons would mean eleven icons that each half-describe a verb, and "compress" has no good glyph. Words are unambiguous and this audience reads. The Video/Audio group headings sit at label size in ink, medium weight — they are structure, not decoration.
+Rail: 180px, labels only, no icons. Eleven operations with icons would mean eleven icons that each half-describe a verb, and "compress" has no good glyph. Words are unambiguous and this audience reads. No group headings — a hairline with air separates video from audio, because "Convert" and "Trim" appear in both groups and a label would compete with the verbs. The active operation is a dark chip, matching the well and the bar: the dark marks where the work is.
 
 Well: `--well` background, 6px radius, and the video letterboxed inside it. The well keeps its size when the operation changes so the layout does not jump.
 

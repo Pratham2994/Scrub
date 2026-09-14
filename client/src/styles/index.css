@@ -9,13 +9,15 @@
    user reads it. */
 
 @theme {
-  /* Deeper than the original #F1F2F4: cool grey that never reads as white.
-     Surfaces stay #FFFFFF, so "white" belongs to panels, not to the app. */
-  --color-paper: #e3e6eb;
+  /* A cool violet-cast grey, light enough to feel like the original paper but
+     with a hue, so it never reads as white and never reads as muddy grey. The
+     violet sits one step from the indigo accent, which is what makes the chrome
+     feel like one palette instead of a default. Surfaces stay #FFFFFF — white
+     belongs to panels, not to the app. */
+  --color-paper: #eaecf5;
   --color-surface: #ffffff;
-  /* Hairlines. Retuned for the darker paper — the original #DFE1E5 sat at
-     ~1.03:1 against #E3E6EB and disappeared. 1.30:1 keeps them quiet but there. */
-  --color-line: #c6cbd2;
+  /* Hairlines. Tuned against the paper above: ~1.26:1, quiet but present. */
+  --color-line: #cfd4de;
   /* Not in DESIGN.md's list. `--line` is far too faint for the border of a control
      the user is meant to find and operate, so interactive borders and the dropzone
      outline use this instead: 3.0:1 on white, which clears WCAG 1.4.11. */

@@ -4,19 +4,22 @@ import { NavLink } from 'react-router';
 
 import { cn } from '@/lib/utils';
 
-const GROUPS: readonly { readonly id: OperationGroup; readonly label: string }[] = [
-  { id: 'video', label: 'Video' },
-  { id: 'audio', label: 'Audio' },
-];
+const GROUPS: readonly { readonly id: OperationGroup }[] = [{ id: 'video' }, { id: 'audio' }];
 
 /**
  * Labels, no icons. Eleven operations would mean eleven icons that each
  * half-describe a verb, and "compress" has no good glyph. Words are unambiguous
  * and this audience reads.
  *
- * Below 900px the rail lies down into a horizontal scroller. The group headings go
- * with it, which matters more than it looks: "Convert" and "Trim" each appear in
- * both groups, so the divider is the only thing left telling video from audio.
+ * No group headings: "Convert" and "Trim" appear in both groups, so a hairline
+ * with a little air is the separator, not a label that competes with the verbs.
+ *
+ * The active operation is a dark chip on purpose. The dark marks the three places
+ * where the work happens — the picture (well), the command (bar), and the
+ * selection (here). Everything else stays quiet.
+ *
+ * Below 900px the rail lies down into a horizontal scroller and the divider
+ * becomes a vertical hairline.
  */
 export function Rail() {
   return (
@@ -31,12 +34,12 @@ export function Rail() {
       {GROUPS.map((group, index) => (
         <Fragment key={group.id}>
           {index > 0 && (
-            <div aria-hidden className="bg-line mx-2 w-px shrink-0 self-stretch workspace:hidden" />
+            <div
+              aria-hidden
+              className="bg-line mx-2 w-px shrink-0 self-stretch workspace:mx-3 workspace:my-4 workspace:h-px"
+            />
           )}
-          <div className="flex shrink-0 items-center gap-1 workspace:mb-5 workspace:block workspace:last:mb-0">
-            <h2 className="text-label text-ink shrink-0 pr-1 font-medium workspace:px-2 workspace:pr-0 workspace:pb-2">
-              {group.label}
-            </h2>
+          <div className="flex shrink-0 items-center gap-1 workspace:block">
             {OPERATIONS.filter((op) => op.group === group.id).map((op) => (
               <NavLink
                 key={op.kind}
@@ -45,8 +48,8 @@ export function Rail() {
                   cn(
                     'text-body block shrink-0 rounded-button px-2 py-1.5 whitespace-nowrap transition-colors duration-100',
                     isActive
-                      ? 'bg-surface text-ink font-medium'
-                      : 'text-muted hover:text-ink hover:bg-surface/60',
+                      ? 'bg-well text-white font-medium'
+                      : 'text-muted hover:text-ink hover:bg-surface/70',
                   )
                 }
               >
