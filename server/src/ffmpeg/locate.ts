@@ -74,12 +74,7 @@ function windowsWellKnownDirs(): readonly string[] {
   // Gyan.FFmpeg installs into a versioned folder under the winget package root,
   // e.g. ...\Gyan.FFmpeg_...\ffmpeg-9.0.1-full_build\bin. The version changes,
   // so it cannot be hardcoded.
-  const packagesRoot = path.join(
-    process.env.LOCALAPPDATA ?? '',
-    'Microsoft',
-    'WinGet',
-    'Packages',
-  );
+  const packagesRoot = path.join(process.env.LOCALAPPDATA ?? '', 'Microsoft', 'WinGet', 'Packages');
   let packages: string[];
   try {
     packages = fs.readdirSync(packagesRoot);
