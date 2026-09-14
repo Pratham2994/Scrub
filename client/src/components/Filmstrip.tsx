@@ -1,7 +1,7 @@
 import { formatTimecode } from '@scrub/shared';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { filmstripUrl } from '@/lib/api';
+import { filmstripUrl, waveformUrl } from '@/lib/api';
 import { seekTo, subscribeTime } from '@/lib/playback';
 import { cn } from '@/lib/utils';
 
@@ -11,6 +11,10 @@ type FilmstripProps = {
   readonly startSec: number;
   readonly endSec: number;
   readonly onChange: (next: { readonly startSec?: number; readonly endSec?: number }) => void;
+  /** Whether the file has sound to draw beneath the frames. */
+  readonly hasAudio?: boolean;
+  /** No frames to show, so the waveform becomes the whole timeline. */
+  readonly audioOnly?: boolean;
 };
 
 /**
@@ -24,10 +28,19 @@ type FilmstripProps = {
  * over them — you can still see what you are cutting, which is the entire point
  * of showing frames rather than a bar.
  */
-export function Filmstrip({ id, durationSec, startSec, endSec, onChange }: FilmstripProps) {
+export function Filmstrip({
+  id,
+  durationSec,
+  startSec,
+  endSec,
+  onChange,
+  hasAudio = false,
+  audioOnly = false,
+}: FilmstripProps) {
   const trackRef = useRef<HTMLDivElement>(null);
   const playheadRef = useRef<HTMLDivElement>(null);
   const [failed, setFailed] = useState(false);
+  const [waveFailed, setWaveFailed] = useState(false);
 
   const startPercent = (startSec / durationSec) * 100;
   const endPercent = (endSec / durationSec) * 100;
@@ -63,7 +76,7 @@ export function Filmstrip({ id, durationSec, startSec, endSec, onChange }: Films
           The frames are clipped by their own wrapper instead. */}
       <div
         ref={trackRef}
-        className="relative h-16 select-none"
+        className={cn('relative select-none', audioOnly ? 'h-24' : hasAudio ? 'h-24' : 'h-16')}
         onPointerDown={(event) => {
           // A click on the strip itself scrubs the video. The handles stop
           // propagation, so this never fights with dragging a mark.
@@ -72,7 +85,7 @@ export function Filmstrip({ id, durationSec, startSec, endSec, onChange }: Films
         }}
       >
         <div className="bg-well border-well-edge absolute inset-0 overflow-hidden rounded-control border">
-          {failed ? (
+          {audioOnly ? null : failed ? (
             <div className="flex h-full items-center justify-center">
               <p className="text-micro text-token-transport">No preview frames for this file.</p>
             </div>
@@ -104,6 +117,27 @@ export function Filmstrip({ id, durationSec, startSec, endSec, onChange }: Films
             </>
           )}
         </div>
+
+        {hasAudio && !waveFailed && (
+          /**
+           * Peak-level cuts are far easier to find by eye than by ear, which is
+           * the whole reason for drawing this. It sits under the frames rather
+           * than beside them so one horizontal position means one moment in
+           * time for both.
+           */
+          <img
+            src={waveformUrl(id)}
+            alt=""
+            draggable={false}
+            onError={() => {
+              setWaveFailed(true);
+            }}
+            className={cn(
+              'pointer-events-none absolute inset-x-0 object-fill',
+              audioOnly ? 'inset-y-0 h-full' : 'bottom-0 h-8 opacity-80',
+            )}
+          />
+        )}
 
         {/* Playhead. Positioned by the subscription above, never by React. */}
         <div

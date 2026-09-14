@@ -114,6 +114,11 @@ export function filmstripUrl(id: string): string {
   return `${BASE}/filmstrip/${id}`;
 }
 
+/** The audio drawn as a picture, for the timeline. Also loaded by an <img>. */
+export function waveformUrl(id: string): string {
+  return `${BASE}/waveform/${id}`;
+}
+
 export function downloadUrl(id: string): string {
   return `${BASE}/download/${id}`;
 }

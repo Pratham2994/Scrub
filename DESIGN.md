@@ -121,7 +121,11 @@ They are all real data, which is why they cannot look generated.
 
 **Filmstrip.** `ffmpeg -vf "fps=1/N,scale=-2:64" -f image2pipe`, N chosen so you get roughly 40 frames across the timeline width. Real frames from the actual file, butted edge to edge under the scrubber, no gaps and no borders. Trimmed-out regions get 35% opacity rather than a scrim overlay, so you can still see what you are cutting.
 
-**Waveform.** Wavesurfer on the decoded audio, `--ink` at 60%, for audio operations and shown beneath the filmstrip for video trim. Peak-level cuts are easier to find by eye than by ear.
+**Waveform.** Drawn by ffmpeg's `showwavespic` on the machine that already has the file, not by Wavesurfer in the page. Wavesurfer downloads and decodes the whole file in the browser, which is fine for a thirty-second clip and ruinous for a two-hour recording. The result is one cached image positioned with CSS, the same shape as the filmstrip and for the same reasons.
+
+It sits beneath the filmstrip for video trim and becomes the entire timeline for audio files, which otherwise have nothing to scrub against. Peak-level cuts are easier to find by eye than by ear.
+
+The scale is `cbrt`, chosen by measuring. On a track peaking around -22 dB the drawn shape covered 2% of the height with `lin`, 13% with `sqrt` and 26% with `cbrt`, while `log` reached 61% but flattened ordinary material into a solid block. The picture exists so someone can see where the sound is, so visibility on quiet material matters, and so does keeping the envelope readable on everything else.
 
 **Progress.** The Run button becomes the progress bar in place — it fills left to right in `--signal` with the percentage and elapsed time in mono inside it. No separate progress row appearing and shifting the layout, no spinner. The thing you pressed is the thing that reports.
 

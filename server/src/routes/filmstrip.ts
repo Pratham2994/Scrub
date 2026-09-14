@@ -1,6 +1,7 @@
 import { Router } from 'express';
 
 import { FilmstripFailed, filmstripFor, FRAME_COUNT } from '../ffmpeg/filmstrip.js';
+import { WaveformFailed, waveformFor } from '../ffmpeg/waveform.js';
 import type { FfmpegTools } from '../ffmpeg/locate.js';
 import { idParamsSchema } from '../schemas.js';
 import { getFile } from '../store.js';
@@ -69,6 +70,64 @@ export function filmstripRouter(tools: FfmpegTools): Router {
             error: {
               code: 'FILMSTRIP_FAILED',
               message: 'ffmpeg could not read frames from this file.',
+              detail: error.stderr.trimEnd().split('\n').slice(-10),
+            },
+          } satisfies ApiError);
+          return;
+        }
+        next(error);
+      }
+    })();
+  });
+
+  /**
+   * The audio as a picture, for the timeline.
+   *
+   * Peak-level cuts are far easier to find by eye than by ear, which is the
+   * whole reason DESIGN.md wants a waveform. Same exemption and caching as the
+   * filmstrip: it is loaded by an <img>, which cannot set a header.
+   */
+  router.get('/waveform/:id', (req, res, next) => {
+    const params = idParamsSchema.safeParse(req.params);
+    if (!params.success) {
+      res.status(404).json({
+        error: { code: 'NOT_FOUND', message: 'Not a known upload id.' },
+      } satisfies ApiError);
+      return;
+    }
+
+    const file = getFile(params.data.id);
+    if (!file?.meta) {
+      res.status(404).json({
+        error: { code: 'NOT_FOUND', message: 'That file is no longer loaded.' },
+      } satisfies ApiError);
+      return;
+    }
+
+    if (file.meta.audio === null) {
+      res.status(415).json({
+        error: { code: 'NO_AUDIO', message: 'This file has no audio to draw.' },
+      } satisfies ApiError);
+      return;
+    }
+
+    void (async () => {
+      try {
+        const image = await waveformFor(tools.ffmpeg, params.data.id, file.path);
+        res.setHeader('Cache-Control', 'private, max-age=86400, immutable');
+        res.sendFile(image, SEND_OPTIONS, (error) => {
+          if (error && !res.headersSent) {
+            res.status(404).json({
+              error: { code: 'NOT_FOUND', message: 'The waveform went away.' },
+            } satisfies ApiError);
+          }
+        });
+      } catch (error) {
+        if (error instanceof WaveformFailed) {
+          res.status(500).json({
+            error: {
+              code: 'WAVEFORM_FAILED',
+              message: 'ffmpeg could not read the audio from this file.',
               detail: error.stderr.trimEnd().split('\n').slice(-10),
             },
           } satisfies ApiError);

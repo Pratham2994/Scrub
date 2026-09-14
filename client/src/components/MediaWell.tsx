@@ -71,18 +71,25 @@ export function MediaWell({ id, meta }: MediaWellProps) {
   }
 
   if (audioOnly) {
+    /**
+     * Audio gets a short well, not a tall one.
+     *
+     * The well is sized for a picture, and a file with no picture left a huge
+     * black rectangle with a small player marooned in the middle of it. There
+     * is nothing to look at here, so the space goes to the waveform on the
+     * timeline below instead.
+     */
     return (
-      <Well>
-        <div className="w-full max-w-xl px-6">
-          <p className="text-micro text-token-transport mb-3 text-center tabular-nums">
-            {meta.audio?.codec ?? 'audio'} · {meta.audio?.channels ?? 0} ch ·{' '}
-            {meta.audio?.sampleRate ?? 0} Hz
+      <div className="bg-well border-well-edge flex shrink-0 items-center justify-center rounded-well border px-6 py-5">
+        <div className="w-full max-w-xl">
+          <p className="text-micro text-token-transport mb-2.5 text-center tabular-nums">
+            {describeAudio(meta)}
           </p>
           {/* No caption track: this is the user's own file, opened from their own
               disk seconds ago. There is nothing to caption it with. */}
           <audio src={sourceUrl(id)} controls className="w-full" />
         </div>
-      </Well>
+      </div>
     );
   }
 
@@ -126,6 +133,21 @@ export function MediaWell({ id, meta }: MediaWellProps) {
       />
     </Well>
   );
+}
+
+/** "aac, stereo, 48 kHz" rather than a row of raw numbers. */
+function describeAudio(meta: ProbeResult): string {
+  const audio = meta.audio;
+  if (!audio) return 'no audio';
+  const channels =
+    audio.channels === 1
+      ? 'mono'
+      : audio.channels === 2
+        ? 'stereo'
+        : `${String(audio.channels)} channels`;
+  const rate =
+    audio.sampleRate === null ? null : `${String(Math.round(audio.sampleRate / 100) / 10)} kHz`;
+  return [audio.codec, channels, rate].filter((part) => part !== null).join(' · ');
 }
 
 function Well({ children }: { readonly children: React.ReactNode }) {

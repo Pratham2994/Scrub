@@ -325,6 +325,7 @@ function Gif({ id, meta }: { readonly id: string; readonly meta: ProbeResult }) 
             startSec={trim.startSec}
             endSec={trim.endSec}
             onChange={setTrim}
+            hasAudio={meta.audio !== null}
           />
         </div>
       )}

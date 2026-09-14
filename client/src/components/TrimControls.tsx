@@ -28,48 +28,22 @@ export function TrimControls({
   const setTrim = useScrubStore((state) => state.setTrim);
 
   const duration = meta.durationSec;
+  // Audio files have no frames, but the waveform gives them a real timeline.
   const hasFrames = meta.video !== null && !audioOnly;
   // A hair of separation, so the handles can never cross into an empty clip.
   const minGap = Math.min(0.1, duration / 100);
-  const startPercent = (trim.startSec / duration) * 100;
-  const endPercent = (trim.endSec / duration) * 100;
 
   return (
     <div className="border-line bg-surface flex flex-col gap-4 rounded-control border p-4">
-      {hasFrames ? (
-        <Filmstrip
-          id={id}
-          durationSec={duration}
-          startSec={trim.startSec}
-          endSec={trim.endSec}
-          onChange={setTrim}
-        />
-      ) : (
-        // Audio has no frames to show, so the range falls back to a plain track.
-        <div className="relative h-8">
-          <div className="bg-line absolute inset-x-0 top-1/2 h-1.5 -translate-y-1/2 rounded-full" />
-          <div
-            className="bg-accent absolute top-1/2 h-1.5 -translate-y-1/2 rounded-full"
-            style={{ left: `${String(startPercent)}%`, right: `${String(100 - endPercent)}%` }}
-          />
-          <RangeHandle
-            label="Start"
-            value={trim.startSec}
-            max={duration}
-            onChange={(value) => {
-              setTrim({ startSec: Math.min(value, trim.endSec - minGap) });
-            }}
-          />
-          <RangeHandle
-            label="End"
-            value={trim.endSec}
-            max={duration}
-            onChange={(value) => {
-              setTrim({ endSec: Math.max(value, trim.startSec + minGap) });
-            }}
-          />
-        </div>
-      )}
+      <Filmstrip
+        id={id}
+        durationSec={duration}
+        startSec={trim.startSec}
+        endSec={trim.endSec}
+        onChange={setTrim}
+        hasAudio={meta.audio !== null}
+        audioOnly={!hasFrames}
+      />
 
       <div className="flex flex-wrap items-end gap-6">
         <TimecodeField
@@ -120,49 +94,6 @@ export function TrimControls({
         </fieldset>
       )}
     </div>
-  );
-}
-
-/**
- * One handle of the range. Both inputs sit on top of each other with a
- * transparent track; only the thumbs receive pointer events, so whichever handle
- * is under the cursor is the one that moves.
- */
-function RangeHandle({
-  label,
-  value,
-  max,
-  onChange,
-}: {
-  readonly label: string;
-  readonly value: number;
-  readonly max: number;
-  readonly onChange: (value: number) => void;
-}) {
-  return (
-    <input
-      type="range"
-      aria-label={label}
-      min={0}
-      max={max}
-      step={0.01}
-      value={value}
-      onChange={(event) => {
-        onChange(Number.parseFloat(event.target.value));
-      }}
-      className={cn(
-        'absolute inset-x-0 top-1/2 h-8 w-full -translate-y-1/2 appearance-none bg-transparent',
-        'pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto',
-        '[&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none',
-        '[&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-well',
-        '[&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white',
-        '[&::-webkit-slider-thumb]:cursor-ew-resize [&::-webkit-slider-thumb]:shadow',
-        '[&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4',
-        '[&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2',
-        '[&::-moz-range-thumb]:border-white [&::-moz-range-thumb]:bg-well',
-        '[&::-moz-range-track]:bg-transparent',
-      )}
-    />
   );
 }
 

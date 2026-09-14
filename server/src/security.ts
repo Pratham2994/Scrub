@@ -52,7 +52,7 @@ function deny(res: Response, reason: string): void {
 function requiresClientHeader(method: string, path: string): boolean {
   if (method !== 'GET') return true;
   if (path === '/health') return false;
-  if (/^\/(source|download|filmstrip)\//.test(path)) return false;
+  if (/^\/(source|download|filmstrip|waveform)\//.test(path)) return false;
   // The SSE progress stream, opened by EventSource.
   return !/^\/run\/[^/]+\/events$/.test(path);
 }
