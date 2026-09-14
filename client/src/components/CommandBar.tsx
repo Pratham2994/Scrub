@@ -160,9 +160,20 @@ export function CommandBar({
             aria-label={placeholder ? 'Example command' : 'Command that will run'}
           >
             {tokens.map((token, index) => (
+              /**
+               * The key is position *and* content, so a span survives as long as
+               * the argument at that position is unchanged and re-mounts the
+               * moment it is not. That re-mount is what runs `token-change`, and
+               * it is why moving one control fades one flag rather than the
+               * whole line: the other nineteen spans never went away.
+               *
+               * `data-motion` marks it as opacity-only, which is what keeps it
+               * alive under reduced motion.
+               */
               <span
-                key={`${token.full}-${String(index)}`}
-                className={ROLE_CLASS[token.role]}
+                key={`${String(index)}-${token.full}`}
+                data-motion="opacity"
+                className={cn('token-change', ROLE_CLASS[token.role])}
                 title={token.text === token.full ? undefined : token.full}
               >
                 {index > 0 ? ' ' : ''}

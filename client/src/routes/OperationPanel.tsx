@@ -10,6 +10,7 @@ import { useEffect } from 'react';
 import { Navigate, useParams } from 'react-router';
 
 import { FileStatus } from '@/components/FileStatus';
+import { Handoff } from '@/components/Handoff';
 import { MediaWell } from '@/components/MediaWell';
 import { OperationControls } from '@/components/OperationControls';
 import { ResultWell } from '@/components/ResultWell';
@@ -45,46 +46,51 @@ export function OperationPanel() {
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4">
+      {/* The title stays put through the handoff. It names the operation, which
+          is true before a file lands and after, so moving it would be motion
+          that means nothing. */}
       <div>
         <h1 className="text-heading text-ink">{descriptor.label}</h1>
         <p className="text-micro text-muted mt-0.5">{descriptor.blurb}</p>
       </div>
 
-      {hasFile && run.status === 'done' ? (
-        /**
-         * The run finished, so the well shows what was made rather than what it
-         * was made from. Ending at a download chip left the only way to check
-         * the result as opening it somewhere else.
-         */
-        <ResultWell
-          sourceId={uploadId}
-          outputId={run.outputId}
-          outputName={run.outputName}
-          sizeBytes={run.sizeBytes}
-          elapsedMs={run.elapsedMs}
-          sourceBytes={meta.sizeBytes}
-          onDismiss={() => {
-            setRun({ status: 'idle' });
-          }}
-        />
-      ) : hasFile ? (
-        <MediaWell id={uploadId} meta={meta} />
-      ) : (
-        // Landing here from a bookmark or a reload with nothing loaded used to be
-        // a dead end that just said "No file loaded". The way forward has to be
-        // on the screen the user actually arrived at — and at the same size as on
-        // the home page, because it is the same invitation.
-        <FileStatus
-          headline={`Drop a file to ${descriptor.label.toLowerCase()}`}
-          hint="Nothing is loaded yet. Drop a video or audio file here, or choose one. Trim, compress, convert, resize, GIF, extract or replace audio, or normalise loudness."
-        />
-      )}
+      <Handoff mode={hasFile ? 'loaded' : 'empty'}>
+        {hasFile && run.status === 'done' ? (
+          /**
+           * The run finished, so the well shows what was made rather than what it
+           * was made from. Ending at a download chip left the only way to check
+           * the result as opening it somewhere else.
+           */
+          <ResultWell
+            sourceId={uploadId}
+            outputId={run.outputId}
+            outputName={run.outputName}
+            sizeBytes={run.sizeBytes}
+            elapsedMs={run.elapsedMs}
+            sourceBytes={meta.sizeBytes}
+            onDismiss={() => {
+              setRun({ status: 'idle' });
+            }}
+          />
+        ) : hasFile ? (
+          <MediaWell id={uploadId} meta={meta} />
+        ) : (
+          // Landing here from a bookmark or a reload with nothing loaded used to be
+          // a dead end that just said "No file loaded". The way forward has to be
+          // on the screen the user actually arrived at — and at the same size as on
+          // the home page, because it is the same invitation.
+          <FileStatus
+            headline={`Drop a file to ${descriptor.label.toLowerCase()}`}
+            hint="Nothing is loaded yet. Drop a video or audio file here, or choose one. Trim, compress, convert, resize, GIF, extract or replace audio, or normalise loudness."
+          />
+        )}
 
-      {hasFile && status?.state === 'unavailable' ? (
-        <Unavailable reason={status.reason} instead={status.instead} />
-      ) : (
-        hasFile && <OperationControls kind={kind} id={uploadId} meta={meta} />
-      )}
+        {hasFile && status?.state === 'unavailable' ? (
+          <Unavailable reason={status.reason} instead={status.instead} />
+        ) : (
+          hasFile && <OperationControls kind={kind} id={uploadId} meta={meta} />
+        )}
+      </Handoff>
 
       <div className="border-line bg-surface rounded-control border p-4">
         {run.status === 'failed' ? (

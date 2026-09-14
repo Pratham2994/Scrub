@@ -3,6 +3,7 @@ import { ArrowRight } from 'lucide-react';
 import { Link } from 'react-router';
 
 import { FileStatus } from '@/components/FileStatus';
+import { Handoff } from '@/components/Handoff';
 import { MediaWell } from '@/components/MediaWell';
 import { useScrubStore } from '@/store/use-scrub-store';
 
@@ -18,15 +19,19 @@ export function Home() {
   const meta = useScrubStore((state) => state.meta);
   const uploadId = useScrubStore((state) => state.uploadId);
 
-  if (meta !== null && uploadId !== null) {
-    return <Loaded id={uploadId} />;
-  }
+  const hasFile = meta !== null && uploadId !== null;
 
   return (
-    <FileStatus
-      headline="Drop a video or audio file"
-      hint="Trim, compress, convert, resize, make a GIF, extract or replace audio, or normalise loudness. The exact ffmpeg command is shown before anything runs."
-    />
+    <Handoff mode={hasFile ? 'loaded' : 'empty'}>
+      {hasFile ? (
+        <Loaded id={uploadId} />
+      ) : (
+        <FileStatus
+          headline="Drop a video or audio file"
+          hint="Trim, compress, convert, resize, make a GIF, extract or replace audio, or normalise loudness. The exact ffmpeg command is shown before anything runs."
+        />
+      )}
+    </Handoff>
   );
 }
 
@@ -48,7 +53,7 @@ function Loaded({ id }: { readonly id: string }) {
   );
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4">
+    <>
       <MediaWell id={id} meta={meta} />
 
       <div className="border-line bg-surface rounded-control border p-4">
@@ -74,6 +79,6 @@ function Loaded({ id }: { readonly id: string }) {
           ))}
         </div>
       </div>
-    </div>
+    </>
   );
 }

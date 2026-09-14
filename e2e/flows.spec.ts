@@ -265,3 +265,74 @@ test.describe('operations that do not fit the file', () => {
     expect(await commandText(page)).toContain('loudnorm');
   });
 });
+
+test.describe('motion', () => {
+  /**
+   * DESIGN.md allows exactly one orchestrated moment, and these two tests are
+   * the guard on both halves of the sentence describing it. The easy way to
+   * lose either is a refactor that swaps the panels without the transition and
+   * looks fine to whoever made the change, because they already knew a file had
+   * landed.
+   */
+  test('sweeps the filmstrip in from the left as the frames decode', async ({ page }) => {
+    await page.goto('/op/trim');
+
+    const samples: string[] = [];
+    await page.exposeFunction('__clip', (value: string) => {
+      samples.push(value);
+    });
+    await page.evaluate(() => {
+      const tick = (): void => {
+        const img = document.querySelector('img[alt="Frames from the loaded video"]');
+        if (img?.parentElement) void window.__clip(getComputedStyle(img.parentElement).clipPath);
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    });
+
+    await loadFixture(page);
+    await expect(page.locator('img[alt="Frames from the loaded video"]')).toBeVisible({
+      timeout: 30_000,
+    });
+    await page.waitForTimeout(900);
+
+    const distinct = [...new Set(samples)];
+    // Covered at the start, uncovered at the end, and genuinely moving between.
+    expect(distinct[0]).toContain('100%');
+    expect(distinct[distinct.length - 1]).toContain('0%');
+    expect(distinct.length).toBeGreaterThan(3);
+  });
+
+  test('drops the handoff to opacity when reduced motion is asked for', async ({ browser }) => {
+    const context = await browser.newContext({ reducedMotion: 'reduce' });
+    const page = await context.newPage();
+    await page.goto('/op/trim');
+
+    const samples: string[] = [];
+    await page.exposeFunction('__frame', (value: string) => {
+      samples.push(value);
+    });
+    await page.evaluate(() => {
+      const tick = (): void => {
+        const el = document.querySelector('main div.relative > div');
+        if (el) {
+          const style = getComputedStyle(el);
+          void window.__frame(`${style.opacity}|${style.transform}`);
+        }
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    });
+
+    await loadFixture(page);
+    await page.waitForTimeout(1200);
+
+    const transforms = new Set(samples.map((sample) => sample.split('|')[1]));
+    const opacities = new Set(samples.map((sample) => sample.split('|')[0]));
+    // Nothing moves, and the change is still visible.
+    expect([...transforms]).toEqual(['none']);
+    expect(opacities.size).toBeGreaterThan(2);
+
+    await context.close();
+  });
+});

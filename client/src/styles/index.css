@@ -213,14 +213,41 @@
     font-variant-numeric: tabular-nums;
   }
 
+  /* Reduced motion drops to opacity-only rather than to nothing.
+     `[data-motion='opacity']` marks the handful of animations that never move
+     anything — they are the ones worth keeping, because a change with no
+     transition at all leaves no evidence of what replaced what. */
   @media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
+    *:not([data-motion='opacity']),
+    *:not([data-motion='opacity'])::before,
+    *:not([data-motion='opacity'])::after {
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
       scroll-behavior: auto !important;
     }
   }
+}
+
+/**
+ * The command bar cross-fades the tokens that changed and leaves the rest.
+ *
+ * Moving one control rewrites one or two arguments out of twenty, and without
+ * this there is nothing connecting the control you just touched to the flag it
+ * governs — the command simply looks slightly different than it did. Only the
+ * spans that actually changed re-mount, so only those run this.
+ *
+ * Opacity-only, so it survives reduced motion by construction.
+ */
+@keyframes scrub-token-change {
+  from {
+    opacity: 0.2;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@utility token-change {
+  animation: scrub-token-change 120ms ease-out;
 }

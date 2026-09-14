@@ -2,6 +2,7 @@ import { formatTimecode } from '@scrub/shared';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { filmstripUrl, waveformUrl } from '@/lib/api';
+import { FILMSTRIP_REVEAL_MS } from '@/lib/motion';
 import { seekTo, subscribeTime } from '@/lib/playback';
 import { cn } from '@/lib/utils';
 
@@ -41,6 +42,23 @@ export function Filmstrip({
   const playheadRef = useRef<HTMLDivElement>(null);
   const [failed, setFailed] = useState(false);
   const [waveFailed, setWaveFailed] = useState(false);
+  /**
+   * The frames sweep in left to right once the tile has decoded.
+   *
+   * The direction is not arbitrary and it is not decoration: ffmpeg walks the
+   * file from the start and tiles the frames in that order, so the wipe uncovers
+   * them in the order they were taken. It is one request for one image, not one
+   * per frame, so this follows the decode rather than tracking it.
+   */
+  const [revealed, setRevealed] = useState(false);
+
+  // A new file starts covered again. Without this the second file's frames were
+  // already uncovered, and only the first upload ever showed the sweep.
+  useEffect(() => {
+    setRevealed(false);
+    setFailed(false);
+    setWaveFailed(false);
+  }, [id]);
 
   const startPercent = (startSec / durationSec) * 100;
   const endPercent = (endSec / durationSec) * 100;
@@ -69,6 +87,17 @@ export function Filmstrip({
 
   const minGap = Math.min(0.1, durationSec / 100);
 
+  /**
+   * The wipe itself. The waveform gets it too, because for an audio file the
+   * waveform *is* the timeline and showwavespic draws it in the same direction
+   * — leaving it out would have meant half the files Scrub opens arriving with
+   * no handoff at all.
+   */
+  const revealStyle = {
+    clipPath: `inset(0 ${revealed ? '0%' : '100%'} 0 0)`,
+    transition: `clip-path ${String(FILMSTRIP_REVEAL_MS)}ms cubic-bezier(0.22, 1, 0.36, 1)`,
+  };
+
   return (
     <div className="flex flex-col gap-1.5">
       {/* The track does not clip: a handle sits astride the edge it marks, and
@@ -84,7 +113,10 @@ export function Filmstrip({
           seekTo(secondsAt(event.clientX));
         }}
       >
-        <div className="bg-well border-well-edge absolute inset-0 overflow-hidden rounded-control border">
+        <div
+          className="bg-well border-well-edge absolute inset-0 overflow-hidden rounded-control border"
+          style={audioOnly || failed ? undefined : revealStyle}
+        >
           {audioOnly ? null : failed ? (
             <div className="flex h-full items-center justify-center">
               <p className="text-micro text-token-transport">No preview frames for this file.</p>
@@ -97,6 +129,14 @@ export function Filmstrip({
                 src={filmstripUrl(id)}
                 alt=""
                 draggable={false}
+                ref={(node) => {
+                  // A cached tile can finish decoding before React attaches the
+                  // handler below, and the sweep would never start.
+                  if (node?.complete === true && node.naturalWidth > 0) setRevealed(true);
+                }}
+                onLoad={() => {
+                  setRevealed(true);
+                }}
                 onError={() => {
                   setFailed(true);
                 }}
@@ -129,9 +169,18 @@ export function Filmstrip({
             src={waveformUrl(id)}
             alt=""
             draggable={false}
+            ref={(node) => {
+              if (audioOnly && node?.complete === true && node.naturalWidth > 0) setRevealed(true);
+            }}
+            onLoad={() => {
+              // Only the audio-only case waits on this one. When there are
+              // frames they lead, and the waveform rides the same clip.
+              if (audioOnly) setRevealed(true);
+            }}
             onError={() => {
               setWaveFailed(true);
             }}
+            style={revealStyle}
             className={cn(
               'pointer-events-none absolute inset-x-0 object-fill',
               audioOnly ? 'inset-y-0 h-full' : 'bottom-0 h-8 opacity-80',
