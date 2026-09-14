@@ -4,7 +4,7 @@ import { Navigate, useParams } from 'react-router';
 
 import { FileStatus } from '@/components/FileStatus';
 import { MediaWell } from '@/components/MediaWell';
-import { TrimControls } from '@/components/TrimControls';
+import { OperationControls } from '@/components/OperationControls';
 import { useScrubStore } from '@/store/use-scrub-store';
 
 /**
@@ -52,7 +52,7 @@ export function OperationPanel() {
         />
       )}
 
-      {hasFile && kind === 'trim' && <TrimControls id={uploadId} meta={meta} />}
+      {hasFile && <OperationControls kind={kind} id={uploadId} meta={meta} />}
 
       <div className="border-line bg-surface rounded-control border p-4">
         {run.status === 'failed' ? (
@@ -72,9 +72,8 @@ export function OperationPanel() {
           </p>
         ) : (
           <p className="text-label text-muted">
-            {kind === 'trim'
-              ? 'Set the range above, then Run. The command bar always shows exactly what will execute.'
-              : `Controls for ${descriptor.label.toLowerCase()} are not built yet — edit the command bar to run something.`}
+            Set it up above, then Run. The command bar always shows exactly what will execute, and
+            you can edit it directly if you need something Scrub does not offer.
           </p>
         )}
       </div>

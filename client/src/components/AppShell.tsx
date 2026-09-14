@@ -134,6 +134,7 @@ export function AppShell({ children }: { readonly children: React.ReactNode }) {
 
         <CommandBar
           argv={command.argv}
+          passes={command.passes}
           placeholder={command.placeholder}
           run={run}
           canRun={command.operation !== null}

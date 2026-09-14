@@ -5,14 +5,30 @@ import {
   type OperationKind,
   OVERWRITE_ARG,
   TRANSPORT_ARGS,
+  type VideoCompress,
 } from '@scrub/shared';
 import { useMemo } from 'react';
 
 import { SAMPLE_ARGV } from '@/lib/sample-command';
-import { type TrimParams, useScrubStore } from '@/store/use-scrub-store';
+import { type OperationParams, type TrimParams, useScrubStore } from '@/store/use-scrub-store';
+
+/** The preset strings x264 accepts, taken from the operation type itself. */
+type CompressPreset = VideoCompress['preset'];
+
+export type CommandPassView = {
+  readonly argv: readonly string[];
+  readonly label: string;
+};
 
 export type LiveCommand = {
+  /** The pass currently being shown. */
   readonly argv: readonly string[];
+  /**
+   * Every pass in the plan. GIF and loudness genuinely run two commands, and
+   * showing only the first would be showing half of what happens — which is the
+   * one thing the command bar must never do.
+   */
+  readonly passes: readonly CommandPassView[];
   /** True when this is the dimmed example, not a command anything can run. */
   readonly placeholder: boolean;
   /** The operation to send to /run, or null when there is nothing runnable. */
@@ -32,10 +48,12 @@ export function useCommand(kind: OperationKind | null): LiveCommand {
   const meta = useScrubStore((state) => state.meta);
   const uploadId = useScrubStore((state) => state.uploadId);
   const trim = useScrubStore((state) => state.trim);
+  const params = useScrubStore((state) => state.params);
 
   return useMemo<LiveCommand>(() => {
     const empty = {
       argv: SAMPLE_ARGV,
+      passes: [{ argv: SAMPLE_ARGV, label: 'Example' }],
       placeholder: true,
       operation: null,
     } as const;
@@ -47,22 +65,26 @@ export function useCommand(kind: OperationKind | null): LiveCommand {
       // about someone else's holiday clip here is the one moment it actively
       // misleads — the user has just uploaded and is looking for proof it
       // worked. Their own file, dimmed, says so.
+      const argv = skeletonArgv(meta.path, outputPathFor(meta.path, 'convert'));
       return {
-        argv: skeletonArgv(meta.path, outputPathFor(meta.path, 'convert')),
+        argv,
+        passes: [{ argv, label: 'Ready' }],
         placeholder: true,
         operation: null,
         unavailable: null,
       };
     }
 
-    const op = operationFor(kind, trim);
+    const op = operationFor(kind, trim, params);
     if (!op) {
       // The operation has no argv yet, but a file *is* loaded — so rather than a
       // dimmed example about someone else's file, show a real skeleton against
       // this one. It is the starting point for the editable command bar, which is
       // how anything outside the closed operation list gets done.
+      const argv = skeletonArgv(meta.path, outputPathFor(meta.path, kind));
       return {
-        argv: skeletonArgv(meta.path, outputPathFor(meta.path, kind)),
+        argv,
+        passes: [{ argv, label: 'Starting point' }],
         placeholder: false,
         operation: null,
         unavailable: kind,
@@ -77,28 +99,71 @@ export function useCommand(kind: OperationKind | null): LiveCommand {
         outputPath: outputPathFor(meta.path, kind),
         workDir: meta.path.replace(/[\\/][^\\/]+$/, ''),
       });
-      const [first] = plan.passes;
+      const passes = plan.passes.map((pass) => ({ argv: pass.argv, label: pass.label }));
+      const [first] = passes;
       if (!first) return { ...empty, unavailable: kind };
-      return { argv: first.argv, placeholder: false, operation: op, unavailable: null };
+      return { argv: first.argv, passes, placeholder: false, operation: op, unavailable: null };
     } catch (error) {
       if (error instanceof NotImplemented) return { ...empty, unavailable: kind };
       throw error;
     }
-  }, [meta, uploadId, kind, trim]);
+  }, [meta, uploadId, kind, trim, params]);
 }
 
 /**
- * The operation the current controls describe. Trim reads its real parameters
- * from the store, so moving a handle changes the command in the bar immediately.
+ * The operation the current controls describe.
+ *
+ * Everything reads from the store, so moving any control rewrites the command in
+ * the bar immediately — and the object built here is the exact one posted to
+ * /run, where the server rebuilds the argv from it with the same function.
  */
-function operationFor(kind: OperationKind, trim: TrimParams): Operation | null {
+function operationFor(
+  kind: OperationKind,
+  trim: TrimParams,
+  params: OperationParams,
+): Operation | null {
   switch (kind) {
     case 'trim':
-      return { kind: 'trim', startSec: trim.startSec, endSec: trim.endSec, mode: trim.mode };
-    default:
-      // Everything else throws NotImplemented in buildArgs anyway; returning null
-      // keeps that one fact in one place.
-      return null;
+      return { kind, startSec: trim.startSec, endSec: trim.endSec, mode: trim.mode };
+    case 'compress':
+      return { kind, crf: params.compress.crf, preset: params.compress.preset as CompressPreset };
+    case 'convert':
+      return { kind, container: params.convert.container };
+    case 'resize':
+      return { kind, width: params.resize.width };
+    case 'gif':
+      return {
+        kind,
+        fps: params.gif.fps,
+        width: params.gif.width,
+        startSec: params.gif.useRange ? trim.startSec : null,
+        endSec: params.gif.useRange ? trim.endSec : null,
+      };
+    case 'extract-audio':
+      return { kind, format: params.extractAudio.format };
+    case 'mute':
+      return { kind };
+    case 'replace-audio':
+      // Needs a second upload, which Scrub cannot hold yet. Returning null puts
+      // the editable command bar in charge, which is what it is for.
+      return params.replaceAudio.audioId === null
+        ? null
+        : { kind, audioId: params.replaceAudio.audioId };
+    case 'audio-convert':
+      return {
+        kind,
+        format: params.audioConvert.format,
+        bitrateKbps: params.audioConvert.bitrateKbps,
+      };
+    case 'audio-trim':
+      return { kind, startSec: trim.startSec, endSec: trim.endSec };
+    case 'loudness':
+      return {
+        kind,
+        targetI: params.loudness.targetI,
+        targetTP: params.loudness.targetTP,
+        targetLRA: params.loudness.targetLRA,
+      };
   }
 }
 

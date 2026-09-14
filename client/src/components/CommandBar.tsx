@@ -6,6 +6,7 @@ import { analyse, CommandEditor, hasBlockingError } from '@/components/CommandEd
 import { commandToString, type CommandToken, tokenizeCommand } from '@/lib/command-tokens';
 import { downloadUrl } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import type { CommandPassView } from '@/lib/use-command';
 import type { RunState } from '@/store/use-scrub-store';
 
 const ROLE_CLASS: Record<CommandToken['role'], string> = {
@@ -18,6 +19,8 @@ const ROLE_CLASS: Record<CommandToken['role'], string> = {
 
 type CommandBarProps = {
   readonly argv: readonly string[];
+  /** Every pass. More than one means the operation runs several commands. */
+  readonly passes: readonly CommandPassView[];
   readonly placeholder?: boolean;
   readonly run: RunState;
   readonly canRun: boolean;
@@ -39,6 +42,7 @@ type CommandBarProps = {
  */
 export function CommandBar({
   argv,
+  passes,
   placeholder = false,
   run,
   canRun,
@@ -57,8 +61,12 @@ export function CommandBar({
    * until the command it was based on is replaced.
    */
   const [draft, setDraft] = useState<string | null>(null);
+  const [passIndex, setPassIndex] = useState(0);
 
-  const generatedLine = useMemo(() => formatCommandLine(['ffmpeg', ...argv]), [argv]);
+  const generatedLine = useMemo(
+    () => formatCommandLine(['ffmpeg', ...(passes[passIndex]?.argv ?? argv)]),
+    [passes, passIndex, argv],
+  );
   const text = draft ?? generatedLine;
   const dirty = draft !== null && draft !== generatedLine;
 
@@ -68,6 +76,7 @@ export function CommandBar({
   useEffect(() => {
     setEditing(false);
     setDraft(null);
+    setPassIndex(0);
   }, [argv]);
 
   /**
@@ -93,7 +102,8 @@ export function CommandBar({
 
   // What the collapsed bar renders: the edit if there is one, otherwise the
   // generated command. Either way it is what Run will execute.
-  const shown = edited ?? argv;
+  const selected = passes[Math.min(passIndex, passes.length - 1)]?.argv ?? argv;
+  const shown = edited ?? selected;
   // Tokenising is pure and the result only changes when the command does, but
   // this component re-renders on every progress tick during an encode.
   const tokens = useMemo(() => tokenizeCommand(shown), [shown]);
@@ -167,6 +177,34 @@ export function CommandBar({
       )}
 
       <div className="flex shrink-0 items-center gap-1 self-center">
+        {passes.length > 1 && !dirty && (
+          /**
+           * GIF and loudness genuinely run two commands. Showing only the first
+           * would be showing half of what happens, which is exactly what the
+           * command bar exists to prevent — so both are reachable, labelled.
+           */
+          <div className="mr-1 flex items-center gap-0.5" role="group" aria-label="Command passes">
+            {passes.map((pass, index) => (
+              <button
+                key={pass.label}
+                type="button"
+                aria-pressed={index === passIndex}
+                title={pass.label}
+                onClick={() => {
+                  setPassIndex(index);
+                }}
+                className={cn(
+                  'text-micro rounded-button px-2 py-1 transition-colors duration-100',
+                  index === passIndex
+                    ? 'bg-white/15 text-token-binary'
+                    : 'text-token-transport hover:bg-white/10',
+                )}
+              >
+                {index + 1}. {pass.label}
+              </button>
+            ))}
+          </div>
+        )}
         {dirty && (
           // A persisted edit has to announce itself, or the bar silently stops
           // matching the controls above it.

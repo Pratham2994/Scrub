@@ -1,4 +1,10 @@
-import type { OperationKind, ProbeResult, TrimMode } from '@scrub/shared';
+import type {
+  AudioFormat,
+  OperationKind,
+  ProbeResult,
+  TrimMode,
+  VideoContainer,
+} from '@scrub/shared';
 import { create } from 'zustand';
 
 /** Where the loaded file is in its journey. The UI reads this, not a pile of booleans. */
@@ -67,6 +73,45 @@ export type TrimParams = {
   readonly mode: TrimMode;
 };
 
+/**
+ * What every other operation's controls are set to.
+ *
+ * All of them at once rather than only the selected one, so switching to an
+ * operation and back does not silently reset what you had dialled in. The
+ * defaults are the answer to "what does someone usually want" — CRF 23 is
+ * x264's own default, -16 LUFS is the streaming target, 12fps is the rate a GIF
+ * stops looking like a slideshow.
+ */
+export type OperationParams = {
+  readonly compress: { readonly crf: number; readonly preset: string };
+  readonly convert: { readonly container: VideoContainer };
+  readonly resize: { readonly width: number };
+  readonly gif: {
+    readonly fps: number;
+    readonly width: number;
+    readonly useRange: boolean;
+  };
+  readonly extractAudio: { readonly format: AudioFormat };
+  readonly replaceAudio: { readonly audioId: string | null; readonly audioName: string | null };
+  readonly audioConvert: { readonly format: AudioFormat; readonly bitrateKbps: number | null };
+  readonly loudness: {
+    readonly targetI: number;
+    readonly targetTP: number;
+    readonly targetLRA: number;
+  };
+};
+
+const DEFAULT_PARAMS: OperationParams = {
+  compress: { crf: 23, preset: 'medium' },
+  convert: { container: 'mp4' },
+  resize: { width: 1280 },
+  gif: { fps: 12, width: 480, useRange: true },
+  extractAudio: { format: 'mp3' },
+  replaceAudio: { audioId: null, audioName: null },
+  audioConvert: { format: 'mp3', bitrateKbps: 192 },
+  loudness: { targetI: -16, targetTP: -1.5, targetLRA: 11 },
+};
+
 export type ScrubState = {
   readonly uploadId: string | null;
   readonly meta: ProbeResult | null;
@@ -74,9 +119,14 @@ export type ScrubState = {
   readonly run: RunState;
   readonly activeOperation: OperationKind | null;
   readonly trim: TrimParams;
+  readonly params: OperationParams;
 
   readonly setActiveOperation: (kind: OperationKind | null) => void;
   readonly setTrim: (patch: Partial<TrimParams>) => void;
+  readonly setParams: <K extends keyof OperationParams>(
+    key: K,
+    patch: Partial<OperationParams[K]>,
+  ) => void;
   readonly beginRestore: () => void;
   readonly startUpload: (fileName: string) => void;
   readonly setUploadProgress: (fraction: number) => void;
@@ -94,9 +144,13 @@ export const useScrubStore = create<ScrubState>()((set) => ({
   run: { status: 'idle' },
   activeOperation: null,
   trim: { startSec: 0, endSec: 0, mode: 'fast' },
+  params: DEFAULT_PARAMS,
 
   setTrim: (patch) => {
     set((state) => ({ trim: { ...state.trim, ...patch } }));
+  },
+  setParams: (key, patch) => {
+    set((state) => ({ params: { ...state.params, [key]: { ...state.params[key], ...patch } } }));
   },
 
   setActiveOperation: (kind) => {
@@ -138,6 +192,13 @@ export const useScrubStore = create<ScrubState>()((set) => ({
       run: { status: 'idle' },
       // A new file means a new timeline, so the range starts as the whole clip.
       trim: { startSec: 0, endSec: meta.durationSec, mode: 'fast' },
+      // Resize defaults to the source width, which is the only value that is
+      // certainly valid for this file. The rest are file-independent.
+      params: {
+        ...DEFAULT_PARAMS,
+        resize: { width: evenWidth(meta.video?.width ?? 1280) },
+        replaceAudio: { audioId: null, audioName: null },
+      },
     });
   },
   failUpload: (message, detail = []) => {
@@ -162,3 +223,8 @@ export const useScrubStore = create<ScrubState>()((set) => ({
     });
   },
 }));
+
+/** libx264 needs even dimensions, so a source width of 1921 must not become one. */
+function evenWidth(width: number): number {
+  return Math.max(2, width - (width % 2));
+}

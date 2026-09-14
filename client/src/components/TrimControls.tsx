@@ -14,12 +14,21 @@ import { useScrubStore } from '@/store/use-scrub-store';
  * landing on an exact frame with a mouse is the thing Scrub exists to make less
  * painful.
  */
-export function TrimControls({ id, meta }: { readonly id: string; readonly meta: ProbeResult }) {
+export function TrimControls({
+  id,
+  meta,
+  audioOnly = false,
+}: {
+  readonly id: string;
+  readonly meta: ProbeResult;
+  /** Audio trim has no keyframe problem, so it has no fast/precise decision. */
+  readonly audioOnly?: boolean;
+}) {
   const trim = useScrubStore((state) => state.trim);
   const setTrim = useScrubStore((state) => state.setTrim);
 
   const duration = meta.durationSec;
-  const hasFrames = meta.video !== null;
+  const hasFrames = meta.video !== null && !audioOnly;
   // A hair of separation, so the handles can never cross into an empty clip.
   const minGap = Math.min(0.1, duration / 100);
   const startPercent = (trim.startSec / duration) * 100;
@@ -87,27 +96,29 @@ export function TrimControls({ id, meta }: { readonly id: string; readonly meta:
         </div>
       </div>
 
-      <fieldset className="flex flex-col gap-2">
-        <legend className="text-label text-muted mb-1">Accuracy</legend>
-        <div className="flex flex-wrap gap-2">
-          <ModeOption
-            checked={trim.mode === 'fast'}
-            onSelect={() => {
-              setTrim({ mode: 'fast' });
-            }}
-            title="Fast"
-            detail="No re-encode, near-instant. Cuts on the nearest keyframe, so the clip can start earlier and run longer than asked."
-          />
-          <ModeOption
-            checked={trim.mode === 'precise'}
-            onSelect={() => {
-              setTrim({ mode: 'precise' });
-            }}
-            title="Precise"
-            detail="Exactly these timecodes. Re-encodes the video, so it takes longer and loses a little quality."
-          />
-        </div>
-      </fieldset>
+      {!audioOnly && (
+        <fieldset className="flex flex-col gap-2">
+          <legend className="text-label text-muted mb-1">Accuracy</legend>
+          <div className="flex flex-wrap gap-2">
+            <ModeOption
+              checked={trim.mode === 'fast'}
+              onSelect={() => {
+                setTrim({ mode: 'fast' });
+              }}
+              title="Fast"
+              detail="No re-encode, near-instant. Cuts on the nearest keyframe, so the clip can start earlier and run longer than asked."
+            />
+            <ModeOption
+              checked={trim.mode === 'precise'}
+              onSelect={() => {
+                setTrim({ mode: 'precise' });
+              }}
+              title="Precise"
+              detail="Exactly these timecodes. Re-encodes the video, so it takes longer and loses a little quality."
+            />
+          </div>
+        </fieldset>
+      )}
     </div>
   );
 }

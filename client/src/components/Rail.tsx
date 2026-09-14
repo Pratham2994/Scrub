@@ -47,6 +47,13 @@ export function Rail() {
               <NavLink
                 key={op.kind}
                 to={`/op/${op.kind}`}
+                /**
+                 * "Convert" and "Trim" each appear in both groups. Sighted users
+                 * tell them apart by the legend above; anyone listening hears
+                 * two identical links, so the accessible name carries the group
+                 * even though the visible label stays the short verb.
+                 */
+                aria-label={group.id === 'audio' ? `${op.label} audio` : op.label}
                 className={({ isActive }) =>
                   cn(
                     'text-body relative block shrink-0 rounded-button px-2 py-1.5 whitespace-nowrap transition-colors duration-100',

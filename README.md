@@ -146,7 +146,10 @@ shared/   Operation types and the buildArgs function. Imported by both.
 Working. Upload, probe, preview, run with live progress, cancel, and download all
 function, and every one of the eleven operations produces a real command.
 
-Trim has full controls — a range scrubber, typed timecodes, and the fast/precise
-toggle. The other ten are reachable through the editable command bar, which
-lints what you type against the traps in `docs/OPERATIONS.md`, but do not have
-their own control panels yet. The filmstrip and waveform are not built.
+All eleven have controls, and trim and GIF scrub against a filmstrip of real
+frames from the loaded file. The command bar shows every pass of a multi-pass
+operation, and can be edited directly — what you type is linted against the
+traps in `docs/OPERATIONS.md` before Run will accept it.
+
+Not built: the waveform, and replace-audio's second file picker (that operation
+is reachable through the command bar meanwhile).
