@@ -1,4 +1,11 @@
-import { buildArgs, NotImplemented, type Operation, type OperationKind } from '@scrub/shared';
+import {
+  buildArgs,
+  NotImplemented,
+  type Operation,
+  type OperationKind,
+  OVERWRITE_ARG,
+  TRANSPORT_ARGS,
+} from '@scrub/shared';
 import { useMemo } from 'react';
 
 import { SAMPLE_ARGV } from '@/lib/sample-command';
@@ -35,7 +42,18 @@ export function useCommand(kind: OperationKind | null): LiveCommand {
     if (!meta || !uploadId || !kind) return { ...empty, unavailable: null };
 
     const op = defaultOperation(kind, meta.durationSec);
-    if (!op) return { ...empty, unavailable: kind };
+    if (!op) {
+      // The operation has no argv yet, but a file *is* loaded — so rather than a
+      // dimmed example about someone else's file, show a real skeleton against
+      // this one. It is the starting point for the editable command bar, which is
+      // how anything outside the closed operation list gets done.
+      return {
+        argv: skeletonArgv(meta.path, outputPathFor(meta.path, kind)),
+        placeholder: false,
+        operation: null,
+        unavailable: kind,
+      };
+    }
 
     try {
       const plan = buildArgs(op, meta, {
@@ -69,6 +87,15 @@ function defaultOperation(kind: OperationKind, durationSec: number): Operation |
       // keeps that one fact in one place.
       return null;
   }
+}
+
+/**
+ * A minimal but genuinely runnable command: copy the file. It does nothing
+ * interesting on its own, which is the point — it is a correct starting line for
+ * an operation Scrub does not generate yet, with the real paths already in place.
+ */
+function skeletonArgv(inputPath: string, outputPath: string): readonly string[] {
+  return [...TRANSPORT_ARGS, '-i', inputPath, '-c', 'copy', OVERWRITE_ARG, outputPath];
 }
 
 function outputPathFor(inputPath: string, kind: OperationKind): string {

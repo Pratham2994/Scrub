@@ -132,11 +132,13 @@ export type JobEvent =
   | { readonly type: 'error'; readonly message: string; readonly detail: readonly string[] }
   | { readonly type: 'cancelled' };
 
-export async function startRun(id: string, op: Operation): Promise<string> {
+export type RunTarget = { readonly op: Operation } | { readonly argv: readonly string[] };
+
+export async function startRun(id: string, target: RunTarget): Promise<string> {
   const response = await fetch(`${BASE}/run`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', [CLIENT_HEADER]: '1' },
-    body: JSON.stringify({ id, op }),
+    body: JSON.stringify({ id, ...target }),
   });
   if (!response.ok) throw await toApiError(response);
   const body = (await response.json()) as { jobId: string };

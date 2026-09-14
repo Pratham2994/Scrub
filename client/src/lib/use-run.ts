@@ -1,12 +1,12 @@
 import type { Operation } from '@scrub/shared';
 import { useCallback, useEffect, useRef } from 'react';
 
-import { ApiError, cancelRun, startRun, subscribeToJob } from '@/lib/api';
+import { ApiError, cancelRun, type RunTarget, startRun, subscribeToJob } from '@/lib/api';
 import { useScrubStore } from '@/store/use-scrub-store';
 
 /** Starts an operation and keeps the store in step with its progress stream. */
 export function useRun(op: Operation | null): {
-  readonly start: () => void;
+  readonly start: (editedArgv: readonly string[] | null) => void;
   readonly cancel: () => void;
 } {
   const uploadId = useScrubStore((state) => state.uploadId);
@@ -24,61 +24,73 @@ export function useRun(op: Operation | null): {
     [],
   );
 
-  const start = useCallback(() => {
-    if (!uploadId || !op) return;
+  const start = useCallback(
+    (editedArgv: readonly string[] | null) => {
+      if (!uploadId) return;
+      // An edited command runs as typed; otherwise the generated operation does.
+      if (!editedArgv && !op) return;
 
-    setRun({
-      status: 'running',
-      jobId: '',
-      progress: 0,
-      passLabel: '',
-      passIndex: 0,
-      passCount: 1,
-      elapsedMs: 0,
-    });
+      setRun({
+        status: 'running',
+        jobId: '',
+        progress: 0,
+        passLabel: '',
+        passIndex: 0,
+        passCount: 1,
+        elapsedMs: 0,
+      });
 
-    startRun(uploadId, op)
-      .then((jobId) => {
-        detachRef.current?.();
-        detachRef.current = subscribeToJob(jobId, (event) => {
-          switch (event.type) {
-            case 'progress':
-              setRun({
-                status: 'running',
-                jobId,
-                progress: event.progress,
-                passLabel: event.passLabel,
-                passIndex: event.passIndex,
-                passCount: event.passCount,
-                elapsedMs: event.elapsedMs,
-              });
-              return;
-            case 'done':
-              setRun({
-                status: 'done',
-                outputId: event.outputId,
-                outputName: event.outputName,
-                sizeBytes: event.sizeBytes,
-                elapsedMs: event.elapsedMs,
-              });
-              return;
-            case 'error':
-              setRun({ status: 'failed', message: event.message, detail: event.detail });
-              return;
-            case 'cancelled':
-              setRun({ status: 'cancelled' });
-              return;
+      const target: RunTarget | null = editedArgv ? { argv: editedArgv } : op ? { op } : null;
+      if (target === null) return;
+
+      startRun(uploadId, target)
+        .then((jobId) => {
+          detachRef.current?.();
+          detachRef.current = subscribeToJob(jobId, (event) => {
+            switch (event.type) {
+              case 'progress':
+                setRun({
+                  status: 'running',
+                  jobId,
+                  progress: event.progress,
+                  passLabel: event.passLabel,
+                  passIndex: event.passIndex,
+                  passCount: event.passCount,
+                  elapsedMs: event.elapsedMs,
+                });
+                return;
+              case 'done':
+                setRun({
+                  status: 'done',
+                  outputId: event.outputId,
+                  outputName: event.outputName,
+                  sizeBytes: event.sizeBytes,
+                  elapsedMs: event.elapsedMs,
+                });
+                return;
+              case 'error':
+                setRun({ status: 'failed', message: event.message, detail: event.detail });
+                return;
+              case 'cancelled':
+                setRun({ status: 'cancelled' });
+                return;
+            }
+          });
+        })
+        .catch((error: unknown) => {
+          if (error instanceof ApiError) {
+            setRun({ status: 'failed', message: error.message, detail: error.detail });
+          } else {
+            setRun({
+              status: 'failed',
+              message: 'Scrub could not start the operation.',
+              detail: [],
+            });
           }
         });
-      })
-      .catch((error: unknown) => {
-        if (error instanceof ApiError) {
-          setRun({ status: 'failed', message: error.message, detail: error.detail });
-        } else {
-          setRun({ status: 'failed', message: 'Scrub could not start the operation.', detail: [] });
-        }
-      });
-  }, [uploadId, op, setRun]);
+    },
+    [uploadId, op, setRun],
+  );
 
   const cancel = useCallback(() => {
     if (run.status !== 'running' || run.jobId === '') return;

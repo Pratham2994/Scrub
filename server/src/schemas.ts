@@ -69,9 +69,21 @@ export const operationSchema = z.discriminatedUnion('kind', [
   }),
 ]) satisfies z.ZodType<Operation>;
 
-export const runRequestSchema = z.object({
-  id: idSchema,
-  op: operationSchema,
-});
+/**
+ * A run is either one of the eleven operations, or a command the user edited by
+ * hand. The second form is what keeps the operation list closed: anything Scrub
+ * does not offer is reachable by typing it, and that is a feature rather than a
+ * gap.
+ *
+ * It is only defensible because the server is bound to loopback. The argv is
+ * capped so a single request cannot hand ffmpeg an unbounded argument list.
+ */
+export const runRequestSchema = z.union([
+  z.object({ id: idSchema, op: operationSchema }),
+  z.object({
+    id: idSchema,
+    argv: z.array(z.string().max(4096)).min(1).max(256),
+  }),
+]);
 
 export type RunRequest = z.infer<typeof runRequestSchema>;

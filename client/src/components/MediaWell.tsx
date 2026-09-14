@@ -1,5 +1,5 @@
 import type { ProbeResult } from '@scrub/shared';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { sourceUrl } from '@/lib/api';
 
@@ -21,11 +21,32 @@ type MediaWellProps = {
 
 export function MediaWell({ id, meta }: MediaWellProps) {
   const [failed, setFailed] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   // A different file deserves a fresh attempt, even if the last one failed.
   useEffect(() => {
     setFailed(false);
   }, [id]);
+
+  /**
+   * Tear the media element down by hand when it goes away.
+   *
+   * Removing a playing <video> from the DOM does not reliably close the HTTP
+   * connection behind it — the browser keeps streaming into an element nobody
+   * can see. Browsers allow only about six connections per origin, so a few
+   * leaked ones and every later request queues behind them, which looks like
+   * the whole page has frozen.
+   */
+  useEffect(
+    () => () => {
+      const element = videoRef.current;
+      if (!element) return;
+      element.pause();
+      element.removeAttribute('src');
+      element.load();
+    },
+    [],
+  );
 
   const codec = meta.video?.codec.toLowerCase() ?? null;
   const unplayable = codec !== null && !PLAYABLE_VIDEO.has(codec);
@@ -68,6 +89,7 @@ export function MediaWell({ id, meta }: MediaWellProps) {
       {/* Letterboxed inside the well: `object-contain` so the frame is never
           cropped, and the well keeps its size so the layout does not jump. */}
       <video
+        ref={videoRef}
         key={id}
         src={sourceUrl(id)}
         controls

@@ -1,7 +1,8 @@
 import { Settings } from 'lucide-react';
+import { useMemo } from 'react';
 import { Link } from 'react-router';
 
-import { formatTimecode, type ProbeResult } from '@scrub/shared';
+import { formatTimecode, type LintContext, type ProbeResult } from '@scrub/shared';
 
 import { CommandBar } from '@/components/CommandBar';
 import { Rail } from '@/components/Rail';
@@ -43,6 +44,13 @@ export function AppShell({ children }: { readonly children: React.ReactNode }) {
   const clearFile = useScrubStore((state) => state.clearFile);
   const command = useCommand(activeOperation);
   const { start, cancel } = useRun(command.operation);
+
+  // What the linter measures an edited command against: the file that is loaded
+  // and the directory Scrub can actually offer a download from.
+  const lintContext = useMemo<LintContext | null>(
+    () => (meta ? { inputPath: meta.path, workDir: meta.path.replace(/[\\/][^\\/]+$/, '') } : null),
+    [meta],
+  );
 
   // Puts the workspace back after a reload, before anything renders an empty state.
   useRestoreUpload();
@@ -131,6 +139,7 @@ export function AppShell({ children }: { readonly children: React.ReactNode }) {
         placeholder={command.placeholder}
         run={run}
         canRun={command.operation !== null}
+        lintContext={lintContext}
         onRun={start}
         onCancel={cancel}
       />

@@ -28,6 +28,35 @@ function outputBaseName(displayName: string, kind: string, ext: string): string 
   return `${stem}-${kind}${ext}`;
 }
 
+/**
+ * How long an edited command's output should be, for the progress denominator.
+ *
+ * `-t` states it outright; `-to` minus `-ss` gives it; otherwise the whole source
+ * is the best guess. A guess is fine here — being wrong makes the bar finish
+ * early or late, where having no denominator at all means no bar.
+ */
+function estimateDuration(argv: readonly string[], sourceDuration: number): number {
+  const valueOf = (flag: string): number | null => {
+    const index = argv.indexOf(flag);
+    if (index === -1) return null;
+    const raw = argv[index + 1];
+    if (raw === undefined) return null;
+    const parsed = Number.parseFloat(raw);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+
+  const t = valueOf('-t');
+  if (t !== null && t > 0) return t;
+
+  const to = valueOf('-to');
+  if (to !== null) {
+    const ss = valueOf('-ss') ?? 0;
+    if (to - ss > 0) return to - ss;
+  }
+
+  return sourceDuration;
+}
+
 export function runRouter(tools: FfmpegTools): Router {
   const router = Router();
 
@@ -49,6 +78,30 @@ export function runRouter(tools: FfmpegTools): Router {
       res.status(404).json({
         error: { code: 'NOT_FOUND', message: 'That file is no longer loaded. Drop it again.' },
       } satisfies ApiError);
+      return;
+    }
+
+    // An edited command runs exactly as typed. buildArgs is bypassed because
+    // there is no operation to build from — the user's argv *is* the plan.
+    if ('argv' in parsed.data) {
+      const argv = parsed.data.argv;
+      const last = argv[argv.length - 1] ?? '';
+      const editedOutput = path.isAbsolute(last) ? last : path.join(config.tmpDir, last);
+      const jobId = startJob({
+        ffmpeg: tools.ffmpeg,
+        plan: {
+          passes: [
+            {
+              argv,
+              label: 'Edited command',
+              outputDurationSec: estimateDuration(argv, source.meta.durationSec),
+            },
+          ],
+        },
+        outputPath: editedOutput,
+        outputName: path.basename(editedOutput),
+      });
+      res.status(202).json({ jobId });
       return;
     }
 

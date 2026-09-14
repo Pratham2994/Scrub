@@ -1,6 +1,8 @@
-import { Check, Copy, Download, Play, X } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { formatCommandLine, type LintContext } from '@scrub/shared';
+import { Check, Copy, Download, Pencil, Play, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { analyse, CommandEditor, hasBlockingError } from '@/components/CommandEditor';
 import { commandToString, type CommandToken, tokenizeCommand } from '@/lib/command-tokens';
 import { downloadUrl } from '@/lib/api';
 import { cn } from '@/lib/utils';
@@ -19,7 +21,10 @@ type CommandBarProps = {
   readonly placeholder?: boolean;
   readonly run: RunState;
   readonly canRun: boolean;
-  readonly onRun: () => void;
+  /** Null when nothing is loaded, which is also when editing makes no sense. */
+  readonly lintContext: LintContext | null;
+  /** Called with the generated argv, or the edited one when the user has changed it. */
+  readonly onRun: (argv: readonly string[] | null) => void;
   readonly onCancel: () => void;
 };
 
@@ -37,20 +42,48 @@ export function CommandBar({
   placeholder = false,
   run,
   canRun,
+  lintContext,
   onRun,
   onCancel,
 }: CommandBarProps) {
   const tokens = tokenizeCommand(argv);
   const scrollRef = useRef<HTMLElement>(null);
   const [edges, setEdges] = useState({ left: false, right: false });
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState('');
+
+  // Leaving edit mode when the file or operation changes: the edited text
+  // described a command that no longer matches what is loaded, and silently
+  // running it against a different file would be worse than dropping the edit.
+  useEffect(() => {
+    setEditing(false);
+  }, [argv]);
+
+  const analysis = useMemo(
+    () => (lintContext ? analyse(text, lintContext) : null),
+    [text, lintContext],
+  );
+  const blocked = analysis !== null && hasBlockingError(analysis);
+  const edited = useMemo(() => {
+    if (!editing || !analysis?.argv) return null;
+    // The editor shows "ffmpeg …" because that is the command; spawn is given
+    // everything *after* the program name, so the binary comes back off here.
+    const parsed = analysis.argv;
+    return parsed[0] === 'ffmpeg' ? parsed.slice(1) : parsed;
+  }, [editing, analysis]);
 
   const measure = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
-    setEdges({
-      left: el.scrollLeft > 1,
-      right: el.scrollLeft + el.clientWidth < el.scrollWidth - 1,
-    });
+    const left = el.scrollLeft > 1;
+    const right = el.scrollLeft + el.clientWidth < el.scrollWidth - 1;
+    // Bail when nothing changed. A fresh object here would re-render on every
+    // observation, and this is driven by a ResizeObserver — a render that
+    // changes layout feeds the next observation and the loop pins the main
+    // thread, which looks exactly like the page freezing.
+    setEdges((previous) =>
+      previous.left === left && previous.right === right ? previous : { left, right },
+    );
   }, []);
 
   // Re-measure when the command changes or the window resizes: whether a fade
@@ -68,38 +101,63 @@ export function CommandBar({
 
   return (
     <div
-      className="bg-well relative flex min-h-commandbar shrink-0 items-center gap-3 px-4"
+      className="bg-well relative flex min-h-commandbar shrink-0 items-start gap-3 px-4 workspace:items-center"
       style={{ boxShadow: '0 -1px 0 var(--color-line)' }}
     >
-      <div className="relative min-w-0 flex-1">
-        <code
-          ref={scrollRef}
-          onScroll={measure}
-          tabIndex={0}
-          className={cn(
-            'text-mono block overflow-x-auto whitespace-nowrap tabular-nums',
-            '[scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
-            placeholder && 'opacity-60',
-          )}
-          aria-label={placeholder ? 'Example command' : 'Command that will run'}
-        >
-          {tokens.map((token, index) => (
-            <span
-              key={`${token.full}-${String(index)}`}
-              className={ROLE_CLASS[token.role]}
-              title={token.text === token.full ? undefined : token.full}
-            >
-              {index > 0 ? ' ' : ''}
-              {token.text}
-            </span>
-          ))}
-        </code>
-        <Fade side="left" visible={edges.left} />
-        <Fade side="right" visible={edges.right} />
-      </div>
+      {editing && analysis !== null ? (
+        <CommandEditor text={text} onTextChange={setText} result={analysis} />
+      ) : (
+        <div className="relative min-w-0 flex-1 self-center">
+          <code
+            ref={scrollRef}
+            onScroll={measure}
+            tabIndex={0}
+            className={cn(
+              'text-mono block overflow-x-auto whitespace-nowrap tabular-nums',
+              // A thin visible track: with the scrollbar hidden entirely there is
+              // nothing telling a mouse user the rest of the command is there.
+              '[scrollbar-color:theme(colors.token-transport)_transparent] [scrollbar-width:thin]',
+              placeholder && 'opacity-60',
+            )}
+            aria-label={placeholder ? 'Example command' : 'Command that will run'}
+          >
+            {tokens.map((token, index) => (
+              <span
+                key={`${token.full}-${String(index)}`}
+                className={ROLE_CLASS[token.role]}
+                title={token.text === token.full ? undefined : token.full}
+              >
+                {index > 0 ? ' ' : ''}
+                {token.text}
+              </span>
+            ))}
+          </code>
+          <Fade side="left" visible={edges.left} />
+          <Fade side="right" visible={edges.right} />
+        </div>
+      )}
 
-      <CopyButton argv={argv} disabled={placeholder} />
-      <RunControl run={run} canRun={canRun && !placeholder} onRun={onRun} onCancel={onCancel} />
+      <div className="flex shrink-0 items-center gap-1 self-center">
+        <CopyButton argv={edited ?? argv} disabled={placeholder} />
+        <EditButton
+          editing={editing}
+          disabled={placeholder || lintContext === null}
+          onToggle={() => {
+            if (!editing) setText(formatCommandLine(['ffmpeg', ...argv]));
+            setEditing((value) => !value);
+          }}
+        />
+      </div>
+      <RunControl
+        run={run}
+        // An edited command can run even when the operation itself is not built
+        // yet — that is exactly what the editable bar is for.
+        canRun={(canRun || edited !== null) && !placeholder && !blocked}
+        onRun={() => {
+          onRun(edited);
+        }}
+        onCancel={onCancel}
+      />
     </div>
   );
 }
@@ -163,6 +221,34 @@ function CopyButton({
       )}
     >
       {copied ? <Check aria-hidden size={15} /> : <Copy aria-hidden size={15} />}
+    </button>
+  );
+}
+
+function EditButton({
+  editing,
+  disabled,
+  onToggle,
+}: {
+  readonly editing: boolean;
+  readonly disabled: boolean;
+  readonly onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={editing ? 'Stop editing the command' : 'Edit the command'}
+      title={editing ? 'Done editing' : 'Edit command'}
+      aria-pressed={editing}
+      disabled={disabled}
+      onClick={onToggle}
+      className={cn(
+        'shrink-0 rounded-button p-2 transition-colors duration-100',
+        editing ? 'bg-white/15 text-white' : 'text-token-binary hover:bg-white/10',
+        'disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent',
+      )}
+    >
+      <Pencil aria-hidden size={15} />
     </button>
   );
 }
