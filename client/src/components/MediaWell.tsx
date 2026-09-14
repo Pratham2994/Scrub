@@ -108,7 +108,7 @@ export function MediaWell({ id, meta }: MediaWellProps) {
 
 function Well({ children }: { readonly children: React.ReactNode }) {
   return (
-    <div className="bg-well flex min-h-48 flex-1 items-center justify-center overflow-hidden rounded-well">
+    <div className="bg-well border-well-edge flex min-h-48 flex-1 items-center justify-center overflow-hidden rounded-well border">
       {children}
     </div>
   );

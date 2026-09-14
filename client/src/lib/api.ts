@@ -113,6 +113,18 @@ export function downloadUrl(id: string): string {
   return `${BASE}/download/${id}`;
 }
 
+export type HealthResponse = {
+  readonly ok: true;
+  readonly ffmpeg: { readonly version: string; readonly path: string };
+  readonly ffprobe: { readonly version: string; readonly path: string };
+};
+
+export async function fetchHealth(): Promise<HealthResponse> {
+  const response = await fetch(`${BASE}/health`, { headers: { [CLIENT_HEADER]: '1' } });
+  if (!response.ok) throw await toApiError(response);
+  return (await response.json()) as HealthResponse;
+}
+
 export type JobEvent =
   | {
       readonly type: 'progress';

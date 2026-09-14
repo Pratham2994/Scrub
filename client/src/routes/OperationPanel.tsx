@@ -43,7 +43,7 @@ export function OperationPanel() {
       {hasFile ? (
         <MediaWell id={uploadId} meta={meta} />
       ) : load.status === 'restoring' ? (
-        <div className="bg-well flex min-h-48 flex-1 items-center justify-center rounded-well">
+        <div className="bg-well border-well-edge flex min-h-48 flex-1 items-center justify-center rounded-well border">
           <p className="text-label text-token-transport">Looking for the file you had open…</p>
         </div>
       ) : (

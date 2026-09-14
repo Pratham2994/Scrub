@@ -28,6 +28,32 @@ Warm cream with a terracotta accent is the current default look for generated in
 
 `--signal` is reserved. If amber appears anywhere that is not an operation in progress, it has been misused.
 
+### Dark mode
+
+Light is the default and stays the default — the argument above is about a utility you open for ninety seconds, and that does not change because the lights are off. Dark is offered in Settings, defaulting to the operating system's preference.
+
+Dark is **not** the light scheme inverted. "The dark is where the picture is" still has to hold, so the well remains the darkest surface on screen and the chrome sits above it. Panels become _lighter_ than the page here, the reverse of light mode, because on a dark ground a raised thing reads as nearer.
+
+```
+--paper        #252833   cool grey-black, leaning violet like the light paper
+--surface      #2E3240   panels, lighter than the page
+--line         #3A3F4F   hairlines
+--line-strong  #7B8296   control borders (3.3:1 on surface)
+--ink          #E9EBF3
+--muted        #A2A9BB   6.2:1 on paper
+--well         #0B0D11   still the darkest thing
+--accent       #8695FF   the same indigo, lifted off a dark ground
+--on-accent    #0B0D11   text on the accent
+```
+
+Two things fall out of this and are not negotiable:
+
+**The well needs an edge.** Two dark surfaces cannot separate by luminance the way near-white paper did — 16:1 in light, 1.3:1 here. So the well earns a hairline in dark mode (`--well-edge`), which is the same way everything else in Scrub is separated. In light mode that token is transparent.
+
+**Text on the accent flips.** White on the lifted accent is 2.7:1 and fails outright; the dark `--on-accent` is 7.2:1. Any element that puts text on `--accent` uses that token, never `text-white`.
+
+The command-bar syntax colours do not change between modes: they live on `--well`, which is dark either way.
+
 Command bar syntax colours, on `--well`:
 
 ```

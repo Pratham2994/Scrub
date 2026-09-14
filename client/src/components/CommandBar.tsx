@@ -359,7 +359,7 @@ function RunControl({
       onClick={onRun}
       className={cn(
         'text-body flex shrink-0 items-center gap-1.5 rounded-button px-4 py-2 font-medium',
-        'bg-accent text-white transition-opacity duration-100',
+        'bg-accent text-on-accent transition-opacity duration-100',
         'disabled:cursor-not-allowed disabled:opacity-40',
       )}
     >

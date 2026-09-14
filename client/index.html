@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="color-scheme" content="light" />
+    <meta name="color-scheme" content="light dark" />
     <meta
       name="description"
       content="A local ffmpeg GUI. Drop a file in, pick an operation, get a file out."
@@ -19,6 +19,17 @@
       crossorigin
     />
     <title>Scrub</title>
+    <script>
+      // Before first paint, not after. Reading the stored theme once the bundle
+      // has loaded means a dark-mode user gets a flash of the light palette
+      // first, which is the one thing a theme switch must never do.
+      try {
+        var t = localStorage.getItem('scrub:theme');
+        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {
+        /* storage refused; the media query still applies */
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

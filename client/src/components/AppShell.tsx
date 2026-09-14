@@ -1,4 +1,3 @@
-import { Settings } from 'lucide-react';
 import { useMemo } from 'react';
 import { Link } from 'react-router';
 
@@ -6,6 +5,7 @@ import { formatTimecode, type LintContext, type ProbeResult } from '@scrub/share
 
 import { CommandBar } from '@/components/CommandBar';
 import { Rail } from '@/components/Rail';
+import { SettingsPanel } from '@/components/SettingsPanel';
 import { useCommand } from '@/lib/use-command';
 import { useRun } from '@/lib/use-run';
 import { useRestoreUpload } from '@/lib/use-upload';
@@ -119,14 +119,7 @@ export function AppShell({ children }: { readonly children: React.ReactNode }) {
             Close file
           </button>
         )}
-        <button
-          type="button"
-          aria-label="Settings"
-          title="Settings"
-          className="text-muted hover:text-ink hover:bg-surface rounded-button p-1.5 transition-colors duration-100"
-        >
-          <Settings aria-hidden size={16} />
-        </button>
+        <SettingsPanel />
       </header>
 
       <div className="grid min-h-0 grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)] workspace:grid-cols-[var(--spacing-rail)_minmax(0,1fr)] workspace:grid-rows-1">

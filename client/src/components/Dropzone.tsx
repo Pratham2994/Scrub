@@ -61,7 +61,7 @@ export function Dropzone({ headline, hint }: DropzoneProps) {
           event.stopPropagation();
           open();
         }}
-        className="text-label bg-accent flex items-center gap-1.5 rounded-button px-3 py-2 font-medium text-white"
+        className="text-label bg-accent text-on-accent flex items-center gap-1.5 rounded-button px-3 py-2 font-medium"
       >
         <Upload aria-hidden size={14} />
         Choose a file

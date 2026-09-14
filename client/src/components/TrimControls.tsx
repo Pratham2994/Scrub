@@ -174,7 +174,7 @@ function TimecodeField({
           if (parsed === null || parsed > max) event.target.value = formatTimecode(seconds);
           else onCommit(parsed);
         }}
-        className="text-body text-ink border-line-strong w-36 rounded-control border bg-white px-2 py-1.5 font-mono tabular-nums"
+        className="text-body text-ink border-line-strong bg-surface w-36 rounded-control border px-2 py-1.5 font-mono tabular-nums"
       />
     </label>
   );
