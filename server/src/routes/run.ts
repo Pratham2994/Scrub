@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 
-import { buildArgs, InvalidOperation, NotImplemented } from '@scrub/shared';
+import { buildArgs, InvalidOperation, NotImplemented, type Operation } from '@scrub/shared';
 import { Router } from 'express';
 
 import { config } from '../config.js';
@@ -11,14 +11,31 @@ import { runRequestSchema } from '../schemas.js';
 import { getFile } from '../store.js';
 import type { ApiError } from './errors.js';
 
-/** Containers each operation produces. Trim and mute keep the source's. */
-function outputExtension(kind: string, sourcePath: string): string {
-  switch (kind) {
+/**
+ * The container each operation produces.
+ *
+ * ffmpeg picks its muxer from the output extension, so this is not cosmetic —
+ * getting it wrong produces a file with the right bytes and the wrong wrapper.
+ * Operations that do not change the container keep the source's.
+ */
+function outputExtension(op: Operation, sourcePath: string): string {
+  switch (op.kind) {
     case 'gif':
       return '.gif';
     case 'convert':
-      return '.mp4';
-    default:
+      return `.${op.container}`;
+    case 'extract-audio':
+    case 'audio-convert':
+      // m4a is the container people expect around an AAC track. ".aac" makes
+      // ffmpeg write a raw ADTS stream, which many players will not open.
+      return op.format === 'aac' ? '.m4a' : `.${op.format}`;
+    case 'trim':
+    case 'compress':
+    case 'resize':
+    case 'mute':
+    case 'replace-audio':
+    case 'audio-trim':
+    case 'loudness':
       return path.extname(sourcePath) || '.mp4';
   }
 }
@@ -106,7 +123,7 @@ export function runRouter(tools: FfmpegTools): Router {
     }
 
     const op = parsed.data.op;
-    const ext = outputExtension(op.kind, source.path);
+    const ext = outputExtension(op, source.path);
     const outputName = outputBaseName(source.displayName, op.kind, ext);
     // Same readable-but-unique naming as uploads, so the output path in the
     // command bar says what the file is rather than showing a bare uuid.
@@ -116,10 +133,28 @@ export function runRouter(tools: FfmpegTools): Router {
     try {
       // The same call the command bar made. If these ever produced different
       // argv, the preview would be a lie — which is the one thing Scrub must not do.
+      // replace-audio takes a second upload; resolve its id to a path here so
+      // buildArgs stays pure and never touches the store.
+      let secondaryInputPath: string | undefined;
+      if (op.kind === 'replace-audio') {
+        const replacement = getFile(op.audioId);
+        if (!replacement) {
+          res.status(404).json({
+            error: {
+              code: 'NOT_FOUND',
+              message: 'That replacement audio file is no longer loaded.',
+            },
+          } satisfies ApiError);
+          return;
+        }
+        secondaryInputPath = replacement.path;
+      }
+
       const plan = buildArgs(op, source.meta, {
         inputPath: source.path,
         outputPath,
         workDir: config.tmpDir,
+        ...(secondaryInputPath === undefined ? {} : { secondaryInputPath }),
       });
 
       const jobId = startJob({ ffmpeg: tools.ffmpeg, plan, outputPath, outputName });

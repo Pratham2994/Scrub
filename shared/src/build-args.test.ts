@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { buildArgs, TRANSPORT_ARGS, type CommandIo } from './build-args.js';
-import { InvalidOperation, NotImplemented } from './errors.js';
-import { OPERATIONS, type Operation } from './operations.js';
+import { InvalidOperation } from './errors.js';
+import type { Operation } from './operations.js';
 import type { ProbeResult } from './probe.js';
 
 const meta: ProbeResult = {
@@ -180,35 +180,5 @@ describe('buildArgs — precise trim', () => {
 
   it('rejects an inverted range in either mode', () => {
     expect(() => buildArgs({ ...op, startSec: 9, endSec: 2 }, meta, io)).toThrow(InvalidOperation);
-  });
-});
-
-describe('buildArgs — unimplemented operations', () => {
-  const stubbed: readonly Operation[] = [
-    { kind: 'compress', crf: 23, preset: 'medium' },
-    { kind: 'convert', container: 'webm' },
-    { kind: 'resize', width: 1280 },
-    { kind: 'gif', fps: 12, width: 480, startSec: null, endSec: null },
-    { kind: 'extract-audio', format: 'mp3' },
-    { kind: 'mute' },
-    { kind: 'replace-audio', audioId: 'a1b2' },
-    { kind: 'audio-convert', format: 'mp3', bitrateKbps: 192 },
-    { kind: 'audio-trim', startSec: 1, endSec: 2 },
-    { kind: 'loudness', targetI: -16, targetTP: -1.5, targetLRA: 11 },
-  ];
-
-  it.each(stubbed)('throws NotImplemented for $kind', (op) => {
-    expect(() => buildArgs(op, meta, io)).toThrow(NotImplemented);
-  });
-
-  // Guards the closed list: adding a kind to the union without a rail entry, or an
-  // operation to the rail with no place in buildArgs, fails here rather than as a
-  // blank screen on /op/:name.
-  it('covers every operation in the rail', () => {
-    // Trim is implemented in both modes, so it is the one kind absent here.
-    expect(stubbed).toHaveLength(OPERATIONS.length - 1);
-    expect(new Set([...stubbed.map((op) => op.kind), 'trim'])).toEqual(
-      new Set(OPERATIONS.map((op) => op.kind)),
-    );
   });
 });

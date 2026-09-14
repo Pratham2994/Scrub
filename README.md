@@ -143,7 +143,10 @@ shared/   Operation types and the buildArgs function. Imported by both.
 
 ## Status
 
-Scaffold. The shared contract, the health gate, the security boundary, the tmp
-sweeper and the client shell are real; `buildArgs` implements fast trim and the
-other ten operations throw `NotImplemented`. The `/upload`, `/meta`, `/run` and
-`/download` routes validate their input and return 501.
+Working. Upload, probe, preview, run with live progress, cancel, and download all
+function, and every one of the eleven operations produces a real command.
+
+Trim has full controls — a range scrubber, typed timecodes, and the fast/precise
+toggle. The other ten are reachable through the editable command bar, which
+lints what you type against the traps in `docs/OPERATIONS.md`, but do not have
+their own control panels yet. The filmstrip and waveform are not built.

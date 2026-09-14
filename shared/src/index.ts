@@ -1,4 +1,5 @@
 export * from './build-args.js';
+export * from './build-operations.js';
 export * from './errors.js';
 export * from './lint-command.js';
 export * from './parse-command.js';

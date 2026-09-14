@@ -5,8 +5,8 @@ function; this is that file.
 
 One entry per operation in the closed list. Each says what the command is, why the
 flags are the ones they are, and what goes wrong if you reach for the obvious
-alternative. **Trim** is implemented in both modes — the rest throw `NotImplemented`
-and their entries are the spec for writing them.
+alternative. All eleven are implemented. Each entry is the reasoning behind its flags, and
+the trap it exists to avoid.
 
 ## The contract
 
@@ -80,7 +80,7 @@ Two traps:
 
 ## Video
 
-### Trim — fast ✅ implemented
+### Trim — fast ✅
 
 ```
 ffmpeg -ss 12.4 -i in.mp4 -t 35.7 -c copy -avoid_negative_ts make_zero -y out.mp4
@@ -105,7 +105,7 @@ End is clamped to `meta.durationSec`: a scrub handle dragged to the far right ca
 land a hair past the probed duration through float accumulation, and the displayed
 command should say where the cut actually ends.
 
-### Trim — precise ✅ implemented
+### Trim — precise ✅
 
 ```
 ffmpeg -i in.mp4 -ss 12.4 -t 35.7 -c:v libx264 -crf 18 -preset veryfast -c:a copy -y out.mp4
@@ -122,7 +122,7 @@ the cut, not to squeeze out the last few percent of size.
 Audio can usually still be `-c:a copy`. Re-encoding it as well costs quality for no
 benefit when only the video needed cutting.
 
-### Compress
+### Compress ✅
 
 ```
 ffmpeg -i in.mp4 -c:v libx264 -crf 23 -preset medium -c:a aac -b:a 128k -movflags +faststart -y out.mp4
@@ -136,7 +136,7 @@ is worth saying in the UI because everyone assumes it is.
 `+faststart` moves the moov atom to the front so the file starts playing before it
 has fully downloaded. Costs a second pass over the output.
 
-### Convert
+### Convert ✅
 
 **Converting a container is not remuxing.** There is a codec map and it must be
 used:
@@ -151,7 +151,7 @@ used:
 `mkv` accepts nearly anything, so if the source codecs are already compatible,
 `-c copy` is correct and instant. mp4 → webm is never a copy.
 
-### Resize
+### Resize ✅
 
 ```
 ffmpeg -i in.mp4 -vf scale=1280:-2 -c:a copy -y out.mp4
@@ -162,7 +162,7 @@ ratio exactly and can produce an odd number, which fails the encode. `-2` rounds
 the nearest even number. The zod schema also constrains the requested width to a
 multiple of 2, because an odd _width_ would break it just as surely.
 
-### GIF — two passes
+### GIF — two passes ✅
 
 ```
 pass 1: ffmpeg -i in.mp4 -vf fps=12,scale=480:-2:flags=lanczos,palettegen -y palette.png
@@ -180,7 +180,7 @@ different pixels than it is applied to.
 
 Pass 1's `outputDurationSec` is `null` — it produces a single PNG, not a timeline.
 
-### Extract audio
+### Extract audio ✅
 
 ```
 ffmpeg -i in.mp4 -vn -acodec copy -y out.m4a
@@ -191,7 +191,7 @@ the source codec — an AAC track out of an mp4 needs no re-encode, and re-encod
 to mp3 "because the user picked mp3" loses quality for nothing. Fall back to a real
 encoder when the formats genuinely differ.
 
-### Mute
+### Mute ✅
 
 ```
 ffmpeg -i in.mp4 -an -c:v copy -y out.mp4
@@ -199,7 +199,7 @@ ffmpeg -i in.mp4 -an -c:v copy -y out.mp4
 
 `-c:v copy` matters: muting must never re-encode the video.
 
-### Replace audio
+### Replace audio ✅
 
 ```
 ffmpeg -i in.mp4 -i new.m4a -map 0:v:0 -map 1:a:0 -c:v copy -shortest -y out.mp4
@@ -216,7 +216,7 @@ The replacement track arrives as its own upload id; the server resolves it to a 
 
 ## Audio
 
-### Convert
+### Convert ✅
 
 ```
 ffmpeg -i in.wav -c:a libmp3lame -b:a 192k -y out.mp3
@@ -232,7 +232,7 @@ Same argument as video trim, minus the keyframe problem. Audio codecs have far
 smaller frames, so `-c copy` is close to sample-accurate and there is no
 fast/precise decision to force on anyone.
 
-### Loudness — two passes, with a data dependency
+### Loudness — two passes, with a data dependency ✅
 
 ```
 pass 1: ffmpeg -i in.wav -af loudnorm=I=-16:TP=-1.5:LRA=11:print_format=json -f null -

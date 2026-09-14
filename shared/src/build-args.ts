@@ -1,4 +1,16 @@
-import { InvalidOperation, NotImplemented } from './errors.js';
+import {
+  buildAudioConvert,
+  buildAudioTrim,
+  buildCompress,
+  buildConvert,
+  buildExtractAudio,
+  buildGif,
+  buildLoudness,
+  buildMute,
+  buildReplaceAudio,
+  buildResize,
+  trimWindow,
+} from './build-operations.js';
 import type { Operation, TrimMode } from './operations.js';
 import type { ProbeResult } from './probe.js';
 import { formatSeconds } from './time.js';
@@ -60,6 +72,8 @@ export type CommandIo = {
   readonly outputPath: string;
   /** Scratch directory for intermediates, e.g. the GIF palette PNG. */
   readonly workDir: string;
+  /** Second input, for the one operation that takes one: replace-audio. */
+  readonly secondaryInputPath?: string;
 };
 
 /**
@@ -74,30 +88,28 @@ export function buildArgs(op: Operation, meta: ProbeResult, io: CommandIo): Comm
     case 'trim':
       return buildTrim(op.startSec, op.endSec, op.mode, meta, io);
     case 'compress':
-      return notImplemented('compress');
+      return buildCompress(op.crf, op.preset, meta, io);
     case 'convert':
-      return notImplemented('convert');
+      return buildConvert(op.container, meta, io);
     case 'resize':
-      return notImplemented('resize');
+      return buildResize(op.width, meta, io);
     case 'gif':
-      return notImplemented('gif');
+      return buildGif(op, meta, io);
     case 'extract-audio':
-      return notImplemented('extract-audio');
+      return buildExtractAudio(op.format, meta, io);
     case 'mute':
-      return notImplemented('mute');
+      return buildMute(meta, io);
     case 'replace-audio':
-      return notImplemented('replace-audio');
+      // The replacement track is a second upload; the server resolves its id to
+      // a path and passes it in, so buildArgs stays pure and path-free.
+      return buildReplaceAudio(meta, io);
     case 'audio-convert':
-      return notImplemented('audio-convert');
+      return buildAudioConvert(op.format, op.bitrateKbps, meta, io);
     case 'audio-trim':
-      return notImplemented('audio-trim');
+      return buildAudioTrim(op.startSec, op.endSec, meta, io);
     case 'loudness':
-      return notImplemented('loudness');
+      return buildLoudness(op.targetI, op.targetTP, op.targetLRA, meta, io);
   }
-}
-
-function notImplemented(operation: string): never {
-  throw new NotImplemented(operation);
 }
 
 /**
@@ -127,7 +139,7 @@ function buildTrim(
   meta: ProbeResult,
   io: CommandIo,
 ): CommandPlan {
-  const { start, duration } = trimWindow(startSec, endSec, meta);
+  const { start, duration } = trimWindow(startSec, endSec, meta, 'trim');
 
   if (mode === 'fast') {
     return {
@@ -195,26 +207,4 @@ function buildTrim(
       },
     ],
   };
-}
-
-/** Shared by both trim modes: clamp the marks and turn them into a duration. */
-function trimWindow(
-  startSec: number,
-  endSec: number,
-  meta: ProbeResult,
-): { start: number; duration: number } {
-  const start = Math.max(0, startSec);
-  // A scrub handle dragged to the far right can land a hair past the probed
-  // duration through float accumulation. Clamping keeps the displayed command
-  // honest about where the cut actually ends.
-  const end = Math.min(endSec, meta.durationSec);
-
-  if (!(end > start)) {
-    throw new InvalidOperation(
-      'trim',
-      `end (${String(endSec)}) must be after start (${String(startSec)})`,
-    );
-  }
-
-  return { start, duration: end - start };
 }
