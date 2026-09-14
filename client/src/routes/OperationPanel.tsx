@@ -4,6 +4,7 @@ import { Navigate, useParams } from 'react-router';
 
 import { Dropzone } from '@/components/Dropzone';
 import { MediaWell } from '@/components/MediaWell';
+import { TrimControls } from '@/components/TrimControls';
 import { useScrubStore } from '@/store/use-scrub-store';
 
 /**
@@ -56,6 +57,8 @@ export function OperationPanel() {
         />
       )}
 
+      {hasFile && kind === 'trim' && <TrimControls meta={meta} />}
+
       <div className="border-line bg-surface rounded-control border p-4">
         {run.status === 'failed' ? (
           <div>
@@ -75,8 +78,8 @@ export function OperationPanel() {
         ) : (
           <p className="text-label text-muted">
             {kind === 'trim'
-              ? 'Trim controls are not built yet — the command bar covers the whole clip.'
-              : `Controls for ${descriptor.label.toLowerCase()} are not built yet.`}
+              ? 'Set the range above, then Run. The command bar always shows exactly what will execute.'
+              : `Controls for ${descriptor.label.toLowerCase()} are not built yet — edit the command bar to run something.`}
           </p>
         )}
       </div>

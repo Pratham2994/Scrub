@@ -16,6 +16,24 @@ things make it worth using over a terminal:
 Everything else is a convenience wrapper, and the operation list is closed on
 purpose.
 
+## How this works, and what you need
+
+Scrub is **not a website you visit**. It is a small program you run on your own
+machine, which then opens in your browser. There is no Scrub server anywhere, no
+account, and nothing is uploaded to the internet — the "upload" is your file being
+copied into a working folder on your own disk, a few centimetres from where it
+already was.
+
+That means **ffmpeg has to be installed on the machine running Scrub**, which is
+your machine. Scrub does not bundle ffmpeg and does not download it: it finds the
+one you installed and runs it, which is the whole point. The command it shows you
+is a command you could paste into your own terminal and get the same result.
+
+If you ever put Scrub on a shared server, everything inverts — the files, the
+ffmpeg, and the disk all become the server's. Do not do that; see
+[A note on the network](#a-note-on-the-network) for why it is genuinely unsafe
+rather than merely unsupported.
+
 ## Requirements
 
 - **Node 22 or newer**

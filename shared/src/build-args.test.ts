@@ -119,9 +119,72 @@ describe('buildArgs — fast trim', () => {
   });
 });
 
+describe('buildArgs — precise trim', () => {
+  const op: Operation = { kind: 'trim', startSec: 12.4, endSec: 48.1, mode: 'precise' };
+
+  it('produces the exact argv that will be spawned', () => {
+    expect(buildArgs(op, meta, io)).toMatchInlineSnapshot(`
+      {
+        "passes": [
+          {
+            "argv": [
+              "-hide_banner",
+              "-nostdin",
+              "-nostats",
+              "-progress",
+              "pipe:1",
+              "-i",
+              "/work/.tmp/8f3a4c19-c21b.mp4",
+              "-ss",
+              "12.4",
+              "-t",
+              "35.7",
+              "-c:v",
+              "libx264",
+              "-crf",
+              "18",
+              "-preset",
+              "veryfast",
+              "-c:a",
+              "copy",
+              "-y",
+              "/work/.tmp/2d71b0e4-9a35.mp4",
+            ],
+            "label": "Trim",
+            "outputDurationSec": 35.7,
+          },
+        ],
+      }
+    `);
+  });
+
+  it('seeks after -i, which is what makes it frame-accurate', () => {
+    const { argv } = buildArgs(op, meta, io).passes[0]!;
+    expect(argv.indexOf('-ss')).toBeGreaterThan(argv.indexOf('-i'));
+  });
+
+  it('re-encodes video but copies audio', () => {
+    const { argv } = buildArgs(op, meta, io).passes[0]!;
+    expect(argv[argv.indexOf('-c:v') + 1]).toBe('libx264');
+    expect(argv[argv.indexOf('-c:a') + 1]).toBe('copy');
+  });
+
+  it('shares the trim window with fast mode', () => {
+    const fast = buildArgs({ ...op, mode: 'fast' }, meta, io).passes[0]!;
+    const precise = buildArgs(op, meta, io).passes[0]!;
+    expect(precise.outputDurationSec).toBe(fast.outputDurationSec);
+    expect(precise.argv[precise.argv.indexOf('-t') + 1]).toBe(
+      fast.argv[fast.argv.indexOf('-t') + 1],
+    );
+  });
+
+  it('rejects an inverted range in either mode', () => {
+    expect(() => buildArgs({ ...op, startSec: 9, endSec: 2 }, meta, io)).toThrow(InvalidOperation);
+  });
+});
+
 describe('buildArgs — unimplemented operations', () => {
   const stubbed: readonly Operation[] = [
-    { kind: 'trim', startSec: 1, endSec: 2, mode: 'precise' },
     { kind: 'compress', crf: 23, preset: 'medium' },
     { kind: 'convert', container: 'webm' },
     { kind: 'resize', width: 1280 },
@@ -142,7 +205,10 @@ describe('buildArgs — unimplemented operations', () => {
   // operation to the rail with no place in buildArgs, fails here rather than as a
   // blank screen on /op/:name.
   it('covers every operation in the rail', () => {
-    expect(stubbed).toHaveLength(OPERATIONS.length);
-    expect(new Set(stubbed.map((op) => op.kind))).toEqual(new Set(OPERATIONS.map((op) => op.kind)));
+    // Trim is implemented in both modes, so it is the one kind absent here.
+    expect(stubbed).toHaveLength(OPERATIONS.length - 1);
+    expect(new Set([...stubbed.map((op) => op.kind), 'trim'])).toEqual(
+      new Set(OPERATIONS.map((op) => op.kind)),
+    );
   });
 });

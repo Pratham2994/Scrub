@@ -1,5 +1,5 @@
 import { InvalidOperation, NotImplemented } from './errors.js';
-import type { Operation } from './operations.js';
+import type { Operation, TrimMode } from './operations.js';
 import type { ProbeResult } from './probe.js';
 import { formatSeconds } from './time.js';
 
@@ -72,9 +72,7 @@ export type CommandIo = {
 export function buildArgs(op: Operation, meta: ProbeResult, io: CommandIo): CommandPlan {
   switch (op.kind) {
     case 'trim':
-      return op.mode === 'fast'
-        ? buildFastTrim(op.startSec, op.endSec, meta, io)
-        : notImplemented('trim (precise)');
+      return buildTrim(op.startSec, op.endSec, op.mode, meta, io);
     case 'compress':
       return notImplemented('compress');
     case 'convert':
@@ -122,12 +120,89 @@ function notImplemented(operation: string): never {
  * source's timestamps, and the first packet can land before zero. Some players
  * render that as a frozen opening frame. Shifting to zero costs nothing.
  */
-function buildFastTrim(
+function buildTrim(
   startSec: number,
   endSec: number,
+  mode: TrimMode,
   meta: ProbeResult,
   io: CommandIo,
 ): CommandPlan {
+  const { start, duration } = trimWindow(startSec, endSec, meta);
+
+  if (mode === 'fast') {
+    return {
+      passes: [
+        {
+          label: 'Trim',
+          outputDurationSec: duration,
+          argv: [
+            ...TRANSPORT_ARGS,
+            '-ss',
+            formatSeconds(start),
+            '-i',
+            io.inputPath,
+            '-t',
+            formatSeconds(duration),
+            '-c',
+            'copy',
+            '-avoid_negative_ts',
+            'make_zero',
+            OVERWRITE_ARG,
+            io.outputPath,
+          ],
+        },
+      ],
+    };
+  }
+
+  /**
+   * Precise trim: `-ss` *after* `-i` is an output option, so ffmpeg decodes up to
+   * the mark and starts the output exactly there. Frame-accurate, and necessarily
+   * a re-encode — there is no way to begin a stream copy mid-GOP.
+   *
+   * CRF 18 because this is a cut, not a compression: the user asked for a
+   * different length, not a smaller file, so the re-encode should cost as little
+   * quality as it reasonably can. `veryfast` for the same reason — the point is
+   * to get the cut, not to squeeze the last few percent of file size.
+   *
+   * Audio is still copied. Only the video needed cutting accurately, and
+   * re-encoding the audio would lose quality for nothing.
+   */
+  return {
+    passes: [
+      {
+        label: 'Trim',
+        outputDurationSec: duration,
+        argv: [
+          ...TRANSPORT_ARGS,
+          '-i',
+          io.inputPath,
+          '-ss',
+          formatSeconds(start),
+          '-t',
+          formatSeconds(duration),
+          '-c:v',
+          'libx264',
+          '-crf',
+          '18',
+          '-preset',
+          'veryfast',
+          '-c:a',
+          'copy',
+          OVERWRITE_ARG,
+          io.outputPath,
+        ],
+      },
+    ],
+  };
+}
+
+/** Shared by both trim modes: clamp the marks and turn them into a duration. */
+function trimWindow(
+  startSec: number,
+  endSec: number,
+  meta: ProbeResult,
+): { start: number; duration: number } {
   const start = Math.max(0, startSec);
   // A scrub handle dragged to the far right can land a hair past the probed
   // duration through float accumulation. Clamping keeps the displayed command
@@ -141,29 +216,5 @@ function buildFastTrim(
     );
   }
 
-  const duration = end - start;
-
-  return {
-    passes: [
-      {
-        label: 'Trim',
-        outputDurationSec: duration,
-        argv: [
-          ...TRANSPORT_ARGS,
-          '-ss',
-          formatSeconds(start),
-          '-i',
-          io.inputPath,
-          '-t',
-          formatSeconds(duration),
-          '-c',
-          'copy',
-          '-avoid_negative_ts',
-          'make_zero',
-          OVERWRITE_ARG,
-          io.outputPath,
-        ],
-      },
-    ],
-  };
+  return { start, duration: end - start };
 }

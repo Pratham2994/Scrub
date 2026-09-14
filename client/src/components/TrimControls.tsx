@@ -1,0 +1,231 @@
+import { formatTimecode, type ProbeResult } from '@scrub/shared';
+
+import { cn } from '@/lib/utils';
+import { useScrubStore } from '@/store/use-scrub-store';
+
+/**
+ * Start and end, and the fast/precise choice.
+ *
+ * Two range inputs stacked over one track make the handles: it is not the
+ * filmstrip scrubber yet, but it is a real two-handed range over the real
+ * duration, and it is keyboard-operable for free — which matters, because
+ * landing on an exact frame with a mouse is the thing Scrub exists to make less
+ * painful.
+ */
+export function TrimControls({ meta }: { readonly meta: ProbeResult }) {
+  const trim = useScrubStore((state) => state.trim);
+  const setTrim = useScrubStore((state) => state.setTrim);
+
+  const duration = meta.durationSec;
+  // A hair of separation, so the handles can never cross into an empty clip.
+  const minGap = Math.min(0.1, duration / 100);
+  const startPercent = (trim.startSec / duration) * 100;
+  const endPercent = (trim.endSec / duration) * 100;
+
+  return (
+    <div className="border-line bg-surface flex flex-col gap-4 rounded-control border p-4">
+      <div className="relative h-8">
+        {/* The track, with the kept region marked. */}
+        <div className="bg-line absolute inset-x-0 top-1/2 h-1.5 -translate-y-1/2 rounded-full" />
+        <div
+          className="bg-accent absolute top-1/2 h-1.5 -translate-y-1/2 rounded-full"
+          style={{ left: `${String(startPercent)}%`, right: `${String(100 - endPercent)}%` }}
+        />
+        <RangeHandle
+          label="Start"
+          value={trim.startSec}
+          max={duration}
+          onChange={(value) => {
+            setTrim({ startSec: Math.min(value, trim.endSec - minGap) });
+          }}
+        />
+        <RangeHandle
+          label="End"
+          value={trim.endSec}
+          max={duration}
+          onChange={(value) => {
+            setTrim({ endSec: Math.max(value, trim.startSec + minGap) });
+          }}
+        />
+      </div>
+
+      <div className="flex flex-wrap items-end gap-6">
+        <TimecodeField
+          label="Start"
+          seconds={trim.startSec}
+          max={duration}
+          onCommit={(value) => {
+            setTrim({ startSec: Math.min(Math.max(0, value), trim.endSec - minGap) });
+          }}
+        />
+        <TimecodeField
+          label="End"
+          seconds={trim.endSec}
+          max={duration}
+          onCommit={(value) => {
+            setTrim({ endSec: Math.max(Math.min(duration, value), trim.startSec + minGap) });
+          }}
+        />
+        <div>
+          <p className="text-label text-muted mb-1">Length</p>
+          <p className="text-body text-ink font-mono tabular-nums">
+            {formatTimecode(trim.endSec - trim.startSec)}
+          </p>
+        </div>
+      </div>
+
+      <fieldset className="flex flex-col gap-2">
+        <legend className="text-label text-muted mb-1">Accuracy</legend>
+        <div className="flex flex-wrap gap-2">
+          <ModeOption
+            checked={trim.mode === 'fast'}
+            onSelect={() => {
+              setTrim({ mode: 'fast' });
+            }}
+            title="Fast"
+            detail="No re-encode, near-instant. Cuts on the nearest keyframe, so the clip can start earlier and run longer than asked."
+          />
+          <ModeOption
+            checked={trim.mode === 'precise'}
+            onSelect={() => {
+              setTrim({ mode: 'precise' });
+            }}
+            title="Precise"
+            detail="Exactly these timecodes. Re-encodes the video, so it takes longer and loses a little quality."
+          />
+        </div>
+      </fieldset>
+    </div>
+  );
+}
+
+/**
+ * One handle of the range. Both inputs sit on top of each other with a
+ * transparent track; only the thumbs receive pointer events, so whichever handle
+ * is under the cursor is the one that moves.
+ */
+function RangeHandle({
+  label,
+  value,
+  max,
+  onChange,
+}: {
+  readonly label: string;
+  readonly value: number;
+  readonly max: number;
+  readonly onChange: (value: number) => void;
+}) {
+  return (
+    <input
+      type="range"
+      aria-label={label}
+      min={0}
+      max={max}
+      step={0.01}
+      value={value}
+      onChange={(event) => {
+        onChange(Number.parseFloat(event.target.value));
+      }}
+      className={cn(
+        'absolute inset-x-0 top-1/2 h-8 w-full -translate-y-1/2 appearance-none bg-transparent',
+        'pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto',
+        '[&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none',
+        '[&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-well',
+        '[&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white',
+        '[&::-webkit-slider-thumb]:cursor-ew-resize [&::-webkit-slider-thumb]:shadow',
+        '[&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4',
+        '[&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2',
+        '[&::-moz-range-thumb]:border-white [&::-moz-range-thumb]:bg-well',
+        '[&::-moz-range-track]:bg-transparent',
+      )}
+    />
+  );
+}
+
+/**
+ * A timecode you can type into. Held as text while focused so a half-typed value
+ * is not fought over by the store, and committed on blur or Enter.
+ */
+function TimecodeField({
+  label,
+  seconds,
+  max,
+  onCommit,
+}: {
+  readonly label: string;
+  readonly seconds: number;
+  readonly max: number;
+  readonly onCommit: (seconds: number) => void;
+}) {
+  return (
+    <label className="block">
+      <span className="text-label text-muted mb-1 block">{label}</span>
+      <input
+        key={seconds}
+        defaultValue={formatTimecode(seconds)}
+        inputMode="decimal"
+        aria-label={`${label} timecode`}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') event.currentTarget.blur();
+        }}
+        onBlur={(event) => {
+          const parsed = parseTimecode(event.target.value);
+          // An unparseable entry snaps back rather than silently becoming zero.
+          if (parsed === null || parsed > max) event.target.value = formatTimecode(seconds);
+          else onCommit(parsed);
+        }}
+        className="text-body text-ink border-line-strong w-36 rounded-control border bg-white px-2 py-1.5 font-mono tabular-nums"
+      />
+    </label>
+  );
+}
+
+function ModeOption({
+  checked,
+  onSelect,
+  title,
+  detail,
+}: {
+  readonly checked: boolean;
+  readonly onSelect: () => void;
+  readonly title: string;
+  readonly detail: string;
+}) {
+  return (
+    <label
+      className={cn(
+        'flex max-w-xs cursor-pointer gap-2 rounded-control border p-3 transition-colors duration-100',
+        checked ? 'border-accent bg-accent/5' : 'border-line hover:border-line-strong',
+      )}
+    >
+      <input
+        type="radio"
+        name="trim-mode"
+        checked={checked}
+        onChange={onSelect}
+        className="accent-accent mt-0.5"
+      />
+      <span>
+        <span className="text-body text-ink block font-medium">{title}</span>
+        <span className="text-micro text-muted block">{detail}</span>
+      </span>
+    </label>
+  );
+}
+
+/** Accepts `HH:MM:SS.mm`, `MM:SS`, or plain seconds — whatever the user types. */
+export function parseTimecode(input: string): number | null {
+  const trimmed = input.trim();
+  if (trimmed === '') return null;
+
+  const parts = trimmed.split(':');
+  if (parts.length > 3) return null;
+
+  let total = 0;
+  for (const part of parts) {
+    const value = Number.parseFloat(part);
+    if (!Number.isFinite(value) || value < 0) return null;
+    total = total * 60 + value;
+  }
+  return total;
+}

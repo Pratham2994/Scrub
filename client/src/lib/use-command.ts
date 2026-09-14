@@ -9,7 +9,7 @@ import {
 import { useMemo } from 'react';
 
 import { SAMPLE_ARGV } from '@/lib/sample-command';
-import { useScrubStore } from '@/store/use-scrub-store';
+import { type TrimParams, useScrubStore } from '@/store/use-scrub-store';
 
 export type LiveCommand = {
   readonly argv: readonly string[];
@@ -31,6 +31,7 @@ export type LiveCommand = {
 export function useCommand(kind: OperationKind | null): LiveCommand {
   const meta = useScrubStore((state) => state.meta);
   const uploadId = useScrubStore((state) => state.uploadId);
+  const trim = useScrubStore((state) => state.trim);
 
   return useMemo<LiveCommand>(() => {
     const empty = {
@@ -41,7 +42,7 @@ export function useCommand(kind: OperationKind | null): LiveCommand {
 
     if (!meta || !uploadId || !kind) return { ...empty, unavailable: null };
 
-    const op = defaultOperation(kind, meta.durationSec);
+    const op = operationFor(kind, trim);
     if (!op) {
       // The operation has no argv yet, but a file *is* loaded — so rather than a
       // dimmed example about someone else's file, show a real skeleton against
@@ -70,18 +71,17 @@ export function useCommand(kind: OperationKind | null): LiveCommand {
       if (error instanceof NotImplemented) return { ...empty, unavailable: kind };
       throw error;
     }
-  }, [meta, uploadId, kind]);
+  }, [meta, uploadId, kind, trim]);
 }
 
 /**
- * Starting parameters for each operation, so the bar shows a runnable command
- * the moment an operation is picked rather than an empty one waiting to be
- * filled in. Trim defaults to the whole clip.
+ * The operation the current controls describe. Trim reads its real parameters
+ * from the store, so moving a handle changes the command in the bar immediately.
  */
-function defaultOperation(kind: OperationKind, durationSec: number): Operation | null {
+function operationFor(kind: OperationKind, trim: TrimParams): Operation | null {
   switch (kind) {
     case 'trim':
-      return { kind: 'trim', startSec: 0, endSec: durationSec, mode: 'fast' };
+      return { kind: 'trim', startSec: trim.startSec, endSec: trim.endSec, mode: trim.mode };
     default:
       // Everything else throws NotImplemented in buildArgs anyway; returning null
       // keeps that one fact in one place.

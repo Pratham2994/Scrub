@@ -5,7 +5,7 @@ function; this is that file.
 
 One entry per operation in the closed list. Each says what the command is, why the
 flags are the ones they are, and what goes wrong if you reach for the obvious
-alternative. Only **Fast trim** is implemented — the rest throw `NotImplemented`
+alternative. **Trim** is implemented in both modes — the rest throw `NotImplemented`
 and their entries are the spec for writing them.
 
 ## The contract
@@ -105,7 +105,7 @@ End is clamped to `meta.durationSec`: a scrub handle dragged to the far right ca
 land a hair past the probed duration through float accumulation, and the displayed
 command should say where the cut actually ends.
 
-### Trim — precise
+### Trim — precise ✅ implemented
 
 ```
 ffmpeg -i in.mp4 -ss 12.4 -t 35.7 -c:v libx264 -crf 18 -preset veryfast -c:a copy -y out.mp4
@@ -113,7 +113,11 @@ ffmpeg -i in.mp4 -ss 12.4 -t 35.7 -c:v libx264 -crf 18 -preset veryfast -c:a cop
 
 `-ss` **after** `-i` is an output option: frame-accurate, because ffmpeg decodes to
 the mark and re-encodes from there. Slower and lossy. Do not pick fast or precise for
-the user — the trim UI exposes it as a toggle.
+the user — the trim UI exposes it as a toggle, and states what each one costs.
+
+CRF 18 because this is a cut, not a compression: the user asked for a different
+length, not a smaller file. `veryfast` for the same reason — the point is to get
+the cut, not to squeeze out the last few percent of size.
 
 Audio can usually still be `-c:a copy`. Re-encoding it as well costs quality for no
 benefit when only the video needed cutting.

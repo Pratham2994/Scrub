@@ -46,31 +46,46 @@ export function CommandBar({
   onRun,
   onCancel,
 }: CommandBarProps) {
-  const tokens = tokenizeCommand(argv);
   const scrollRef = useRef<HTMLElement>(null);
   const [edges, setEdges] = useState({ left: false, right: false });
   const [editing, setEditing] = useState(false);
-  const [text, setText] = useState('');
+  /**
+   * The user's edit, or null when they have not made one.
+   *
+   * Kept separately from `editing` on purpose: closing the editor should put the
+   * pencil away, not throw the work away. The edit survives until it is reset or
+   * until the command it was based on is replaced.
+   */
+  const [draft, setDraft] = useState<string | null>(null);
 
-  // Leaving edit mode when the file or operation changes: the edited text
-  // described a command that no longer matches what is loaded, and silently
-  // running it against a different file would be worse than dropping the edit.
+  const generatedLine = useMemo(() => formatCommandLine(['ffmpeg', ...argv]), [argv]);
+  const text = draft ?? generatedLine;
+  const dirty = draft !== null && draft !== generatedLine;
+
+  // A new file or a different operation makes the edit meaningless — it described
+  // a command against something else, and silently running it would be worse
+  // than dropping it.
   useEffect(() => {
     setEditing(false);
+    setDraft(null);
   }, [argv]);
 
   const analysis = useMemo(
     () => (lintContext ? analyse(text, lintContext) : null),
     [text, lintContext],
   );
-  const blocked = analysis !== null && hasBlockingError(analysis);
+  const blocked = dirty && analysis !== null && hasBlockingError(analysis);
   const edited = useMemo(() => {
-    if (!editing || !analysis?.argv) return null;
+    if (!dirty || !analysis?.argv) return null;
     // The editor shows "ffmpeg …" because that is the command; spawn is given
     // everything *after* the program name, so the binary comes back off here.
     const parsed = analysis.argv;
     return parsed[0] === 'ffmpeg' ? parsed.slice(1) : parsed;
-  }, [editing, analysis]);
+  }, [dirty, analysis]);
+
+  // What the collapsed bar renders: the edit if there is one, otherwise the
+  // generated command. Either way it is what Run will execute.
+  const shown = edited ?? argv;
 
   const measure = useCallback(() => {
     const el = scrollRef.current;
@@ -105,7 +120,7 @@ export function CommandBar({
       style={{ boxShadow: '0 -1px 0 var(--color-line)' }}
     >
       {editing && analysis !== null ? (
-        <CommandEditor text={text} onTextChange={setText} result={analysis} />
+        <CommandEditor text={text} onTextChange={setDraft} result={analysis} />
       ) : (
         <div className="relative min-w-0 flex-1 self-center">
           <code
@@ -121,7 +136,7 @@ export function CommandBar({
             )}
             aria-label={placeholder ? 'Example command' : 'Command that will run'}
           >
-            {tokens.map((token, index) => (
+            {tokenizeCommand(shown).map((token, index) => (
               <span
                 key={`${token.full}-${String(index)}`}
                 className={ROLE_CLASS[token.role]}
@@ -138,12 +153,25 @@ export function CommandBar({
       )}
 
       <div className="flex shrink-0 items-center gap-1 self-center">
-        <CopyButton argv={edited ?? argv} disabled={placeholder} />
+        {dirty && (
+          // A persisted edit has to announce itself, or the bar silently stops
+          // matching the controls above it.
+          <button
+            type="button"
+            onClick={() => {
+              setDraft(null);
+            }}
+            title="Discard the edit and go back to the generated command"
+            className="text-micro text-token-value rounded-button border border-current/40 px-2 py-1"
+          >
+            Edited · reset
+          </button>
+        )}
+        <CopyButton argv={shown} disabled={placeholder} />
         <EditButton
           editing={editing}
           disabled={placeholder || lintContext === null}
           onToggle={() => {
-            if (!editing) setText(formatCommandLine(['ffmpeg', ...argv]));
             setEditing((value) => !value);
           }}
         />

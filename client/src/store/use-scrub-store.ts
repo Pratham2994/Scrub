@@ -1,4 +1,4 @@
-import type { OperationKind, ProbeResult } from '@scrub/shared';
+import type { OperationKind, ProbeResult, TrimMode } from '@scrub/shared';
 import { create } from 'zustand';
 
 /** Where the loaded file is in its journey. The UI reads this, not a pile of booleans. */
@@ -60,14 +60,23 @@ export function recallUpload(): string | null {
   }
 }
 
+/** Trim's controls. Lives here because the command bar renders from it too. */
+export type TrimParams = {
+  readonly startSec: number;
+  readonly endSec: number;
+  readonly mode: TrimMode;
+};
+
 export type ScrubState = {
   readonly uploadId: string | null;
   readonly meta: ProbeResult | null;
   readonly load: LoadState;
   readonly run: RunState;
   readonly activeOperation: OperationKind | null;
+  readonly trim: TrimParams;
 
   readonly setActiveOperation: (kind: OperationKind | null) => void;
+  readonly setTrim: (patch: Partial<TrimParams>) => void;
   readonly beginRestore: () => void;
   readonly startUpload: (fileName: string) => void;
   readonly setUploadProgress: (fraction: number) => void;
@@ -84,6 +93,11 @@ export const useScrubStore = create<ScrubState>()((set) => ({
   load: { status: 'empty' },
   run: { status: 'idle' },
   activeOperation: null,
+  trim: { startSec: 0, endSec: 0, mode: 'fast' },
+
+  setTrim: (patch) => {
+    set((state) => ({ trim: { ...state.trim, ...patch } }));
+  },
 
   setActiveOperation: (kind) => {
     set((state) =>
@@ -117,7 +131,14 @@ export const useScrubStore = create<ScrubState>()((set) => ({
   },
   loadUpload: (uploadId, meta) => {
     rememberUpload(uploadId);
-    set({ uploadId, meta, load: { status: 'ready' }, run: { status: 'idle' } });
+    set({
+      uploadId,
+      meta,
+      load: { status: 'ready' },
+      run: { status: 'idle' },
+      // A new file means a new timeline, so the range starts as the whole clip.
+      trim: { startSec: 0, endSec: meta.durationSec, mode: 'fast' },
+    });
   },
   failUpload: (message, detail = []) => {
     rememberUpload(null);
