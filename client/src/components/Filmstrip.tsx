@@ -105,7 +105,16 @@ export function Filmstrip({
           The frames are clipped by their own wrapper instead. */}
       <div
         ref={trackRef}
-        className={cn('relative select-none', audioOnly ? 'h-24' : hasAudio ? 'h-24' : 'h-16')}
+        /**
+         * Half height below 900px, per DESIGN.md's quality floor. Vertical space
+         * is what a short laptop window is short of, and the strip is the one
+         * element here that reads perfectly well at half the size — it is a
+         * ribbon of frames, not something you inspect.
+         */
+        className={cn(
+          'relative select-none',
+          audioOnly || hasAudio ? 'h-12 workspace:h-24' : 'h-8 workspace:h-16',
+        )}
         onPointerDown={(event) => {
           // A click on the strip itself scrubs the video. The handles stop
           // propagation, so this never fights with dragging a mark.
@@ -183,7 +192,9 @@ export function Filmstrip({
             style={revealStyle}
             className={cn(
               'pointer-events-none absolute inset-x-0 object-fill',
-              audioOnly ? 'inset-y-0 h-full' : 'bottom-0 h-8 opacity-80',
+              // Halves with the strip above it, so the ratio between frames and
+              // waveform is the same at both sizes.
+              audioOnly ? 'inset-y-0 h-full' : 'bottom-0 h-4 opacity-80 workspace:h-8',
             )}
           />
         )}

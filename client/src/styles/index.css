@@ -2,6 +2,20 @@
 @import 'tw-animate-css';
 @import './fonts.css';
 
+/**
+ * A laptop is defined by how short it is, not how narrow.
+ *
+ * 1366x768 is still the most common screen there is, and after the browser's
+ * own chrome that leaves about 625px of page. Width breakpoints say nothing
+ * about that, so the preview held its 192px floor and pushed the controls
+ * below the fold on the machine most people are using. `short:` is the hook
+ * for giving vertical space back where there is none to spare, and `tall:` is
+ * its opposite so the full-size rules say which screens they mean rather than
+ * relying on which variant Tailwind happens to emit last.
+ */
+@custom-variant short (@media (max-height: 720px));
+@custom-variant tall (@media (min-height: 721px));
+
 /* ─── Scrub tokens, from DESIGN.md ───────────────────────────────────────────
    Light chrome, dark well. The dark is where the picture is and nowhere else.
    The palette is cool and neutral on purpose: the frame in the well is the only

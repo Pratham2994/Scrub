@@ -102,7 +102,9 @@ export function ResultWell({
           'bg-well border-well-edge relative flex items-center justify-center overflow-hidden rounded-well border',
           // A file with no picture gets a short well. There is nothing to look
           // at, so the height would be empty black.
-          showingAudio && !missing ? 'shrink-0 px-6 py-5' : 'min-h-48 flex-1',
+          showingAudio && !missing
+            ? 'shrink-0 px-6 py-5'
+            : 'min-h-28 flex-1 tall:min-h-32 tall:workspace:min-h-48',
         )}
       >
         {missing && side === 'result' ? (

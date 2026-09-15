@@ -129,7 +129,7 @@ export function AppShell({ children }: { readonly children: React.ReactNode }) {
 
         <div className="grid min-h-0 grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)] workspace:grid-cols-[var(--spacing-rail)_minmax(0,1fr)] workspace:grid-rows-1">
           <Rail />
-          <main className="min-h-0 overflow-auto p-6">{children}</main>
+          <main className="min-h-0 overflow-auto p-3 tall:p-4 tall:workspace:p-6">{children}</main>
         </div>
 
         <CommandBar

@@ -47,7 +47,7 @@ export function FileStatus({ headline, hint }: FileStatusProps) {
 
 function Frame({ children }: { readonly children: React.ReactNode }) {
   return (
-    <div className="border-line flex h-full min-h-64 flex-col items-center justify-center gap-2 rounded-well border border-dashed px-6 py-16 text-center">
+    <div className="border-line flex h-full min-h-48 flex-col items-center justify-center gap-2 rounded-well border border-dashed px-6 py-10 text-center tall:workspace:min-h-64 tall:workspace:py-16">
       {children}
     </div>
   );

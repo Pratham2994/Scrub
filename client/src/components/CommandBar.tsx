@@ -139,13 +139,22 @@ export function CommandBar({
 
   return (
     <div
-      className="bg-well relative flex min-h-commandbar shrink-0 items-start gap-3 px-4 workspace:items-center"
+      /**
+       * Wraps exactly when it has to, rather than at a chosen width.
+       *
+       * The command claims a 16rem basis, so the row breaks the moment the
+       * command plus the controls no longer fit and not a pixel sooner. Without
+       * it the controls were `shrink-0` against a row that could not hold them:
+       * on a narrow window a two-command operation pushed Run off the right
+       * edge and the page scrolled sideways to reach it.
+       */
+      className="bg-well relative flex min-h-commandbar shrink-0 flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2 workspace:py-0"
       style={{ boxShadow: '0 -1px 0 var(--color-line)' }}
     >
       {editing && analysis !== null ? (
         <CommandEditor text={text} onTextChange={setDraft} result={analysis} />
       ) : (
-        <div className="relative min-w-0 flex-1 self-center">
+        <div className="relative min-w-0 grow basis-64 self-center">
           <code
             ref={scrollRef}
             onScroll={measure}
@@ -186,7 +195,7 @@ export function CommandBar({
         </div>
       )}
 
-      <div className="flex shrink-0 items-center gap-1 self-center">
+      <div className="ml-auto flex shrink-0 items-center gap-1 self-center">
         {passes.length > 1 && !dirty && (
           /**
            * GIF and loudness genuinely run two commands. Showing only the first
@@ -204,7 +213,11 @@ export function CommandBar({
             role="group"
             aria-label="Which command to show"
           >
-            <span aria-hidden className="text-micro text-token-transport mr-1 select-none">
+            {/* The word goes before the buttons do. Their titles still say it. */}
+            <span
+              aria-hidden
+              className="text-micro text-token-transport mr-1 hidden select-none sm:inline"
+            >
               Showing
             </span>
             {passes.map((pass, index) => (
@@ -224,7 +237,10 @@ export function CommandBar({
                     : 'text-token-transport hover:bg-white/10',
                 )}
               >
-                {index + 1}. {pass.label}
+                {index + 1}
+                {/* Below 640px the number carries it alone; the panel above
+                    explains the two commands in full either way. */}
+                <span className="hidden sm:inline">. {pass.label}</span>
               </button>
             ))}
           </div>

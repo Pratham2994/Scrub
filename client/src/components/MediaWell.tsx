@@ -152,7 +152,7 @@ function describeAudio(meta: ProbeResult): string {
 
 function Well({ children }: { readonly children: React.ReactNode }) {
   return (
-    <div className="bg-well border-well-edge flex min-h-48 flex-1 items-center justify-center overflow-hidden rounded-well border">
+    <div className="bg-well border-well-edge flex min-h-28 flex-1 items-center justify-center overflow-hidden rounded-well border tall:min-h-32 tall:workspace:min-h-48">
       {children}
     </div>
   );

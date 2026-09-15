@@ -277,15 +277,108 @@ test.describe('the workspace', () => {
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   });
 
-  test('never scrolls sideways, at any supported width', async ({ page }) => {
-    for (const width of [1440, 900, 640]) {
+  /**
+   * Height, not just width. A laptop is defined by how short it is: 1366x768 is
+   * still the most common screen there is, and after the browser's own chrome
+   * that leaves about 625px of page. Checking three widths at a comfortable
+   * 800px tall missed every problem that space actually causes.
+   *
+   * GIF is the worst case on purpose. It is a two-command operation, so the
+   * command bar carries the pass switcher as well as everything else, and that
+   * is what used to push Run off the right edge.
+   */
+  const SCREENS = [
+    { width: 1920, height: 950, name: '1080p maximised' },
+    { width: 1440, height: 790, name: 'MacBook Air 13' },
+    { width: 1366, height: 625, name: '1366x768 laptop' },
+    { width: 1280, height: 600, name: '720p laptop' },
+    { width: 899, height: 700, name: 'just below the breakpoint' },
+    { width: 640, height: 800, name: 'narrow' },
+  ];
+
+  for (const screen of SCREENS) {
+    test(`lays out with nothing lost at ${String(screen.width)}x${String(screen.height)}, ${screen.name}`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: screen.width, height: screen.height });
+      await page.goto('/op/gif');
+      await loadFixture(page);
+
+      const report = await page.evaluate(() => {
+        const de = document.documentElement;
+        const problems: string[] = [];
+        if (de.scrollWidth - de.clientWidth > 1) {
+          problems.push(`page scrolls sideways by ${String(de.scrollWidth - de.clientWidth)}px`);
+        }
+
+        // Nothing stacked vertically may sit on top of its next sibling. This is
+        // how the result panel used to bury the operation's controls.
+        const stack: Element[] = [document.querySelector('main') as Element];
+        while (stack.length > 0) {
+          const node = stack.pop();
+          if (!node || node instanceof SVGElement) continue;
+          const kids = Array.from(node.children).filter((kid) => {
+            if (kid instanceof SVGElement) return false;
+            const style = getComputedStyle(kid);
+            if (style.position === 'absolute' || style.position === 'fixed') return false;
+            const box = kid.getBoundingClientRect();
+            return box.width > 0 && box.height > 0;
+          });
+          // Walked pairwise rather than by index: `noUncheckedIndexedAccess`
+          // makes every `kids[i]` possibly undefined, and a non-null assertion
+          // in a test is exactly where a real undefined would hide.
+          let previous: DOMRect | null = null;
+          for (const kid of kids) {
+            const box = kid.getBoundingClientRect();
+            if (previous !== null) {
+              const sideBySide = previous.right <= box.left + 1 || box.right <= previous.left + 1;
+              if (!sideBySide && previous.bottom > box.top + 1) {
+                problems.push(
+                  `overlap of ${String(Math.round(previous.bottom - box.top))}px in the panel`,
+                );
+              }
+            }
+            previous = box;
+          }
+          for (const kid of kids) stack.push(kid);
+        }
+        return problems;
+      });
+      expect(report).toEqual([]);
+
+      // Run is the point of the screen. It has to be on it.
+      const run = page.getByRole('button', { name: 'Run' });
+      const box = await run.boundingBox();
+      expect(box, 'Run has no box').not.toBeNull();
+      expect(box?.x ?? -1).toBeGreaterThanOrEqual(0);
+      expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(screen.width + 1);
+      expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(screen.height + 1);
+
+      // And every operation stays reachable, rail or scroller.
+      await expect(page.locator('nav a')).toHaveCount(11);
+    });
+  }
+
+  /** DESIGN.md's quality floor: below 900px the filmstrip halves in height. */
+  test('halves the filmstrip below the breakpoint', async ({ page }) => {
+    const heightAt = async (width: number): Promise<number> => {
       await page.setViewportSize({ width, height: 800 });
       await page.goto('/op/trim');
-      const overflow = await page.evaluate(
-        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-      );
-      expect(overflow, `horizontal overflow at ${String(width)}px`).toBeLessThanOrEqual(0);
-    }
+      await loadFixture(page);
+      return page.getByRole('slider', { name: 'Start' }).evaluate((el) => {
+        const track = el.parentElement;
+        if (!track) throw new Error('the handle has no track');
+        return Math.round(track.getBoundingClientRect().height);
+      });
+    };
+
+    const wide = await heightAt(1440);
+    const narrow = await heightAt(899);
+    // A pixel of slack: these are laid out in rem and the halves land on .5.
+    expect(
+      Math.abs(narrow - wide / 2),
+      `${String(wide)}px wide, ${String(narrow)}px narrow`,
+    ).toBeLessThanOrEqual(1);
   });
 });
 

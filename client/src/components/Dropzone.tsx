@@ -44,7 +44,8 @@ export function Dropzone({ headline, hint }: DropzoneProps) {
       }}
       onClick={open}
       className={cn(
-        'flex h-full min-h-64 flex-1 cursor-pointer flex-col items-center justify-center gap-3 rounded-well border border-dashed px-6 py-16 text-center transition-colors duration-100',
+        'flex h-full min-h-48 flex-1 cursor-pointer flex-col items-center justify-center gap-3 rounded-well border border-dashed px-6 py-10 text-center transition-colors duration-100',
+        'tall:workspace:min-h-64 tall:workspace:py-16',
         isOver ? 'border-accent bg-surface/60' : 'border-line-strong',
       )}
     >
