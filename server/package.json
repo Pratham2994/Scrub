@@ -6,9 +6,10 @@
   "main": "./dist/index.js",
   "scripts": {
     "dev": "tsx watch --clear-screen=false src/index.ts",
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "test": "vitest run"
   },
   "dependencies": {
     "@scrub/shared": "*",
@@ -19,6 +20,7 @@
   "devDependencies": {
     "@types/express": "^5.0.3",
     "@types/multer": "^2.0.0",
-    "tsx": "^4.20.6"
+    "tsx": "^4.20.6",
+    "vitest": "^5.0.1"
   }
 }

@@ -18,6 +18,12 @@ const FIXTURES = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtur
 const FIXTURE = path.join(FIXTURES, 'clip.mp4');
 /** Audio with no picture, for the operations that need to refuse. */
 const AUDIO_FIXTURE = path.join(FIXTURES, 'tone.m4a');
+/**
+ * HEVC, tagged hvc1, which is what an iPhone records. No mainstream browser
+ * outside Safari decodes it, so this is the fixture for "the preview cannot
+ * work and the operation still must".
+ */
+const HEVC_FIXTURE = path.join(FIXTURES, 'hevc-clip.mp4');
 
 /** The rail, so "Convert" does not also match the audio one or a quick pick. */
 const railLink = (page: Page, slug: string) => page.locator(`nav a[href="/op/${slug}"]`);
@@ -525,5 +531,259 @@ test.describe('motion', () => {
     expect(opacities.size).toBeGreaterThan(2);
 
     await context.close();
+  });
+});
+
+test.describe('a file the browser cannot preview', () => {
+  /**
+   * HEVC is the default on iPhone recordings and no mainstream browser outside
+   * Safari decodes it. The operation still works; only the preview does not,
+   * and saying which of the two has failed is the whole point of the message.
+   */
+  test('explains HEVC instead of showing a black rectangle', async ({ page }) => {
+    await page.goto('/op/trim');
+    await page.setInputFiles('input[type=file]', HEVC_FIXTURE);
+
+    await expect(page.getByText(/Preview unavailable/)).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText(/HEVC/)).toBeVisible();
+    // The message has to say the tool is not broken, or the user stops here.
+    await expect(page.getByText(/Trimming still works/)).toBeVisible();
+  });
+
+  test('probes it correctly and still runs the operation', async ({ page }) => {
+    await page.goto('/op/trim');
+    await page.setInputFiles('input[type=file]', HEVC_FIXTURE);
+    await expect(page.getByText(/Preview unavailable/)).toBeVisible({ timeout: 30_000 });
+
+    // ffprobe read it even though the browser cannot play it.
+    await expect(page.locator('header')).toContainText('hevc');
+    await expect(page.locator('header')).toContainText('320');
+
+    await page.getByRole('button', { name: 'Run' }).click();
+    const save = page.getByRole('link', { name: 'Save' });
+    await expect(save).toBeVisible({ timeout: 60_000 });
+    await expect(save).toHaveAttribute('download', /^hevc-clip-trim.*mp4$/);
+  });
+
+  test('still offers the operations, since only the preview is affected', async ({ page }) => {
+    await page.goto('/');
+    await page.setInputFiles('input[type=file]', HEVC_FIXTURE);
+    await expect(page.getByText(/Preview unavailable/)).toBeVisible({ timeout: 30_000 });
+
+    for (const slug of ['trim', 'compress', 'resize', 'gif', 'extract-audio']) {
+      await expect(railLink(page, slug)).toBeVisible();
+    }
+  });
+});
+
+test.describe('cancelling', () => {
+  /**
+   * The fixture is three seconds at 320x180, and no built-in operation takes
+   * long enough on it to cancel deterministically - compress at its slowest
+   * preset finishes in about 200ms. So the run is made long by hand, through
+   * the command bar, which is exactly what the command bar is for. `-stream_loop`
+   * turns three seconds into a minute of encoding without another fixture.
+   */
+  test('stops the run and says nothing was written', async ({ page }) => {
+    // Deliberately slow work, so the whole test needs more than the default budget.
+    test.slow();
+    await page.goto('/op/compress');
+    await loadFixture(page);
+
+    await page.getByRole('button', { name: 'Edit the command' }).click();
+    const editor = page.getByRole('textbox', { name: 'Edit the command' });
+    const slow = (await editor.inputValue())
+      .replace(' -i ', ' -stream_loop 60 -i ')
+      .replace('-preset medium', '-preset veryslow');
+    await editor.fill(slow);
+    await page.getByRole('button', { name: /Stop editing/ }).click();
+    /**
+     * Wait for the bar to admit it is carrying an edit before pressing Run.
+     * Without this the click can land on the generated command, which finishes
+     * in about 200ms - so the run was over before Cancel was pressed and the
+     * test failed for a reason that had nothing to do with cancelling.
+     */
+    await expect(page.getByRole('button', { name: /Edited/ })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Run' }).click();
+    await expect(page.getByRole('progressbar')).toBeVisible({ timeout: 30_000 });
+
+    await page.getByRole('button', { name: 'Cancel' }).click();
+
+    // The kill is immediate; measured at about 30ms.
+    await expect(page.getByText(/Cancelled\. Nothing was written\./)).toBeVisible({
+      timeout: 15_000,
+    });
+    // No half-written file is offered for saving.
+    await expect(page.getByRole('link', { name: 'Save' })).toBeHidden();
+    // And Run comes back, rather than leaving a dead progress bar behind.
+    await expect(page.getByRole('button', { name: 'Run' })).toBeEnabled();
+  });
+});
+
+test.describe('replace audio', () => {
+  /**
+   * The only operation that takes a second file. Its panel is its own drop
+   * target and stops propagation on drop, because the window-wide target would
+   * otherwise read a dropped audio file as "replace the video I am working on".
+   */
+  test('takes a second file and maps both inputs', async ({ page }) => {
+    await page.goto('/op/replace-audio');
+    await loadFixture(page);
+
+    // Nothing to build a command from until a track is chosen.
+    await expect(page.getByRole('button', { name: 'Run' })).toBeDisabled();
+
+    await page.locator('input[type=file]').last().setInputFiles(AUDIO_FIXTURE);
+    await expect(page.getByRole('button', { name: 'Run' })).toBeEnabled({ timeout: 30_000 });
+
+    const command = await commandText(page);
+    expect(command).toContain('-map 0:v:0');
+    expect(command).toContain('-map 1:a:0');
+    // The picture is never re-encoded to change the sound.
+    expect(command).toContain('-c:v copy');
+    // The result takes the shorter of the two lengths.
+    expect(command).toContain('-shortest');
+
+    await page.getByRole('button', { name: 'Run' }).click();
+    const save = page.getByRole('link', { name: 'Save' });
+    await expect(save).toBeVisible({ timeout: 90_000 });
+    await expect(save).toHaveAttribute('download', 'clip-new-audio.mp4');
+  });
+
+  test('refuses a replacement with no audio track', async ({ page }) => {
+    await page.goto('/op/replace-audio');
+    await loadFixture(page);
+
+    // The refusal belongs at the picker, not at Run.
+    await page
+      .locator('input[type=file]')
+      .last()
+      .setInputFiles({
+        name: 'not-audio.txt',
+        mimeType: 'text/plain',
+        buffer: Buffer.from('this is not a media file'),
+      });
+
+    await expect(page.getByRole('button', { name: 'Run' })).toBeDisabled({ timeout: 30_000 });
+  });
+});
+
+test.describe('the working folder', () => {
+  test('reports what is on disk and clears it on request', async ({ page }) => {
+    await page.goto('/');
+    await loadFixture(page);
+
+    await page.getByRole('button', { name: 'Settings' }).click();
+    await expect(page.getByText('Working files')).toBeVisible();
+    // A loaded file means at least one file and a non-zero size.
+    await expect(page.getByText(/(KB|MB|GB) in \d+ files?/)).toBeVisible();
+    // The ceiling is stated, not just enforced silently.
+    await expect(page.getByText(/Cleared automatically past/)).toBeVisible();
+
+    /**
+     * "Clear all but this file" rather than "Clear now": the obvious moment to
+     * free space is while looking at a file you are working on, and losing it
+     * would be a strange reward for tidying up.
+     */
+    const clear = page.getByRole('button', { name: /Clear all but this file/ });
+    await expect(clear).toBeEnabled();
+    await clear.click();
+
+    // The file on screen survives, so the preview is still there afterwards.
+    await page.keyboard.press('Escape');
+    await expect(page.locator('video')).toBeVisible();
+  });
+});
+
+test.describe('dropping the same file twice', () => {
+  /**
+   * Re-dropping a clip used to copy it again. One session of ordinary testing
+   * left 125 copies of one file on disk, which is the kind of waste nobody
+   * notices until the disk is full.
+   */
+  test('recognises it and does not copy it again', async ({ page }) => {
+    await page.goto('/');
+    await loadFixture(page);
+    const first = await commandText(page);
+
+    await page.getByRole('button', { name: 'Close file' }).click();
+    await expect(page.getByText('Drop a video or audio file')).toBeVisible();
+
+    await loadFixture(page);
+    const second = await commandText(page);
+
+    // The same working copy, so the same path in the command.
+    expect(second).toBe(first);
+  });
+});
+
+test.describe('the keyboard', () => {
+  /**
+   * DESIGN.md's quality floor names these explicitly. They are also the most
+   * fragile thing in the app: a focused `<video controls>` answers Space and the
+   * arrows from the browser's own shadow DOM, which the page cannot cancel even
+   * from a capture listener. That bug has been here once already.
+   */
+  const timeOf = async (page: Page): Promise<number> =>
+    page.locator('video').evaluate((el: HTMLVideoElement) => el.currentTime);
+
+  const seekTo = async (page: Page, seconds: number): Promise<void> => {
+    await page.locator('video').evaluate((el: HTMLVideoElement, to: number) => {
+      el.currentTime = to;
+    }, seconds);
+    await expect.poll(async () => timeOf(page)).toBeGreaterThan(seconds - 0.2);
+  };
+
+  test('sets in and out points with the bracket keys', async ({ page }) => {
+    await page.goto('/op/trim');
+    await loadFixture(page);
+
+    await seekTo(page, 1);
+    await page.keyboard.press('[');
+    await expect
+      .poll(async () => page.getByLabel('Start timecode').inputValue())
+      .not.toBe('00:00:00.00');
+
+    await seekTo(page, 2);
+    await page.keyboard.press(']');
+    await expect
+      .poll(async () => page.getByLabel('End timecode').inputValue())
+      .not.toBe('00:00:03.00');
+
+    // And the command follows, which is the point of setting them at all.
+    expect(await commandText(page)).toContain('-ss');
+  });
+
+  test('plays and pauses with the space bar', async ({ page }) => {
+    await page.goto('/op/trim');
+    await loadFixture(page);
+
+    const paused = async (): Promise<boolean> =>
+      page.locator('video').evaluate((el: HTMLVideoElement) => el.paused);
+    expect(await paused()).toBe(true);
+
+    await page.keyboard.press('Space');
+    await expect.poll(paused).toBe(false);
+
+    await page.keyboard.press('Space');
+    await expect.poll(paused).toBe(true);
+  });
+
+  test('nudges by a frame with an arrow and by a second with shift', async ({ page }) => {
+    await page.goto('/op/trim');
+    await loadFixture(page);
+
+    await seekTo(page, 1.5);
+    const before = await timeOf(page);
+
+    await page.keyboard.press('ArrowRight');
+    await expect.poll(async () => timeOf(page)).toBeGreaterThan(before);
+    const afterFrame = await timeOf(page);
+    // One frame, not one second.
+    expect(afterFrame - before).toBeLessThan(0.2);
+
+    await page.keyboard.press('Shift+ArrowRight');
+    await expect.poll(async () => timeOf(page)).toBeGreaterThan(afterFrame + 0.5);
   });
 });

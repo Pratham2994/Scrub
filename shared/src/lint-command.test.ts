@@ -92,8 +92,35 @@ describe('lintCommand — structure', () => {
   });
 
   it('does not invent a suggestion for something unrecognisable', () => {
-    const found = lint('ffmpeg -i a.mp4 -zzzzzzzz 1 out.mp4').find((d) => d.severity === 'error');
-    expect(found?.message).toBe('Scrub does not recognise "-zzzzzzzz".');
+    const found = lint('ffmpeg -i a.mp4 -zzzzzzzz 1 out.mp4').find((d) => d.fix === null);
+    expect(found?.message).toContain('Scrub does not recognise "-zzzzzzzz"');
+  });
+
+  /**
+   * CLAUDE.md's closed operation list is only acceptable because anything else
+   * goes through the command bar. A bar that refuses every flag outside Scrub's
+   * few dozen is not that: ffmpeg has hundreds, and `-stream_loop` below is a
+   * real one Scrub used to withhold Run for.
+   */
+  it('lets a flag it has never heard of run anyway', () => {
+    const found = lint('ffmpeg -stream_loop 4 -i a.mp4 -y out.mp4').find((d) =>
+      d.message.includes('-stream_loop'),
+    );
+    expect(found?.severity).toBe('warning');
+    expect(found?.message).toContain('passed to ffmpeg as written');
+  });
+
+  /** A near miss is a typo, not an option, and still stops the run. */
+  it('still blocks a flag that is one edit away from a real one', () => {
+    const found = lint('ffmpeg -i a.mp4 -crg 23 -y out.mp4').find((d) => d.fix === '-crf');
+    expect(found?.severity).toBe('error');
+  });
+
+  it('does not let an unknown flag break the rest of the parse', () => {
+    const diagnostics = lint('ffmpeg -stream_loop 4 -i a.mp4 -c:v libx264 -y out.mp4');
+    // The value after the unknown flag must not be mistaken for a missing output.
+    expect(diagnostics.some((d) => d.message.includes('No output'))).toBe(false);
+    expect(diagnostics.some((d) => d.message.includes('No input'))).toBe(false);
   });
 
   it('reads a negative number as a value, not a flag', () => {

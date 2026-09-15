@@ -17,6 +17,19 @@ export function useRun(op: Operation | null): {
   // that has gone away.
   const detachRef = useRef<(() => void) | null>(null);
 
+  /**
+   * Cancel pressed before the job id came back.
+   *
+   * The progress bar, and the Cancel button in it, appear the moment Run is
+   * pressed - before the POST that starts the job has answered with its id. In
+   * that window Cancel had nothing to address and did nothing at all: no
+   * cancellation, no message, and the encode ran to completion. The window is
+   * short, and it is exactly when somebody who did not mean to press Run reaches
+   * for Cancel. So the intent is remembered and acted on as soon as there is an
+   * id to act on.
+   */
+  const cancelPendingRef = useRef(false);
+
   useEffect(
     () => () => {
       detachRef.current?.();
@@ -46,6 +59,8 @@ export function useRun(op: Operation | null): {
       const target: RunTarget | null = editedArgv ? { argv: editedArgv } : op ? { op } : null;
       if (target === null) return;
 
+      cancelPendingRef.current = false;
+
       /**
        * The measurement arrives between the two passes and has to outlive them
        * both. Reading it back off the store inside the handler would mean
@@ -55,6 +70,31 @@ export function useRun(op: Operation | null): {
 
       startRun(uploadId, target)
         .then((jobId) => {
+          // Asked to stop while this request was in flight.
+          if (cancelPendingRef.current) {
+            cancelPendingRef.current = false;
+            void cancelRun(jobId);
+          }
+          /**
+           * Record the id the moment it is known.
+           *
+           * It used to reach the store only when the first progress event
+           * arrived, which on a slow first frame is hundreds of milliseconds
+           * later. For that whole stretch the bar was on screen with a Cancel
+           * button that had nothing to address, so pressing it did nothing at
+           * all and the encode ran to completion.
+           */
+          setRun({
+            status: 'running',
+            jobId,
+            progress: 0,
+            determinate: false,
+            passLabel: '',
+            passIndex: 0,
+            passCount: 1,
+            elapsedMs: 0,
+            measurement: null,
+          });
           detachRef.current?.();
           detachRef.current = subscribeToJob(jobId, (event) => {
             switch (event.type) {
@@ -113,7 +153,12 @@ export function useRun(op: Operation | null): {
   );
 
   const cancel = useCallback(() => {
-    if (run.status !== 'running' || run.jobId === '') return;
+    if (run.status !== 'running') return;
+    if (run.jobId === '') {
+      // No id yet. Remember it and cancel the moment there is one.
+      cancelPendingRef.current = true;
+      return;
+    }
     void cancelRun(run.jobId);
   }, [run]);
 

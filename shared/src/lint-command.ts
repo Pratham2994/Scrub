@@ -181,10 +181,26 @@ export function lintCommand(argv: readonly string[], context: LintContext): read
     const arity = FLAG_ARITY.get(token);
     if (arity === undefined) {
       const suggestion = suggestFlag(token);
+      /**
+       * A flag Scrub has never heard of does not block the run.
+       *
+       * ffmpeg has hundreds of options and this list holds a few dozen, so
+       * refusing everything outside it would make CLAUDE.md's fourth
+       * non-negotiable untrue: the closed operation list is only acceptable
+       * because "anything else goes through the editable command bar", and a
+       * bar that runs a curated subset of ffmpeg is not that. `-stream_loop`
+       * is a real option and Scrub used to withhold Run for it.
+       *
+       * A near miss is different. `-crg` is one edit away from `-crf` and is a
+       * typo rather than an option, so that still stops the run and offers the
+       * fix. Where there is nothing close, the flag is probably real, and if it
+       * is not then ffmpeg says so in words this audience can read - which is
+       * why its stderr is surfaced rather than summarised.
+       */
       add(
-        'error',
+        suggestion === null ? 'warning' : 'error',
         suggestion === null
-          ? `Scrub does not recognise "${token}".`
+          ? `Scrub does not recognise "${token}". It will be passed to ffmpeg as written.`
           : `Scrub does not recognise "${token}". Did you mean "${suggestion}"?`,
         i,
         suggestion,
