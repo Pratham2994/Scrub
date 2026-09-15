@@ -192,14 +192,28 @@ export function CommandBar({
            * GIF and loudness genuinely run two commands. Showing only the first
            * would be showing half of what happens, which is exactly what the
            * command bar exists to prevent — so both are reachable, labelled.
+           *
+           * These pick which command is *shown*. They were read as two actions
+           * to perform in order — "generate, then apply" — which is a fair
+           * reading of two numbered buttons sitting next to Run. The word in
+           * front of them says what they are, and every one of them says that
+           * Run does both.
            */
-          <div className="mr-1 flex items-center gap-0.5" role="group" aria-label="Command passes">
+          <div
+            className="mr-1 flex items-center gap-0.5"
+            role="group"
+            aria-label="Which command to show"
+          >
+            <span aria-hidden className="text-micro text-token-transport mr-1 select-none">
+              Showing
+            </span>
             {passes.map((pass, index) => (
               <button
                 key={pass.label}
                 type="button"
                 aria-pressed={index === passIndex}
-                title={pass.label}
+                aria-label={`Show command ${String(index + 1)} of ${String(passes.length)}, ${pass.label}`}
+                title={`Show this command. Run executes all ${String(passes.length)}, in order.`}
                 onClick={() => {
                   setPassIndex(index);
                 }}

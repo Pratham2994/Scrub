@@ -2,7 +2,7 @@ import type { Operation } from '@scrub/shared';
 import { useCallback, useEffect, useRef } from 'react';
 
 import { ApiError, cancelRun, type RunTarget, startRun, subscribeToJob } from '@/lib/api';
-import { useScrubStore } from '@/store/use-scrub-store';
+import { type Measurement, useScrubStore } from '@/store/use-scrub-store';
 
 /** Starts an operation and keeps the store in step with its progress stream. */
 export function useRun(op: Operation | null): {
@@ -40,10 +40,18 @@ export function useRun(op: Operation | null): {
         passIndex: 0,
         passCount: 1,
         elapsedMs: 0,
+        measurement: null,
       });
 
       const target: RunTarget | null = editedArgv ? { argv: editedArgv } : op ? { op } : null;
       if (target === null) return;
+
+      /**
+       * The measurement arrives between the two passes and has to outlive them
+       * both. Reading it back off the store inside the handler would mean
+       * reading whatever the last progress tick wrote, so it is held here.
+       */
+      let measurement: Measurement | null = null;
 
       startRun(uploadId, target)
         .then((jobId) => {
@@ -60,7 +68,15 @@ export function useRun(op: Operation | null): {
                   passIndex: event.passIndex,
                   passCount: event.passCount,
                   elapsedMs: event.elapsedMs,
+                  measurement,
                 });
+                return;
+              case 'measured':
+                measurement = {
+                  inputI: event.inputI,
+                  inputTP: event.inputTP,
+                  inputLRA: event.inputLRA,
+                };
                 return;
               case 'done':
                 setRun({
@@ -69,6 +85,7 @@ export function useRun(op: Operation | null): {
                   outputName: event.outputName,
                   sizeBytes: event.sizeBytes,
                   elapsedMs: event.elapsedMs,
+                  measurement,
                 });
                 return;
               case 'error':

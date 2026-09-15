@@ -27,6 +27,17 @@ export type JobEvent =
       readonly elapsedMs: number;
     }
   | {
+      /**
+       * What the loudness measurement pass found, on its way to the second
+       * pass. The user was told two commands would run and then shown nothing
+       * from the first one, which made the whole thing look like it had guessed.
+       */
+      readonly type: 'measured';
+      readonly inputI: string;
+      readonly inputTP: string;
+      readonly inputLRA: string;
+    }
+  | {
       readonly type: 'done';
       readonly outputId: string;
       readonly outputName: string;
@@ -211,6 +222,14 @@ async function runPasses(job: Job, options: StartJobOptions): Promise<void> {
 
       if (pass.capture === 'loudnorm-json') {
         measurement = parseLoudnorm(result.stderr);
+        if (measurement !== null) {
+          emit(job, {
+            type: 'measured',
+            inputI: measurement.input_i,
+            inputTP: measurement.input_tp,
+            inputLRA: measurement.input_lra,
+          });
+        }
         if (measurement === null && result.code === 0) {
           job.status = 'failed';
           emit(job, {

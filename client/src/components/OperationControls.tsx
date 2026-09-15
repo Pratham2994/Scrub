@@ -8,7 +8,15 @@ import {
 
 import { useRef, useState } from 'react';
 
-import { Choice, Note, NumberField, Panel, Readout, Row } from '@/components/controls/Field';
+import {
+  Choice,
+  Legend,
+  Note,
+  NumberField,
+  Panel,
+  Readout,
+  Row,
+} from '@/components/controls/Field';
 import { ApiError, uploadFile } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { Filmstrip } from '@/components/Filmstrip';
@@ -415,14 +423,21 @@ function Gif({ id, meta }: { readonly id: string; readonly meta: ProbeResult }) 
             estimated: true,
           },
           { label: 'Sound', from: meta.audio?.codec ?? 'none', to: 'none, GIF has no audio' },
+          { label: 'Commands', from: '', to: 'build palette, then draw' },
         ]}
       />
 
       <Note>
         GIF stores every frame whole, so length, width and frame rate each multiply the size
-        directly. Scrub builds a colour palette from your actual frames and then applies it, which
-        is why this comes out better than the usual result. The size above is a rough guess rather
-        than a promise.
+        directly. The size above is a rough guess rather than a promise.
+      </Note>
+
+      <Note>
+        This runs two commands. The first reads the clip and works out the best 256 colours for it;
+        the second reads the clip again and draws the GIF using that palette. Run does both, in
+        order. The numbered buttons in the command bar choose which of the two you are looking at;
+        they do not run anything. One pass would mean a generic palette, which is what makes most
+        GIFs look banded.
       </Note>
     </Panel>
   );
@@ -718,9 +733,40 @@ function AudioConvert({ meta }: { readonly meta: ProbeResult }) {
 function Loudness({ meta }: { readonly meta: ProbeResult }) {
   const { targetI, targetTP, targetLRA } = useScrubStore((state) => state.params.loudness);
   const setParams = useScrubStore((state) => state.setParams);
+  const run = useScrubStore((state) => state.run);
+  /**
+   * What the first command found. The two passes were explained in prose and
+   * then never reported anything, so the whole operation looked like it had
+   * guessed at a number — there was nowhere on screen saying the measurement
+   * had happened, let alone what it came to.
+   */
+  const measured = run.status === 'done' || run.status === 'running' ? run.measurement : null;
 
   return (
     <Panel>
+      {/* First in the panel, not last. It answers the question the user has the
+          moment the run ends - "did it measure, and what did it find" - and
+          three rows further down it was below the fold on a normal window. */}
+      {measured !== null && (
+        <div>
+          <Legend>
+            What the first command measured
+            {run.status === 'running' ? '' : ', and what it corrected to'}
+          </Legend>
+          <Readout
+            lines={[
+              { label: 'Loudness', from: `${measured.inputI} LUFS`, to: `${String(targetI)} LUFS` },
+              {
+                label: 'True peak',
+                from: `${measured.inputTP} dBTP`,
+                to: `${String(targetTP)} dBTP`,
+              },
+              { label: 'Range', from: `${measured.inputLRA} LU`, to: `${String(targetLRA)} LU` },
+            ]}
+          />
+        </div>
+      )}
+
       <Row>
         <NumberField
           label="Loudness"
@@ -777,7 +823,7 @@ function Loudness({ meta }: { readonly meta: ProbeResult }) {
         lines={[
           { label: 'Sound', from: meta.audio?.codec ?? 'none', to: `${String(targetI)} LUFS` },
           { label: 'Picture', from: meta.video?.codec ?? 'none', to: 'copied, untouched' },
-          { label: 'Passes', from: '', to: 'measure, then correct' },
+          { label: 'Commands', from: '', to: 'measure, then correct' },
         ]}
       />
 
@@ -786,6 +832,12 @@ function Loudness({ meta }: { readonly meta: ProbeResult }) {
         adjustment. That is what makes this a clean correction rather than a compressor guessing as
         it goes, which is what one pass would be, and which pumps audibly. If the file has video, it
         is copied across untouched.
+      </Note>
+
+      <Note>
+        Run does both, in order, and you never start the measurement yourself. The numbered buttons
+        in the command bar choose which of the two commands you are looking at; they do not run
+        anything.
       </Note>
     </Panel>
   );

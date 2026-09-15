@@ -17,6 +17,17 @@ export type LoadState =
   | { readonly status: 'failed'; readonly message: string; readonly detail: readonly string[] };
 
 /** Where a Run is in its journey. */
+/**
+ * What the loudness measurement pass found. Kept on the run so it survives into
+ * the finished state: the point of showing it is that the user can see what the
+ * second pass corrected *from*, which is only interesting once it is done.
+ */
+export type Measurement = {
+  readonly inputI: string;
+  readonly inputTP: string;
+  readonly inputLRA: string;
+};
+
 export type RunState =
   | { readonly status: 'idle' }
   | {
@@ -33,6 +44,7 @@ export type RunState =
       readonly passIndex: number;
       readonly passCount: number;
       readonly elapsedMs: number;
+      readonly measurement: Measurement | null;
     }
   | {
       readonly status: 'done';
@@ -40,6 +52,7 @@ export type RunState =
       readonly outputName: string;
       readonly sizeBytes: number;
       readonly elapsedMs: number;
+      readonly measurement: Measurement | null;
     }
   | { readonly status: 'failed'; readonly message: string; readonly detail: readonly string[] }
   | { readonly status: 'cancelled' };

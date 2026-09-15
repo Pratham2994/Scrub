@@ -112,12 +112,47 @@ test.describe('the command bar', () => {
     await page.goto('/op/gif');
     await loadFixture(page);
 
-    const passes = page.getByRole('group', { name: 'Command passes' });
+    const passes = page.getByRole('group', { name: 'Which command to show' });
     await expect(passes.getByRole('button')).toHaveCount(2);
 
+    /**
+     * These were read as two actions to perform in order, which is a fair
+     * reading of two numbered buttons sitting next to Run. They pick which
+     * command is shown; Run executes both.
+     */
+    await expect(passes).toContainText('Showing');
+    await expect(passes.getByRole('button').first()).toHaveAttribute(
+      'title',
+      /Run executes all 2, in order/,
+    );
+
     expect(await commandText(page)).toContain('palettegen');
-    await passes.getByRole('button', { name: /2\./ }).click();
+    await passes.getByRole('button', { name: /Show command 2 of 2/ }).click();
     await expect.poll(async () => await commandText(page)).toContain('paletteuse');
+  });
+
+  /**
+   * The measurement pass used to report nothing at all, so a two-pass operation
+   * that was explained in prose then showed no evidence the first pass had
+   * happened - it read as though the correction had been guessed.
+   */
+  test('reports what the loudness measurement found', async ({ page }) => {
+    await page.goto('/op/loudness');
+    await page.setInputFiles('input[type=file]', AUDIO_FIXTURE);
+    await expect(page.locator('audio')).toBeVisible({ timeout: 30_000 });
+
+    await expect(page.getByText(/What the first command measured/)).toBeHidden();
+    await page.getByRole('button', { name: 'Run' }).click();
+    await expect(page.getByRole('link', { name: 'Save' })).toBeVisible({ timeout: 120_000 });
+
+    // Scoped to the block itself rather than to a positional `dl`: it sits at
+    // the top of the panel so it is on screen the moment the run ends.
+    const block = page.getByText(/What the first command measured/).locator('..');
+    await expect(block).toBeVisible();
+    // ffmpeg's own numbers, not Scrub's arithmetic.
+    await expect(block).toContainText('LUFS');
+    await expect(block).toContainText('dBTP');
+    await expect(block).toContainText('LU');
   });
 
   test('lints a hand-edited command and withholds Run on an error', async ({ page }) => {

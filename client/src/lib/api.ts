@@ -195,6 +195,13 @@ export type JobEvent =
       readonly elapsedMs: number;
     }
   | {
+      /** What the loudness measurement pass found, between the two commands. */
+      readonly type: 'measured';
+      readonly inputI: string;
+      readonly inputTP: string;
+      readonly inputLRA: string;
+    }
+  | {
       readonly type: 'done';
       readonly outputId: string;
       readonly outputName: string;
@@ -227,10 +234,18 @@ export async function startRun(id: string, target: RunTarget): Promise<string> {
 export function subscribeToJob(jobId: string, onEvent: (event: JobEvent) => void): () => void {
   const source = new EventSource(`${BASE}/run/${jobId}/events`);
 
+  /**
+   * Only a terminal event closes this, and the set is named rather than
+   * inferred from "not progress". The loudness measurement arrives between the
+   * two passes, and treating it as terminal closed the stream before `done`
+   * ever came — the run finished on disk while the bar sat there forever.
+   */
+  const TERMINAL = new Set(['done', 'error', 'cancelled']);
+
   source.addEventListener('message', (event: MessageEvent<string>) => {
     const parsed = JSON.parse(event.data) as JobEvent;
     onEvent(parsed);
-    if (parsed.type !== 'progress') source.close();
+    if (TERMINAL.has(parsed.type)) source.close();
   });
 
   source.addEventListener('error', () => {

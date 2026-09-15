@@ -68,6 +68,7 @@ export function OperationPanel() {
             sizeBytes={run.sizeBytes}
             elapsedMs={run.elapsedMs}
             sourceBytes={meta.sizeBytes}
+            sourceIsAudio={meta.video === null}
             onDismiss={() => {
               setRun({ status: 'idle' });
             }}

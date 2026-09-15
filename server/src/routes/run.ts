@@ -170,9 +170,16 @@ export function runRouter(tools: FfmpegTools): Router {
     res.setHeader('X-Accel-Buffering', 'no');
     res.flushHeaders();
 
+    /**
+     * Only a terminal event closes the stream. This used to end on anything
+     * that was not progress, which held while `done`, `error` and `cancelled`
+     * were the only other kinds — the loudness measurement arrives in the
+     * middle of a job, and closing on it would stop the second pass ever being
+     * reported.
+     */
     const send = (event: JobEvent): void => {
       res.write(`data: ${JSON.stringify(event)}\n\n`);
-      if (event.type !== 'progress') res.end();
+      if (event.type === 'done' || event.type === 'error' || event.type === 'cancelled') res.end();
     };
 
     const unsubscribe = subscribe(job, send);

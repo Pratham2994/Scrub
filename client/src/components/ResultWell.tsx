@@ -24,6 +24,7 @@ export function ResultWell({
   sizeBytes,
   elapsedMs,
   sourceBytes,
+  sourceIsAudio,
   onDismiss,
 }: {
   readonly sourceId: string;
@@ -32,10 +33,20 @@ export function ResultWell({
   readonly sizeBytes: number;
   readonly elapsedMs: number;
   readonly sourceBytes: number;
+  /** Whether the file this came from has a picture, for the Original side. */
+  readonly sourceIsAudio: boolean;
   readonly onDismiss: () => void;
 }) {
   const [side, setSide] = useState<Side>('result');
   const isImage = /\.(gif|png|jpe?g|webp)$/i.test(outputName);
+  /**
+   * Extract audio and the audio operations produce a file with no picture. Put
+   * one in a `<video>` sized for a frame and you get a tall black rectangle with
+   * a control bar marooned in the middle of it — which is what this did, and it
+   * ran straight over the format cards underneath.
+   */
+  const isAudio = /\.(mp3|m4a|aac|wav|flac|opus|ogg)$/i.test(outputName);
+  const showingAudio = side === 'result' ? isAudio : sourceIsAudio;
   const ratio = sourceBytes > 0 ? sizeBytes / sourceBytes : null;
 
   /**
@@ -75,8 +86,25 @@ export function ResultWell({
   }, [outputId]);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3">
-      <div className="bg-well border-well-edge relative flex min-h-48 flex-1 items-center justify-center overflow-hidden rounded-well border">
+    /**
+     * No `min-h-0` here, deliberately.
+     *
+     * With it, this is a `flex-1` item whose automatic minimum is zero, so on a
+     * short window the column shrank it to nothing while its own children kept
+     * their 192px well and their meta row. They spilled out of a zero-height box
+     * and landed on top of the operation's controls, which then could not be
+     * clicked. Leaving the minimum at `auto` makes it refuse to shrink below its
+     * contents and lets `main` scroll instead, which is what it is for.
+     */
+    <div className="flex flex-1 flex-col gap-3">
+      <div
+        className={cn(
+          'bg-well border-well-edge relative flex items-center justify-center overflow-hidden rounded-well border',
+          // A file with no picture gets a short well. There is nothing to look
+          // at, so the height would be empty black.
+          showingAudio && !missing ? 'shrink-0 px-6 py-5' : 'min-h-48 flex-1',
+        )}
+      >
         {missing && side === 'result' ? (
           /**
            * Say what happened and why, in the place the file used to be. The
@@ -90,6 +118,21 @@ export function ResultWell({
               Working files are cleared after a while, and when the folder gets too large. Nothing
               was lost from your own disk. Run it again to make another copy.
             </p>
+          </div>
+        ) : showingAudio ? (
+          <div className="w-full max-w-xl">
+            <p className="text-micro text-token-transport mb-2.5 text-center">
+              {side === 'result' ? outputName : 'The file you started with'}
+            </p>
+            <audio
+              key={side}
+              src={side === 'result' ? downloadUrl(outputId) : sourceUrl(sourceId)}
+              controls
+              className="w-full"
+              onError={() => {
+                if (side === 'result') setMissing(true);
+              }}
+            />
           </div>
         ) : side === 'result' && isImage ? (
           // A GIF is a picture, not a video. An <img> loops it the way the file
