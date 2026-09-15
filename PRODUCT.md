@@ -112,8 +112,7 @@ Zustand, Python.
   recorded.
 
 Absent, and not to be invented: there are no users yet, no benchmarks, no
-testimonials, no published release, and no adoption of any kind. The fixture clip
-CLAUDE.md describes for end-to-end tests does not exist yet either.
+testimonials, no published release, and no adoption of any kind.
 
 ## Product Principles
 

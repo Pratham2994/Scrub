@@ -79,24 +79,59 @@ when I press Run" is a miserable thing to debug an hour later.
 
 ## Running it
 
+Three commands from nothing to a working app. Install ffmpeg first, from the
+section above.
+
 ```sh
+git clone https://github.com/Pratham2994/Scrub.git
+cd Scrub
 npm install
-npx playwright install chromium   # only needed to run the end-to-end tests
 npm run dev
 ```
 
-That starts the API on `http://127.0.0.1:5174` and the client on
-`http://localhost:5173`.
+Then open **<http://localhost:5173>** in a browser and drop a file on it.
 
-| Command             | What it does                                         |
-| ------------------- | ---------------------------------------------------- |
-| `npm run dev`       | Client, server, and the shared package's watch build |
-| `npm run build`     | Production build of all three workspaces             |
-| `npm run typecheck` | TypeScript across every workspace                    |
-| `npm run lint`      | ESLint                                               |
-| `npm run test`      | Vitest — `buildArgs` argv snapshots                  |
-| `npm run test:e2e`  | Playwright — real flows against a real ffmpeg        |
-| `npm run verify`    | All of the above                                     |
+`npm install` takes a minute or two and pulls in about 220 MB of `node_modules`;
+that is the whole toolchain, and it is all of the setup there is. There is no
+configuration file to write, no `.env`, no account, and no key. If ffmpeg is
+missing the server says so on boot and prints the install command for your
+platform rather than failing later at Run.
+
+To stop it, press `Ctrl+C` in that terminal. Nothing keeps running afterwards.
+
+### Why `npm run dev` is the way to run it
+
+It is not a placeholder for a production mode that is coming later. Scrub is a
+program you start when you want it and close ninety seconds afterwards, and on
+loopback the difference between a dev server and a bundle is about half a second
+of load time. There is no deployment, no second machine, and nothing secret, so a
+build step would add a thing to keep working in exchange for nothing you would
+notice.
+
+The one real cost: the dev server restarts when a file under `server/` changes,
+and a restart kills any encode in progress, because jobs are held in memory. That
+matters if you are editing the code or pulling changes while a long export runs.
+If you are only using Scrub, it never happens.
+
+`npm run build` still exists, but nothing runs its output — it is in `verify` as a
+check that the client still bundles, which typechecking alone does not prove.
+
+| Command             | What it does                                                |
+| ------------------- | ----------------------------------------------------------- |
+| `npm run dev`       | **How you run Scrub.** Client, server, and the shared watch |
+| `npm run typecheck` | TypeScript across every workspace                           |
+| `npm run lint`      | ESLint                                                      |
+| `npm run test`      | Vitest — `buildArgs` snapshots, and the server              |
+| `npm run test:e2e`  | Playwright — real flows against a real ffmpeg               |
+| `npm run build`     | Bundling check. Nothing runs the output                     |
+| `npm run verify`    | All of the above, in order                                  |
+
+Running the end-to-end tests needs a browser binary as well:
+
+```sh
+npx playwright install chromium
+npm run test:e2e
+```
 
 ## A note on the network
 
@@ -124,11 +159,16 @@ client/   React SPA. One workspace, not multiple pages — the loaded file is th
           state. Routes are /op/:name for deep-linking, but it is one layout with
           a swapping centre panel.
 
-server/   POST /upload    multipart -> tmp, ffprobe, returns { id, meta }
-          GET  /meta/:id  probed duration, streams, codecs, dimensions
-          POST /run       validates with zod, buildArgs, spawn, SSE progress
-          GET  /download/:id
-          GET  /health    ffmpeg + ffprobe version check
+server/   POST /upload       multipart -> tmp, ffprobe, returns { id, meta }
+          GET  /meta/:id     probed duration, streams, codecs, dimensions
+          POST /run          validates with zod, buildArgs, spawn
+          GET  /run/:id/events   SSE progress, one stream per job
+          DELETE /run/:id    cancel
+          GET  /source/:id   the working copy, for <video>
+          GET  /download/:id the result
+          GET  /filmstrip/:id, /waveform/:id   drawn by ffmpeg, cached
+          GET  /storage      what is in the working folder; DELETE clears it
+          GET  /health       ffmpeg + ffprobe version check
 
 shared/   Operation types and the buildArgs function. Imported by both.
 ```
@@ -143,13 +183,38 @@ shared/   Operation types and the buildArgs function. Imported by both.
 
 ## Status
 
-Working. Upload, probe, preview, run with live progress, cancel, and download all
-function, and every one of the eleven operations produces a real command.
+Complete, against the operation list in [`CLAUDE.md`](CLAUDE.md), which is closed
+on purpose. All eleven operations are built and each has been run through real
+ffmpeg with the output probed back.
 
-All eleven have controls, and trim and GIF scrub against a filmstrip of real
-frames from the loaded file. The command bar shows every pass of a multi-pass
-operation, and can be edited directly — what you type is linted against the
-traps in `docs/OPERATIONS.md` before Run will accept it.
+Upload, probe, preview, run with live progress, cancel, compare against the
+original, and save all work. Trim and GIF scrub against a filmstrip of real frames
+from your own file, with the waveform drawn underneath; an audio file gets the
+waveform as its whole timeline. The command bar shows every pass of a multi-pass
+operation and can be edited directly — what you type is linted against the traps
+in `docs/OPERATIONS.md`, and a flag Scrub does not recognise is passed through to
+ffmpeg rather than refused.
 
-Not built: the waveform, and replace-audio's second file picker (that operation
-is reachable through the command bar meanwhile).
+An operation that cannot apply to the loaded file says so and points at the one
+that does, rather than letting ffmpeg silently succeed at nothing. HEVC files,
+which browsers cannot decode, explain that the preview is what failed and not the
+operation.
+
+Deliberately not built: concat, rotate, subtitle burn-in and batch, each with its
+reasoning in [`docs/OPERATIONS.md`](docs/OPERATIONS.md). They are reachable through
+the command bar, which is what it is for.
+
+### Tests
+
+`npm run verify` runs all of it: typecheck, lint, formatting, the bundling check,
+and three test suites.
+
+| Suite    | Count | What it covers                                       |
+| -------- | ----- | ---------------------------------------------------- |
+| `shared` | 122   | `buildArgs` argv snapshots, availability, the linter |
+| `server` | 57    | The tmp sweeper, the store, the CSRF guard, loudnorm |
+| `e2e`    | 41    | Real flows against real ffmpeg, in a real browser    |
+
+The end-to-end tests are deliberately not mocked. The whole product is "the
+command Scrub shows is the command that runs", and a suite that stubbed the server
+out would be testing the half of that claim which was never in doubt.
