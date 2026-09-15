@@ -1,9 +1,13 @@
 import {
   type AudioFormat,
   formatTimecode as formatSeconds,
+  maxDurationSec,
   type OperationKind,
   type ProbeResult,
+  SIZE_PRESETS,
+  sizePreset,
   type VideoContainer,
+  videoBitrateKbps,
 } from '@scrub/shared';
 
 import { useRef, useState } from 'react';
@@ -19,6 +23,7 @@ import {
 } from '@/components/controls/Field';
 import { ApiError, uploadFile } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { CropFrame } from '@/components/CropFrame';
 import { Filmstrip } from '@/components/Filmstrip';
 import { TrimControls } from '@/components/TrimControls';
 import { useScrubStore } from '@/store/use-scrub-store';
@@ -57,6 +62,12 @@ export function OperationControls({
       return <ExtractAudio meta={meta} />;
     case 'mute':
       return <Mute meta={meta} />;
+    case 'target-size':
+      return <TargetSize meta={meta} />;
+    case 'speed':
+      return <Speed meta={meta} />;
+    case 'crop':
+      return <Crop id={id} meta={meta} />;
     case 'replace-audio':
       return <ReplaceAudio meta={meta} />;
     case 'audio-convert':
@@ -860,4 +871,359 @@ function formatBytes(bytes: number): string {
   if (bytes >= 1_073_741_824) return `${(bytes / 1_073_741_824).toFixed(1)} GB`;
   if (bytes >= 1_048_576) return `${(bytes / 1_048_576).toFixed(1)} MB`;
   return `${(bytes / 1024).toFixed(0)} KB`;
+}
+
+/**
+ * Fit a size.
+ *
+ * Every other operation asks how good; this one asks how big, which is the
+ * question a platform limit actually poses. The presets exist because nobody
+ * remembers that WhatsApp is 16 MB and that Gmail's 25 MB is really 18 once
+ * base64 has had its third, and being wrong means the upload is refused after
+ * you have waited for it.
+ */
+function TargetSize({ meta }: { readonly meta: ProbeResult }) {
+  const { presetId, targetMiB, audioKbps, maxWidth } = useScrubStore(
+    (state) => state.params.targetSize,
+  );
+  const setParams = useScrubStore((state) => state.setParams);
+  const preset = presetId === null ? null : sizePreset(presetId);
+
+  const bitrate = videoBitrateKbps(targetMiB, meta.durationSec, audioKbps);
+  const longest = maxDurationSec(targetMiB, audioKbps);
+  const sourceMiB = meta.sizeBytes / 1048576;
+
+  return (
+    <Panel>
+      <div>
+        <Legend>Where it is going</Legend>
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {SIZE_PRESETS.map((option) => {
+            const active = presetId === option.id;
+            return (
+              <button
+                key={option.id}
+                type="button"
+                aria-pressed={active}
+                onClick={() => {
+                  setParams('targetSize', {
+                    presetId: option.id,
+                    targetMiB: option.targetMiB,
+                  });
+                }}
+                className={cn(
+                  'rounded-control border p-3 text-left transition-colors duration-100',
+                  active
+                    ? 'border-accent bg-accent/[0.06]'
+                    : 'border-line hover:border-line-strong hover:bg-paper/60',
+                )}
+              >
+                <span className="text-body text-ink block font-medium">{option.label}</span>
+                <span className="text-micro text-muted block tabular-nums">
+                  {option.limitMiB} MB limit
+                </span>
+              </button>
+            );
+          })}
+          <button
+            type="button"
+            aria-pressed={presetId === null}
+            onClick={() => {
+              setParams('targetSize', { presetId: null });
+            }}
+            className={cn(
+              'rounded-control border p-3 text-left transition-colors duration-100',
+              presetId === null
+                ? 'border-accent bg-accent/[0.06]'
+                : 'border-line hover:border-line-strong hover:bg-paper/60',
+            )}
+          >
+            <span className="text-body text-ink block font-medium">Somewhere else</span>
+            <span className="text-micro text-muted block">Set the number yourself</span>
+          </button>
+        </div>
+      </div>
+
+      {preset !== null && <Note>{preset.note}</Note>}
+
+      <Row>
+        <NumberField
+          label="Target size"
+          value={targetMiB}
+          min={0.5}
+          max={512}
+          step={0.5}
+          suffix="MB"
+          onChange={(value) => {
+            // Typing a number means you are no longer on a preset, and the cards
+            // above should stop claiming you are.
+            setParams('targetSize', { targetMiB: Math.round(value * 10) / 10, presetId: null });
+          }}
+          meaning={
+            preset === null
+              ? 'Scrub aims a little under this, because container overhead lands on the wrong side of a hard limit.'
+              : `Aiming under ${preset.label}'s ${String(preset.limitMiB)} MB, with room for the overhead.`
+          }
+        />
+      </Row>
+
+      <Row>
+        <NumberField
+          label="Audio budget"
+          value={audioKbps}
+          min={32}
+          max={320}
+          step={32}
+          suffix="kbps"
+          onChange={(value) => {
+            setParams('targetSize', { audioKbps: Math.round(value / 32) * 32 });
+          }}
+          meaning="Taken off the top; the picture gets whatever is left. Speech survives 64, music wants 128 or more."
+        />
+        <Choice
+          name="fit-width"
+          legend="Scale down as well"
+          value={maxWidth === null ? 'no' : 'yes'}
+          onChange={(value) => {
+            setParams('targetSize', { maxWidth: value === 'yes' ? 1280 : null });
+          }}
+          options={[
+            {
+              value: 'yes',
+              label: 'Yes, cap at 1280 wide',
+              detail:
+                'Fewer pixels to spend the bitrate on, so each one gets more. Usually the difference between watchable and blocky at small targets.',
+            },
+            {
+              value: 'no',
+              label: 'Keep the size',
+              detail: 'Full resolution at a low bitrate. Sharper if it fits, mushy if it does not.',
+            },
+          ]}
+        />
+      </Row>
+
+      <Readout
+        lines={[
+          {
+            label: 'Size',
+            from: `${sourceMiB.toFixed(1)} MB`,
+            to: `under ${String(targetMiB)} MB`,
+          },
+          {
+            label: 'Video bitrate',
+            from:
+              meta.bitrate === null || meta.bitrate <= 0
+                ? 'unknown'
+                : `${String(Math.round(meta.bitrate / 1000))} kbps`,
+            to: bitrate === null ? 'will not fit' : `${String(bitrate)} kbps`,
+          },
+          {
+            label: 'Length',
+            from: formatSeconds(meta.durationSec),
+            to: 'unchanged, this only re-encodes',
+          },
+          { label: 'Commands', from: '', to: 'analyse, then encode' },
+        ]}
+      />
+
+      {bitrate === null ? (
+        <Note>
+          {formatSeconds(meta.durationSec)} will not fit in {String(targetMiB)} MB. Below about 100
+          kbps the picture stops being a picture, and the longest that fits at this target is around{' '}
+          {formatSeconds(longest)}. Trim it first, or choose a larger target.
+        </Note>
+      ) : (
+        <Note>
+          Two commands run. The first reads the whole file and writes down how hard each part is to
+          encode; the second spends the bitrate accordingly, so the busy parts get more of it than
+          the still ones. One pass would spread it evenly and waste most of it.
+        </Note>
+      )}
+    </Panel>
+  );
+}
+
+/** The speeds people actually pick, rather than a free-running slider. */
+const SPEEDS = [0.25, 0.5, 1.5, 2, 3, 4] as const;
+
+function Speed({ meta }: { readonly meta: ProbeResult }) {
+  const { factor } = useScrubStore((state) => state.params.speed);
+  const setParams = useScrubStore((state) => state.setParams);
+  const after = meta.durationSec / factor;
+
+  return (
+    <Panel>
+      <div>
+        <Legend>Speed</Legend>
+        <div className="flex flex-wrap gap-2">
+          {SPEEDS.map((option) => (
+            <button
+              key={option}
+              type="button"
+              aria-pressed={factor === option}
+              onClick={() => {
+                setParams('speed', { factor: option });
+              }}
+              className={cn(
+                'text-body rounded-control border px-4 py-2 tabular-nums transition-colors duration-100',
+                factor === option
+                  ? 'border-accent bg-accent/[0.06] text-ink font-medium'
+                  : 'border-line text-muted hover:border-line-strong hover:text-ink',
+              )}
+            >
+              {option}&times;
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <Row>
+        <NumberField
+          label="Or anything between"
+          value={factor}
+          min={0.25}
+          max={4}
+          step={0.05}
+          suffix="times"
+          onChange={(value) => {
+            setParams('speed', { factor: Math.round(value * 20) / 20 });
+          }}
+          ticks={[
+            { at: 0.5, label: 'half' },
+            { at: 1, label: 'unchanged' },
+            { at: 2, label: 'double' },
+          ]}
+          meaning={
+            factor > 1
+              ? 'Shorter, and the sound rises in tempo without rising in pitch.'
+              : factor < 1
+                ? 'Longer. Below about half speed the frames start to show individually.'
+                : 'No change at all, which makes this a re-encode and nothing else.'
+          }
+        />
+      </Row>
+
+      <Readout
+        lines={[
+          { label: 'Length', from: formatSeconds(meta.durationSec), to: formatSeconds(after) },
+          {
+            label: 'Sound',
+            from: meta.audio?.codec ?? 'none',
+            to: meta.audio === null ? 'none' : 'stretched to match, same pitch',
+          },
+          {
+            label: 'Frames',
+            from: `${String(meta.video?.fps ?? 0)} fps`,
+            to: `${String(meta.video?.fps ?? 0)} fps, ${factor > 1 ? 'fewer of them' : 'each held longer'}`,
+          },
+        ]}
+      />
+
+      <Note>
+        The picture is restamped and the sound is stretched to match, in one command, because doing
+        them separately is how a sped-up video ends up drifting out of sync halfway through. Pitch
+        is preserved, so speech stays speech.
+      </Note>
+    </Panel>
+  );
+}
+
+function Crop({ id, meta }: { readonly id: string; readonly meta: ProbeResult }) {
+  const crop = useScrubStore((state) => state.params.crop);
+  const setParams = useScrubStore((state) => state.setParams);
+  const source = meta.video;
+
+  const pixels = {
+    width: Math.round(crop.width * (source?.width ?? 0)),
+    height: Math.round(crop.height * (source?.height ?? 0)),
+    x: Math.round(crop.x * (source?.width ?? 0)),
+    y: Math.round(crop.y * (source?.height ?? 0)),
+  };
+  // buildCrop rounds every number down to even. Showing the rounded numbers here
+  // means the readout matches the file rather than the drag.
+  const even = (value: number): number => Math.floor(value / 2) * 2;
+
+  return (
+    <Panel>
+      <div>
+        <Legend>Drag the corners, or the middle to move it</Legend>
+        <CropFrame id={id} meta={meta} />
+      </div>
+
+      <Row>
+        <div className="flex flex-wrap gap-2">
+          {(
+            [
+              { label: 'Whole frame', value: { x: 0, y: 0, width: 1, height: 1 } },
+              { label: 'Square', value: square(source) },
+              { label: '16:9', value: ratio(source, 16 / 9) },
+              { label: '9:16, for phones', value: ratio(source, 9 / 16) },
+            ] as const
+          ).map((option) => (
+            <button
+              key={option.label}
+              type="button"
+              onClick={() => {
+                setParams('crop', option.value);
+              }}
+              className="text-label text-muted border-line hover:border-line-strong hover:text-ink rounded-button border px-3 py-1.5 transition-colors duration-100"
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </Row>
+
+      <Readout
+        lines={[
+          {
+            label: 'Picture',
+            from: source ? `${String(source.width)} × ${String(source.height)}` : 'none',
+            to: `${String(even(pixels.width))} × ${String(even(pixels.height))}`,
+          },
+          {
+            label: 'From',
+            from: 'top left',
+            to: `${String(even(pixels.x))} across, ${String(even(pixels.y))} down`,
+          },
+          { label: 'Sound', from: meta.audio?.codec ?? 'none', to: 'copied, untouched' },
+        ]}
+      />
+
+      <Note>
+        Every number is rounded down to an even one. libx264 needs even dimensions, and an odd
+        offset puts the colour planes half a pixel out, which shows up as a fringe along the edges
+        rather than as an error. The sound is copied rather than re-encoded, since a crop does not
+        touch it.
+      </Note>
+    </Panel>
+  );
+}
+
+/** The largest centred square that fits the frame, as fractions. */
+function square(source: ProbeResult['video']): {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+} {
+  if (!source) return { x: 0, y: 0, width: 1, height: 1 };
+  return ratio(source, 1);
+}
+
+/** The largest centred rectangle of a given aspect that fits inside the frame. */
+function ratio(
+  source: ProbeResult['video'],
+  target: number,
+): { x: number; y: number; width: number; height: number } {
+  if (!source) return { x: 0, y: 0, width: 1, height: 1 };
+  const sourceRatio = source.width / source.height;
+  if (target > sourceRatio) {
+    // Wider than the frame: full width, shorter.
+    const height = sourceRatio / target;
+    return { x: 0, y: (1 - height) / 2, width: 1, height };
+  }
+  const width = target / sourceRatio;
+  return { x: (1 - width) / 2, y: 0, width, height: 1 };
 }

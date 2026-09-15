@@ -5,6 +5,7 @@ import { formatTimecode, type LintContext, type ProbeResult } from '@scrub/share
 
 import { CommandBar } from '@/components/CommandBar';
 import { DropTarget } from '@/components/DropTarget';
+import { Queue } from '@/components/Queue';
 import { Rail } from '@/components/Rail';
 import { SettingsPanel } from '@/components/SettingsPanel';
 import { useCommand } from '@/lib/use-command';
@@ -64,7 +65,9 @@ export function AppShell({ children }: { readonly children: React.ReactNode }) {
       {/* `grid-cols-[minmax(0,1fr)]` is load-bearing: a grid's implicit column is
         `auto`, which resolves to max-content, so without it the rail's row of
         operations sets the width of the whole page and the body scrolls sideways. */}
-      <div className="grid h-full grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)_auto]">
+      {/* The queue sits between the workspace and the command bar, so the extra
+          row is `auto` like the bar itself: present only when it has content. */}
+      <div className="grid h-full grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)_auto_auto]">
         <header className="border-line bg-paper flex items-center gap-4 border-b px-4 py-3">
           <Link
             to="/"
@@ -131,6 +134,8 @@ export function AppShell({ children }: { readonly children: React.ReactNode }) {
           <Rail />
           <main className="min-h-0 overflow-auto p-3 tall:p-4 tall:workspace:p-6">{children}</main>
         </div>
+
+        <Queue />
 
         <CommandBar
           argv={command.argv}

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { buildArgs, type CommandIo, TRANSPORT_ARGS } from './build-args.js';
-import { LOUDNORM_MEASURED, measuredPlaceholder } from './build-operations.js';
+import { atempoChain, LOUDNORM_MEASURED, measuredPlaceholder } from './build-operations.js';
 import { InvalidOperation } from './errors.js';
 import { OPERATIONS, type Operation } from './operations.js';
 import type { ProbeResult } from './probe.js';
@@ -46,6 +46,11 @@ const ALL: readonly Operation[] = [
   { kind: 'gif', fps: 12, width: 480, startSec: null, endSec: null },
   { kind: 'extract-audio', format: 'mp3' },
   { kind: 'mute' },
+  // 48 MiB rather than 9.5: the fixture is ten minutes long, and 9.5 genuinely
+  // will not hold that. The refusal has its own test below.
+  { kind: 'target-size', targetMiB: 48, audioKbps: 128, maxWidth: 1280 },
+  { kind: 'speed', factor: 2 },
+  { kind: 'crop', width: 1280, height: 720, x: 320, y: 180 },
   { kind: 'replace-audio', audioId: AUDIO_ID },
   { kind: 'audio-convert', format: 'mp3', bitrateKbps: 192 },
   { kind: 'audio-trim', startSec: 1, endSec: 4 },
@@ -264,5 +269,319 @@ describe('loudness pass two declares what pass one must give it', () => {
   it('uses a marker ffmpeg cannot mistake for a value', () => {
     expect(measuredPlaceholder('measured_I')).toBe('@measured_I@');
     expect(Number.isFinite(Number.parseFloat(measuredPlaceholder('measured_I')))).toBe(false);
+  });
+});
+
+describe('fitting a size', () => {
+  /**
+   * The fixture is ten minutes of 1080p. 48 MiB is a target it can actually
+   * make; 9.5 is not, and that case is its own test below rather than an
+   * accident in these.
+   */
+  const fit: Operation = {
+    kind: 'target-size',
+    targetMiB: 48,
+    audioKbps: 128,
+    maxWidth: 1280,
+  };
+
+  it('is two passes, analyse then encode', () => {
+    const plan = buildArgs(fit, meta, io);
+    expect(plan.passes.map((pass) => pass.label)).toEqual(['Analyse', 'Encode']);
+  });
+
+  /**
+   * One pass at a fixed bitrate spends it evenly and wastes most of it on the
+   * still parts. Two passes let the encoder look at the whole file first and
+   * then put the bits where the picture moves, which is the difference between
+   * a 10 MB file that is watchable and one that is not.
+   */
+  it('writes a log in the first pass and reads it in the second', () => {
+    const [first, second] = buildArgs(fit, meta, io).passes;
+    expect(first?.argv).toContain('-passlogfile');
+    expect(second?.argv).toContain('-passlogfile');
+    expect(first?.argv.join(' ')).toContain('-pass 1');
+    expect(second?.argv.join(' ')).toContain('-pass 2');
+    // Both must be told the same video settings, or the measurement describes
+    // an encode that never happens.
+    expect(first?.argv.join(' ')).toContain('-b:v');
+    expect(second?.argv.join(' ')).toContain('-b:v');
+  });
+
+  it('writes nothing in the first pass', () => {
+    const [first] = buildArgs(fit, meta, io).passes;
+    expect(first?.argv).toContain('-an');
+    expect(first?.argv.join(' ')).toContain('-f null');
+  });
+
+  it('caps the peak, so a busy few seconds cannot blow the budget', () => {
+    const argv = buildArgs(fit, meta, io).passes[1]?.argv.join(' ') ?? '';
+    expect(argv).toContain('-maxrate');
+    expect(argv).toContain('-bufsize');
+  });
+
+  it('refuses a length that will not fit, and says what would have', () => {
+    // Ten minutes of video into half a mebibyte is not a picture.
+    expect(() => buildArgs({ ...fit, targetMiB: 0.5 }, meta, io)).toThrow(InvalidOperation);
+    try {
+      buildArgs({ ...fit, targetMiB: 0.5 }, meta, io);
+    } catch (error) {
+      // The refusal has to be actionable, not just a no.
+      expect((error as Error).message).toMatch(/longest|most that fits/i);
+    }
+  });
+
+  it('drops the audio budget entirely when there is no audio', () => {
+    const silent: ProbeResult = { ...meta, audio: null };
+    const argv = buildArgs(fit, silent, io).passes[1]?.argv.join(' ') ?? '';
+    expect(argv).toContain('-an');
+    expect(argv).not.toContain('-c:a aac');
+  });
+
+  it('will not build for a file with no picture', () => {
+    const audioOnly: ProbeResult = { ...meta, video: null };
+    expect(() => buildArgs(fit, audioOnly, io)).toThrow(InvalidOperation);
+  });
+
+  it('produces the same argv it did last time', () => {
+    expect(buildArgs(fit, meta, io).passes.map((pass) => pass.argv)).toMatchInlineSnapshot(`
+      [
+        [
+          "-hide_banner",
+          "-nostdin",
+          "-nostats",
+          "-progress",
+          "pipe:1",
+          "-i",
+          "/work/.tmp/holiday-8f3a4c19.mp4",
+          "-c:v",
+          "libx264",
+          "-b:v",
+          "501k",
+          "-maxrate",
+          "752k",
+          "-bufsize",
+          "1002k",
+          "-vf",
+          "scale=min(1280\\,iw):-2",
+          "-passlogfile",
+          "/work/.tmp/scrub-2pass",
+          "-pass",
+          "1",
+          "-an",
+          "-f",
+          "null",
+          "-",
+        ],
+        [
+          "-hide_banner",
+          "-nostdin",
+          "-nostats",
+          "-progress",
+          "pipe:1",
+          "-i",
+          "/work/.tmp/holiday-8f3a4c19.mp4",
+          "-c:v",
+          "libx264",
+          "-b:v",
+          "501k",
+          "-maxrate",
+          "752k",
+          "-bufsize",
+          "1002k",
+          "-vf",
+          "scale=min(1280\\,iw):-2",
+          "-passlogfile",
+          "/work/.tmp/scrub-2pass",
+          "-pass",
+          "2",
+          "-c:a",
+          "aac",
+          "-b:a",
+          "128k",
+          "-movflags",
+          "+faststart",
+          "-y",
+          "/work/.tmp/holiday-out.mp4",
+        ],
+      ]
+    `);
+  });
+});
+
+describe('speed', () => {
+  it('moves the picture and the sound by the same factor', () => {
+    const argv = buildArgs({ kind: 'speed', factor: 2 }, meta, io).passes[0]?.argv.join(' ') ?? '';
+    expect(argv).toContain('setpts=PTS/2');
+    expect(argv).toContain('atempo=2');
+  });
+
+  /**
+   * `atempo` clamps to 0.5..2.0 per instance, so anything beyond is a chain.
+   * The product of the chain has to be exactly the factor asked for: if it is
+   * not, the sound drifts away from the picture as the file plays, which is the
+   * one failure this operation must not have.
+   */
+  it('chains atempo past its limits, and the chain multiplies back', () => {
+    for (const factor of [0.25, 0.5, 1, 1.5, 2, 3, 4]) {
+      const chain = atempoChain(factor);
+      const product = chain
+        .split(',')
+        .map((step) => Number(step.replace('atempo=', '')))
+        .reduce((total, step) => total * step, 1);
+      expect(product, `${String(factor)} -> ${chain}`).toBeCloseTo(factor, 3);
+    }
+  });
+
+  it('keeps every step inside the range atempo accepts', () => {
+    for (const factor of [0.25, 0.3, 3, 4]) {
+      for (const step of atempoChain(factor).split(',')) {
+        const value = Number(step.replace('atempo=', ''));
+        expect(value, `${String(factor)} -> ${step}`).toBeGreaterThanOrEqual(0.5);
+        expect(value, `${String(factor)} -> ${step}`).toBeLessThanOrEqual(2);
+      }
+    }
+  });
+
+  /**
+   * Progress divides against the pass's own output. A 2x speed-up halves the
+   * duration, so using the source length here would stop the bar at 50%.
+   */
+  it('reports the duration of the result, not of the source', () => {
+    const faster = buildArgs({ kind: 'speed', factor: 2 }, meta, io).passes[0];
+    const slower = buildArgs({ kind: 'speed', factor: 0.5 }, meta, io).passes[0];
+    expect(faster?.outputDurationSec).toBeCloseTo(meta.durationSec / 2, 3);
+    expect(slower?.outputDurationSec).toBeCloseTo(meta.durationSec * 2, 3);
+  });
+
+  it('drops the audio filter when there is no audio to stretch', () => {
+    const silent: ProbeResult = { ...meta, audio: null };
+    const argv =
+      buildArgs({ kind: 'speed', factor: 2 }, silent, io).passes[0]?.argv.join(' ') ?? '';
+    expect(argv).toContain('-an');
+    expect(argv).not.toContain('atempo');
+  });
+
+  it('refuses a factor outside what atempo can reach', () => {
+    expect(() => buildArgs({ kind: 'speed', factor: 0 }, meta, io)).toThrow(InvalidOperation);
+    expect(() => buildArgs({ kind: 'speed', factor: 10 }, meta, io)).toThrow(InvalidOperation);
+  });
+
+  it('produces the same argv it did last time', () => {
+    expect(buildArgs({ kind: 'speed', factor: 2 }, meta, io).passes[0]?.argv)
+      .toMatchInlineSnapshot(`
+      [
+        "-hide_banner",
+        "-nostdin",
+        "-nostats",
+        "-progress",
+        "pipe:1",
+        "-i",
+        "/work/.tmp/holiday-8f3a4c19.mp4",
+        "-vf",
+        "setpts=PTS/2",
+        "-af",
+        "atempo=2",
+        "-c:a",
+        "aac",
+        "-b:a",
+        "128k",
+        "-c:v",
+        "libx264",
+        "-crf",
+        "20",
+        "-preset",
+        "medium",
+        "-movflags",
+        "+faststart",
+        "-y",
+        "/work/.tmp/holiday-out.mp4",
+      ]
+    `);
+  });
+});
+
+describe('crop', () => {
+  /**
+   * libx264 needs even dimensions, and an odd *offset* puts the chroma plane
+   * half a pixel out - a colour fringe along the edges rather than an error
+   * anyone would notice until they looked closely.
+   */
+  it('rounds every number down to an even one', () => {
+    const argv =
+      buildArgs(
+        { kind: 'crop', width: 641, height: 361, x: 101, y: 51 },
+        meta,
+        io,
+      ).passes[0]?.argv.join(' ') ?? '';
+    expect(argv).toContain('crop=640:360:100:50');
+  });
+
+  it('clamps a rectangle that runs off the edge', () => {
+    // ffmpeg fails outright on a crop outside the frame, which is a worse way
+    // to learn you dragged too far than simply not being able to.
+    const argv =
+      buildArgs(
+        { kind: 'crop', width: 9999, height: 9999, x: 1900, y: 1000 },
+        meta,
+        io,
+      ).passes[0]?.argv.join(' ') ?? '';
+    const [, w, h, x, y] = /crop=(\d+):(\d+):(\d+):(\d+)/.exec(argv) ?? [];
+    expect(Number(x) + Number(w)).toBeLessThanOrEqual(meta.video?.width ?? 0);
+    expect(Number(y) + Number(h)).toBeLessThanOrEqual(meta.video?.height ?? 0);
+  });
+
+  it('copies the sound rather than re-encoding it for nothing', () => {
+    const argv =
+      buildArgs(
+        { kind: 'crop', width: 640, height: 360, x: 0, y: 0 },
+        meta,
+        io,
+      ).passes[0]?.argv.join(' ') ?? '';
+    expect(argv).toContain('-c:a copy');
+  });
+
+  it('refuses a selection too small to encode', () => {
+    expect(() => buildArgs({ kind: 'crop', width: 8, height: 8, x: 0, y: 0 }, meta, io)).toThrow(
+      InvalidOperation,
+    );
+  });
+
+  it('will not build for a file with no picture', () => {
+    const audioOnly: ProbeResult = { ...meta, video: null };
+    expect(() =>
+      buildArgs({ kind: 'crop', width: 640, height: 360, x: 0, y: 0 }, audioOnly, io),
+    ).toThrow(InvalidOperation);
+  });
+
+  it('produces the same argv it did last time', () => {
+    expect(
+      buildArgs({ kind: 'crop', width: 1280, height: 720, x: 320, y: 180 }, meta, io).passes[0]
+        ?.argv,
+    ).toMatchInlineSnapshot(`
+      [
+        "-hide_banner",
+        "-nostdin",
+        "-nostats",
+        "-progress",
+        "pipe:1",
+        "-i",
+        "/work/.tmp/holiday-8f3a4c19.mp4",
+        "-vf",
+        "crop=1280:720:320:180",
+        "-c:v",
+        "libx264",
+        "-crf",
+        "20",
+        "-preset",
+        "medium",
+        "-c:a",
+        "copy",
+        "-movflags",
+        "+faststart",
+        "-y",
+        "/work/.tmp/holiday-out.mp4",
+      ]
+    `);
   });
 });

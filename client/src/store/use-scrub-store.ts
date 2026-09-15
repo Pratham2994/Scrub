@@ -127,6 +127,28 @@ export type OperationParams = {
     readonly status: 'idle' | 'loading' | 'failed';
     readonly error: string | null;
   };
+  readonly targetSize: {
+    /** Which preset is selected, or null when the target was typed by hand. */
+    readonly presetId: string | null;
+    readonly targetMiB: number;
+    readonly audioKbps: number;
+    readonly maxWidth: number | null;
+  };
+  readonly speed: { readonly factor: number };
+  readonly crop: {
+    /**
+     * The rectangle as fractions of the frame, not pixels.
+     *
+     * The user drags it over a preview that is whatever size the window allows,
+     * and the same selection has to mean the same crop on a 4K source as on a
+     * 480p one. Pixels are worked out once, at the end, against the real
+     * dimensions ffprobe reported.
+     */
+    readonly x: number;
+    readonly y: number;
+    readonly width: number;
+    readonly height: number;
+  };
   readonly audioConvert: { readonly format: AudioFormat; readonly bitrateKbps: number | null };
   readonly loudness: {
     readonly targetI: number;
@@ -134,6 +156,55 @@ export type OperationParams = {
     readonly targetLRA: number;
   };
 };
+
+/**
+ * Settings survive the tab, unlike the loaded file.
+ *
+ * Someone who compresses at CRF 28 does it every time, and being asked again on
+ * every visit is the kind of small rudeness that makes a tool feel like it is
+ * not paying attention. `localStorage` rather than `sessionStorage` for exactly
+ * that reason: the file is per tab, the way you like your encodes is not.
+ *
+ * Deliberately not stored: anything about a *particular* file. The replacement
+ * audio track in `replaceAudio` points at an upload that will have been swept
+ * long before the next visit, so it is dropped on the way in and out.
+ */
+const PARAMS_KEY = 'scrub:params';
+
+function loadParams(defaults: OperationParams): OperationParams {
+  try {
+    const raw = localStorage.getItem(PARAMS_KEY);
+    if (raw === null) return defaults;
+    const saved = JSON.parse(raw) as Partial<Record<string, unknown>>;
+    const merged: Record<string, unknown> = { ...defaults };
+    for (const [key, value] of Object.entries(defaults)) {
+      const savedValue = saved[key];
+      if (savedValue !== null && typeof savedValue === 'object' && !Array.isArray(savedValue)) {
+        /**
+         * Merged field by field onto the defaults rather than used as-is. A
+         * stored blob from an older version is missing whatever has been added
+         * since, and `params.speed.factor` coming back undefined would reach
+         * buildArgs as NaN.
+         */
+        merged[key] = { ...value, ...savedValue };
+      }
+    }
+    return { ...(merged as OperationParams), replaceAudio: defaults.replaceAudio };
+  } catch {
+    // Corrupt JSON, or a browser refusing storage. The defaults are fine.
+    return defaults;
+  }
+}
+
+function saveParams(params: OperationParams): void {
+  try {
+    // The second file belongs to one session, so it never goes in.
+    const { replaceAudio: _dropped, ...rest } = params;
+    localStorage.setItem(PARAMS_KEY, JSON.stringify(rest));
+  } catch {
+    // Private modes refuse storage. Forgetting a preference is not worth failing over.
+  }
+}
 
 const DEFAULT_PARAMS: OperationParams = {
   compress: { crf: 23, preset: 'medium' },
@@ -149,8 +220,39 @@ const DEFAULT_PARAMS: OperationParams = {
     status: 'idle',
     error: null,
   },
+  targetSize: { presetId: 'discord', targetMiB: 9.5, audioKbps: 128, maxWidth: 1280 },
+  speed: { factor: 2 },
+  // Centred and covering most of the frame: visibly a selection, and a starting
+  // point to drag from rather than a puzzle about where the handles went.
+  crop: { x: 0.1, y: 0.1, width: 0.8, height: 0.8 },
   audioConvert: { format: 'mp3', bitrateKbps: 192 },
   loudness: { targetI: -16, targetTP: -1.5, targetLRA: 11 },
+};
+
+/**
+ * One entry in the queue.
+ *
+ * The foreground `run` above is what the command bar shows for the operation
+ * you are looking at right now. This is the record of everything started,
+ * including the encodes still going while you set up the next one - which is
+ * the whole reason the queue exists.
+ */
+export type QueuedJob = {
+  readonly jobId: string;
+  /** Null for a hand-edited command, which belongs to no operation. */
+  readonly kind: OperationKind | null;
+  readonly title: string;
+  readonly status: 'queued' | 'running' | 'done' | 'failed' | 'cancelled';
+  /** How many are in front of it. 0 once it is running. */
+  readonly position: number;
+  readonly progress: number;
+  readonly determinate: boolean;
+  readonly passLabel: string;
+  readonly elapsedMs: number;
+  readonly outputId: string | null;
+  readonly outputName: string | null;
+  readonly sizeBytes: number | null;
+  readonly message: string | null;
 };
 
 export type ScrubState = {
@@ -161,6 +263,11 @@ export type ScrubState = {
   readonly activeOperation: OperationKind | null;
   readonly trim: TrimParams;
   readonly params: OperationParams;
+  readonly jobs: readonly QueuedJob[];
+
+  readonly addJob: (job: QueuedJob) => void;
+  readonly updateJob: (jobId: string, patch: Partial<QueuedJob>) => void;
+  readonly forgetFinishedJobs: () => void;
 
   readonly setActiveOperation: (kind: OperationKind | null) => void;
   readonly setTrim: (patch: Partial<TrimParams>) => void;
@@ -174,6 +281,15 @@ export type ScrubState = {
   readonly loadUpload: (uploadId: string, meta: ProbeResult) => void;
   readonly failUpload: (message: string, detail?: readonly string[]) => void;
   readonly setRun: (run: RunState) => void;
+  /**
+   * Make a finished result the file being worked on.
+   *
+   * Never automatic. Chaining trim into compress is common, but so is running
+   * three compressions from one source to compare them, and silently swapping
+   * the source under someone doing the second would be infuriating. It is a
+   * button, and it is pressed on purpose.
+   */
+  readonly continueFrom: (uploadId: string, meta: ProbeResult) => void;
   readonly clearFile: () => void;
   readonly reset: () => void;
 };
@@ -185,13 +301,34 @@ export const useScrubStore = create<ScrubState>()((set) => ({
   run: { status: 'idle' },
   activeOperation: null,
   trim: { startSec: 0, endSec: 0, mode: 'fast' },
-  params: DEFAULT_PARAMS,
+  params: loadParams(DEFAULT_PARAMS),
+  jobs: [],
+
+  addJob: (job) => {
+    set((state) => ({ jobs: [...state.jobs, job] }));
+  },
+  updateJob: (jobId, patch) => {
+    set((state) => ({
+      jobs: state.jobs.map((job) => (job.jobId === jobId ? { ...job, ...patch } : job)),
+    }));
+  },
+  forgetFinishedJobs: () => {
+    // Only the ones that are over. Clearing the list must never lose sight of
+    // an encode that is still running.
+    set((state) => ({
+      jobs: state.jobs.filter((job) => job.status === 'queued' || job.status === 'running'),
+    }));
+  },
 
   setTrim: (patch) => {
     set((state) => ({ trim: { ...state.trim, ...patch } }));
   },
   setParams: (key, patch) => {
-    set((state) => ({ params: { ...state.params, [key]: { ...state.params[key], ...patch } } }));
+    set((state) => {
+      const params = { ...state.params, [key]: { ...state.params[key], ...patch } };
+      saveParams(params);
+      return { params };
+    });
   },
 
   setActiveOperation: (kind) => {
@@ -226,17 +363,26 @@ export const useScrubStore = create<ScrubState>()((set) => ({
   },
   loadUpload: (uploadId, meta) => {
     rememberUpload(uploadId);
-    set({
+    set((state) => ({
       uploadId,
       meta,
       load: { status: 'ready' },
       run: { status: 'idle' },
       // A new file means a new timeline, so the range starts as the whole clip.
       trim: { startSec: 0, endSec: meta.durationSec, mode: 'fast' },
-      // Resize defaults to the source width, which is the only value that is
-      // certainly valid for this file. The rest are file-independent.
+      /**
+       * Settings carry over from the last file; only the two that cannot.
+       *
+       * This used to reset everything to the defaults here, which was right
+       * while nothing was remembered and wrong the moment anything was: it
+       * threw away the CRF you had just chosen every time you dropped a file.
+       *
+       * Resize is genuinely file-dependent - the source width is the only value
+       * certainly valid for this file - and the replacement audio track points
+       * at a different upload entirely.
+       */
       params: {
-        ...DEFAULT_PARAMS,
+        ...state.params,
         resize: { width: evenWidth(meta.video?.width ?? 1280) },
         replaceAudio: {
           audioId: null,
@@ -247,7 +393,7 @@ export const useScrubStore = create<ScrubState>()((set) => ({
           error: null,
         },
       },
-    });
+    }));
   },
   failUpload: (message, detail = []) => {
     rememberUpload(null);
@@ -256,6 +402,19 @@ export const useScrubStore = create<ScrubState>()((set) => ({
   setRun: (run) => {
     set({ run });
   },
+  continueFrom: (uploadId, meta) => {
+    rememberUpload(uploadId);
+    set({
+      uploadId,
+      meta,
+      load: { status: 'ready' },
+      // The result panel belongs to the run that produced it, and that run is
+      // now the source rather than the output.
+      run: { status: 'idle' },
+      trim: { startSec: 0, endSec: meta.durationSec, mode: 'fast' },
+    });
+  },
+
   clearFile: () => {
     rememberUpload(null);
     set({ uploadId: null, meta: null, load: { status: 'empty' }, run: { status: 'idle' } });

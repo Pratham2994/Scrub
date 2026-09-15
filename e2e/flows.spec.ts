@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { OPERATIONS } from '@scrub/shared';
 import { expect, type Page, test } from '@playwright/test';
 
 /**
@@ -33,8 +34,12 @@ const commandText = async (page: Page): Promise<string> =>
 
 async function loadFixture(page: Page): Promise<void> {
   await page.setInputFiles('input[type=file]', FIXTURE);
-  // The video appearing is the signal that upload and probe both finished.
-  await expect(page.locator('video')).toBeVisible({ timeout: 30_000 });
+  /**
+   * The video appearing is the signal that upload and probe both finished.
+   * `.first()` because the crop panel draws the frame twice - once dimmed and
+   * once clipped to the selection - so "the video" is ambiguous there.
+   */
+  await expect(page.locator('video').first()).toBeVisible({ timeout: 30_000 });
 }
 
 test.describe('loading a file', () => {
@@ -149,7 +154,9 @@ test.describe('the command bar', () => {
 
     await expect(page.getByText(/What the first command measured/)).toBeHidden();
     await page.getByRole('button', { name: 'Run' }).click();
-    await expect(page.getByRole('link', { name: 'Save' })).toBeVisible({ timeout: 120_000 });
+    await expect(page.getByRole('link', { name: 'Save', exact: true })).toBeVisible({
+      timeout: 120_000,
+    });
 
     // Scoped to the block itself rather than to a positional `dl`: it sits at
     // the top of the panel so it is on screen the moment the run ends.
@@ -211,7 +218,7 @@ test.describe('running an operation', () => {
     await page.getByRole('button', { name: 'Run' }).click();
 
     // The result panel takes over the well and owns saving the file.
-    const save = page.getByRole('link', { name: 'Save' });
+    const save = page.getByRole('link', { name: 'Save', exact: true });
     await expect(save).toBeVisible({ timeout: 60_000 });
     // The range is in the name, so a second trim of the same clip does not land
     // in the downloads folder as `clip-trim (1).mp4`.
@@ -238,7 +245,7 @@ test.describe('running an operation', () => {
     await expect(page.locator('code')).not.toContainText('-convert.mp4');
 
     await page.getByRole('button', { name: 'Run' }).click();
-    const save = page.getByRole('link', { name: 'Save' });
+    const save = page.getByRole('link', { name: 'Save', exact: true });
     await expect(save).toBeVisible({ timeout: 120_000 });
     await expect(save).toHaveAttribute('download', 'clip-convert.webm');
   });
@@ -248,7 +255,7 @@ test.describe('running an operation', () => {
     await loadFixture(page);
 
     await page.getByRole('button', { name: 'Run' }).click();
-    const save = page.getByRole('link', { name: 'Save' });
+    const save = page.getByRole('link', { name: 'Save', exact: true });
     await expect(save).toBeVisible({ timeout: 90_000 });
     await expect(save).toHaveAttribute('download', /\.gif$/);
     // A GIF is a picture, so the result is shown as one rather than in a player.
@@ -360,8 +367,10 @@ test.describe('the workspace', () => {
       expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(screen.width + 1);
       expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(screen.height + 1);
 
-      // And every operation stays reachable, rail or scroller.
-      await expect(page.locator('nav a')).toHaveCount(11);
+      // And every operation stays reachable, rail or scroller. Counted from the
+      // list itself rather than a number that goes stale the next time one is
+      // added - which is exactly what happened.
+      await expect(page.locator('nav a')).toHaveCount(OPERATIONS.length);
     });
   }
 
@@ -439,7 +448,7 @@ test.describe('a result that is no longer there', () => {
     await loadFixture(page);
     await page.getByRole('button', { name: 'Run' }).click();
 
-    const save = page.getByRole('link', { name: 'Save' });
+    const save = page.getByRole('link', { name: 'Save', exact: true });
     await expect(save).toBeVisible({ timeout: 60_000 });
 
     const tmp = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '.tmp');
@@ -560,7 +569,7 @@ test.describe('a file the browser cannot preview', () => {
     await expect(page.locator('header')).toContainText('320');
 
     await page.getByRole('button', { name: 'Run' }).click();
-    const save = page.getByRole('link', { name: 'Save' });
+    const save = page.getByRole('link', { name: 'Save', exact: true });
     await expect(save).toBeVisible({ timeout: 60_000 });
     await expect(save).toHaveAttribute('download', /^hevc-clip-trim.*mp4$/);
   });
@@ -608,14 +617,14 @@ test.describe('cancelling', () => {
     await page.getByRole('button', { name: 'Run' }).click();
     await expect(page.getByRole('progressbar')).toBeVisible({ timeout: 30_000 });
 
-    await page.getByRole('button', { name: 'Cancel' }).click();
+    await page.getByRole('button', { name: 'Cancel', exact: true }).click();
 
     // The kill is immediate; measured at about 30ms.
     await expect(page.getByText(/Cancelled\. Nothing was written\./)).toBeVisible({
       timeout: 15_000,
     });
     // No half-written file is offered for saving.
-    await expect(page.getByRole('link', { name: 'Save' })).toBeHidden();
+    await expect(page.getByRole('link', { name: 'Save', exact: true })).toBeHidden();
     // And Run comes back, rather than leaving a dead progress bar behind.
     await expect(page.getByRole('button', { name: 'Run' })).toBeEnabled();
   });
@@ -646,7 +655,7 @@ test.describe('replace audio', () => {
     expect(command).toContain('-shortest');
 
     await page.getByRole('button', { name: 'Run' }).click();
-    const save = page.getByRole('link', { name: 'Save' });
+    const save = page.getByRole('link', { name: 'Save', exact: true });
     await expect(save).toBeVisible({ timeout: 90_000 });
     await expect(save).toHaveAttribute('download', 'clip-new-audio.mp4');
   });
@@ -785,5 +794,186 @@ test.describe('the keyboard', () => {
 
     await page.keyboard.press('Shift+ArrowRight');
     await expect.poll(async () => timeOf(page)).toBeGreaterThan(afterFrame + 0.5);
+  });
+});
+
+test.describe('fitting a size', () => {
+  /**
+   * "Under 10 MB" is the most common thing anyone asks a video tool for, and
+   * compress could not answer it: CRF asks how good, not how big. The test that
+   * matters is not that a command was produced, it is that the file on disk is
+   * actually under the limit.
+   */
+  test('produces a file under the limit it was aimed at', async ({ page }) => {
+    test.slow();
+    await page.goto('/op/target-size');
+    await loadFixture(page);
+
+    // Discord is the default preset: a 10 MB cap, aimed at 9.5.
+    await expect(page.getByText(/Discord raised the free limit/)).toBeVisible();
+
+    const command = await commandText(page);
+    expect(command).toContain('-pass 1');
+    expect(command).toContain('-b:v');
+
+    await page.getByRole('button', { name: 'Run', exact: true }).click();
+    const save = page.getByRole('link', { name: 'Save', exact: true });
+    await expect(save).toBeVisible({ timeout: 120_000 });
+    await expect(save).toHaveAttribute('download', /fit-9-5mb/);
+
+    const href = await save.getAttribute('href');
+    const response = await page.request.get(`http://localhost:5173${href ?? ''}`);
+    const bytes = (await response.body()).length;
+    expect(bytes, 'the whole point is that it clears the limit').toBeLessThan(10 * 1024 * 1024);
+  });
+
+  /**
+   * The refusal - "this length will not fit in that size, here is what would" -
+   * is covered in shared/src/size-presets.test.ts and build-operations.test.ts
+   * rather than here. The committed fixture is three seconds long and makes
+   * even a 0.5 MB target comfortably, so provoking the refusal end to end would
+   * mean committing a much longer file for one assertion.
+   */
+});
+
+test.describe('speed', () => {
+  test('changes the length and keeps the sound with it', async ({ page }) => {
+    await page.goto('/op/speed');
+    await loadFixture(page);
+
+    const command = await commandText(page);
+    // Both filters, or the result drifts out of sync as it plays.
+    expect(command).toContain('setpts=PTS/2');
+    expect(command).toContain('atempo=2');
+
+    await page.getByRole('button', { name: 'Run', exact: true }).click();
+    await expect(page.getByRole('link', { name: 'Save', exact: true })).toBeVisible({
+      timeout: 120_000,
+    });
+    await expect(page.getByRole('link', { name: 'Save', exact: true })).toHaveAttribute(
+      'download',
+      'clip-speed-2x.mp4',
+    );
+  });
+});
+
+test.describe('crop', () => {
+  test('crops to the rectangle, in even numbers', async ({ page }) => {
+    await page.goto('/op/crop');
+    await loadFixture(page);
+
+    await expect(page.getByRole('group', { name: 'Crop rectangle' })).toBeVisible();
+
+    // A preset rectangle rather than a synthetic drag: the arithmetic is the
+    // part worth testing, and the corners have their own keyboard test below.
+    await page.getByRole('button', { name: '16:9' }).click();
+
+    const command = await commandText(page);
+    const [, w, h, x, y] = /crop=(\d+):(\d+):(\d+):(\d+)/.exec(command) ?? [];
+    for (const value of [w, h, x, y]) {
+      // libx264 needs even dimensions, and an odd offset smears the chroma.
+      expect(Number(value) % 2, `${String(value)} should be even`).toBe(0);
+    }
+
+    await page.getByRole('button', { name: 'Run', exact: true }).click();
+    await expect(page.getByRole('link', { name: 'Save', exact: true })).toBeVisible({
+      timeout: 120_000,
+    });
+  });
+
+  test('moves a corner with the arrow keys', async ({ page }) => {
+    await page.goto('/op/crop');
+    await loadFixture(page);
+
+    const before = await commandText(page);
+    await page.getByRole('button', { name: 'Top left corner' }).focus();
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ArrowRight');
+
+    await expect.poll(async () => commandText(page)).not.toBe(before);
+  });
+});
+
+test.describe('the queue', () => {
+  /**
+   * The point is that starting one encode does not trap you watching it. Before
+   * this, moving to another operation reset the run state and the encode
+   * carried on invisibly.
+   */
+  test('keeps a second job behind the first and shows both', async ({ page }) => {
+    test.slow();
+    await page.goto('/op/compress');
+    await loadFixture(page);
+
+    await expect(page.getByText('Clear finished')).toBeHidden();
+
+    await page.getByRole('button', { name: 'Run', exact: true }).click();
+    // In-app navigation, the way the rail actually works.
+    await railLink(page, 'crop').click();
+    await page.getByRole('button', { name: 'Run', exact: true }).click();
+
+    // Both are tracked, whichever of them is running at this instant.
+    await expect(page.getByText(/Compress · clip\.mp4/)).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText(/Crop · clip\.mp4/)).toBeVisible({ timeout: 30_000 });
+
+    await expect(page.getByText('Clear finished')).toBeVisible({ timeout: 120_000 });
+    await page.getByText('Clear finished').click();
+    await expect(page.getByText(/Compress · clip\.mp4/)).toBeHidden();
+  });
+});
+
+test.describe('carrying a result forward', () => {
+  /**
+   * Trim then compress is two operations on one file. Without this the second
+   * meant saving the first result and dropping it back in by hand.
+   */
+  test('uses a result as the next source, only when asked', async ({ page }) => {
+    test.slow();
+    await page.goto('/op/trim');
+    await loadFixture(page);
+    await page.getByLabel('End timecode').fill('00:00:02.00');
+    await page.getByLabel('End timecode').press('Enter');
+
+    await page.getByRole('button', { name: 'Run', exact: true }).click();
+    await expect(page.getByRole('link', { name: 'Save', exact: true })).toBeVisible({
+      timeout: 60_000,
+    });
+
+    await page.getByRole('button', { name: /Keep working on this/ }).click();
+
+    await railLink(page, 'compress').click();
+    // The command for the next operation is built from the trimmed file, and
+    // the name carries the whole chain.
+    await expect.poll(async () => commandText(page)).toContain('trim-0s-2s');
+
+    await page.getByRole('button', { name: 'Run', exact: true }).click();
+    await expect(page.getByRole('link', { name: 'Save', exact: true })).toBeVisible({
+      timeout: 120_000,
+    });
+    await expect(page.getByRole('link', { name: 'Save', exact: true })).toHaveAttribute(
+      'download',
+      'clip-trim-0s-2s-compress-crf23.mp4',
+    );
+  });
+});
+
+test.describe('remembering how you like things', () => {
+  test('keeps a setting across a reload', async ({ page }) => {
+    await page.goto('/op/compress');
+    await loadFixture(page);
+
+    await page.getByLabel('Quality value').fill('29');
+    await page.getByLabel('Quality value').press('Enter');
+    await expect.poll(async () => commandText(page)).toContain('-crf 29');
+
+    await page.reload();
+    await expect(page.locator('video')).toBeVisible({ timeout: 30_000 });
+
+    // Asked once, not every visit.
+    await expect.poll(async () => commandText(page)).toContain('-crf 29');
+
+    // Put it back, so the next test does not inherit it.
+    await page.getByLabel('Quality value').fill('23');
+    await page.getByLabel('Quality value').press('Enter');
   });
 });

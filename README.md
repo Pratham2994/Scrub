@@ -4,17 +4,44 @@ A local ffmpeg GUI. Drop a file in, pick one of a handful of operations, get a f
 out.
 
 Most ffmpeg front-ends expose ffmpeg's flags, which means you still have to know
-ffmpeg. Scrub is a GUI for the ten or so things people actually do with it. Two
+ffmpeg. Scrub is a GUI for the dozen or so things people actually do with it. Three
 things make it worth using over a terminal:
 
+- **"Get this under 10 MB."** Pick Discord, WhatsApp or an email attachment and
+  Scrub works out the bitrate from the limit and the length, then encodes in two
+  passes to hit it. Every other compression control asks how _good_ you want it and
+  gives you whatever size that takes; a platform limit is the opposite question.
 - **The exact command is always visible before it runs**, copyable and editable. One
   pure function produces the argv that the preview shows and that `spawn` executes —
   they cannot drift apart.
 - **The trim scrubber** removes the genuinely painful part of trimming by hand:
-  finding the frame.
+  finding the frame. Crop works the same way: drag a rectangle over your own frames.
 
 Everything else is a convenience wrapper, and the operation list is closed on
 purpose.
+
+## Size presets
+
+The numbers were checked in September 2026, and each one carries the reason it is
+what it is — they move, and a preset with no stated basis is a number nobody can
+check.
+
+| Where               | Limit   | Scrub aims at | Why                                                                                                            |
+| ------------------- | ------- | ------------- | -------------------------------------------------------------------------------------------------------------- |
+| Discord             | 10 MB   | 9.5 MB        | The free tier was rolling out from 10 MB toward 20 during 2026. 10 works on every account.                     |
+| WhatsApp            | 16 MB   | 15 MB         | For a video sent as media. Sent as a _document_ it allows 2 GB and needs no compressing.                       |
+| Email attachment    | 18.8 MB | 17.5 MB       | Gmail and Outlook say 25 MB, but that is the base64-encoded size, which is about a third larger than the file. |
+| Discord Nitro Basic | 50 MB   | 48 MB         | Full Nitro is 500 MB, which almost nothing needs compressing to reach.                                         |
+| X / Twitter         | 512 MB  | 500 MB        | The size is generous; the limit that bites is 2m20s without Premium. Trim first.                               |
+
+Scrub always aims a little under, because container overhead lands on the wrong
+side of a hard limit often enough to matter, and a file refused after the upload is
+worse than one that is slightly smaller than it needed to be. Anything else, type
+the number.
+
+If the target cannot hold the length — below about 100 kbit/s h264 stops being a
+picture — Scrub says so and tells you how long _would_ have fitted, rather than
+encoding a smear that happens to be the right size.
 
 ## How this works, and what you need
 
@@ -184,7 +211,7 @@ shared/   Operation types and the buildArgs function. Imported by both.
 ## Status
 
 Complete, against the operation list in [`CLAUDE.md`](CLAUDE.md), which is closed
-on purpose. All eleven operations are built and each has been run through real
+on purpose. All fourteen operations are built and each has been run through real
 ffmpeg with the output probed back.
 
 Upload, probe, preview, run with live progress, cancel, compare against the
@@ -199,6 +226,13 @@ An operation that cannot apply to the loaded file says so and points at the one
 that does, rather than letting ffmpeg silently succeed at nothing. HEVC files,
 which browsers cannot decode, explain that the preview is what failed and not the
 operation.
+
+Encodes queue rather than compete: start one, set the next one up while it runs,
+and both appear in a strip above the command bar with their own progress and a
+cancel. A finished result can become the next source with one button, so trim
+then compress does not mean saving a file and dropping it back in — and the name
+carries the whole chain, `clip-trim-0s-2s-compress-crf23.mp4`. Settings are
+remembered between visits; the file is not.
 
 Deliberately not built: concat, rotate, subtitle burn-in and batch, each with its
 reasoning in [`docs/OPERATIONS.md`](docs/OPERATIONS.md). They are reachable through

@@ -52,6 +52,9 @@ export function outputExtension(op: Operation, sourcePath: string): string {
     case 'replace-audio':
     case 'audio-trim':
     case 'loudness':
+    case 'target-size':
+    case 'speed':
+    case 'crop':
       return splitPath(sourcePath).ext || '.mp4';
   }
 }
@@ -93,6 +96,13 @@ export function operationSuffix(op: Operation): string {
       return 'convert';
     case 'resize':
       return `resize-${String(op.width)}w`;
+    case 'target-size':
+      // The point of the file is the number, so the number is the name.
+      return `fit-${String(op.targetMiB).replace('.', '-')}mb`;
+    case 'speed':
+      return `speed-${String(op.factor).replace('.', '-')}x`;
+    case 'crop':
+      return `crop-${String(op.width)}x${String(op.height)}`;
     case 'gif': {
       const window =
         op.startSec === null || op.endSec === null

@@ -69,10 +69,15 @@ feature, not a defect to be hardened away.
 
 ## Capabilities and Constraints
 
-Eleven operations, closed. Video: trim (fast and precise), compress, convert,
-resize, GIF, extract audio, mute, replace audio. Audio: convert, trim, normalise
-loudness. Deferred with reasons in `docs/OPERATIONS.md`: concat, rotate, subtitle
-burn-in, batch.
+Fourteen operations, closed. Video: trim (fast and precise), compress, fit a size,
+convert, resize, crop, speed, GIF, extract audio, mute, replace audio. Audio:
+convert, trim, normalise loudness. Deferred with reasons in `docs/OPERATIONS.md`:
+concat, rotate, subtitle burn-in, batch.
+
+"Fit a size" is the one that answers the question people actually arrive with.
+Every other compression control asks how good; a platform limit asks how big, and
+the two are not the same question. It carries the limits for the places that
+refuse a file outright, each with the date it was checked, because they move.
 
 - ffmpeg is spawned as an argument array, never through a shell.
 - Progress is read from ffmpeg's machine-readable stdout stream, never from parsing
@@ -86,8 +91,9 @@ burn-in, batch.
 - The fast/precise trade is never chosen on the user's behalf.
 
 **Terminology:** the operations are named with verbs the user already has — Trim,
-Compress, Convert, Resize, GIF, Extract audio, Mute, Replace audio, Normalise
-loudness. Not "transcode", not "remux", not "encode".
+Compress, Fit a size, Convert, Resize, Crop, Speed, GIF, Extract audio, Mute,
+Replace audio, Normalise loudness. Not "transcode", not "remux", not "encode",
+and not "two-pass VBR" for the one that hits a size.
 
 ## Brand Commitments
 

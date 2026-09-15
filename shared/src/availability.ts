@@ -58,6 +58,27 @@ export function availabilityOf(kind: OperationKind, meta: ProbeResult): Availabi
     case 'replace-audio':
       return hasVideo ? AVAILABLE : no('There is no picture here to put new sound against.', null);
 
+    /**
+     * All three are picture operations. On an audio file the filters would be
+     * ignored and ffmpeg would report success over an untouched copy, which is
+     * the silent-wrong-answer case this module exists to prevent.
+     */
+    case 'target-size':
+      return hasVideo
+        ? AVAILABLE
+        : no(
+            'Fitting a size works by trading picture quality for bytes, and this file has no picture. Convert it to a smaller audio format instead.',
+            'audio-convert',
+          );
+
+    case 'speed':
+      return hasVideo
+        ? AVAILABLE
+        : no('This file has no picture, and Scrub does not change audio speed on its own.', null);
+
+    case 'crop':
+      return hasVideo ? AVAILABLE : no('There is no picture here to crop.', null);
+
     case 'extract-audio':
       if (!hasAudio) return no('This file has no audio track to pull out.', null);
       // Pulling audio out of a file that is already audio is just a conversion.

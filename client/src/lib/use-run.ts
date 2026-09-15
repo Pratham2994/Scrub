@@ -1,4 +1,4 @@
-import type { Operation } from '@scrub/shared';
+import { operationDescriptor, type Operation } from '@scrub/shared';
 import { useCallback, useEffect, useRef } from 'react';
 
 import { ApiError, cancelRun, type RunTarget, startRun, subscribeToJob } from '@/lib/api';
@@ -10,12 +10,21 @@ export function useRun(op: Operation | null): {
   readonly cancel: () => void;
 } {
   const uploadId = useScrubStore((state) => state.uploadId);
+  const meta = useScrubStore((state) => state.meta);
   const run = useScrubStore((state) => state.run);
   const setRun = useScrubStore((state) => state.setRun);
+  const addJob = useScrubStore((state) => state.addJob);
+  const updateJob = useScrubStore((state) => state.updateJob);
 
-  // Holds the detach function so a job is never left streaming into a component
-  // that has gone away.
-  const detachRef = useRef<(() => void) | null>(null);
+  /**
+   * One detach function per job, not one in total.
+   *
+   * This used to hold a single subscription and tear down the previous one each
+   * time Run was pressed. With a queue that is exactly wrong: starting a second
+   * encode would stop listening to the first, so it would finish silently and
+   * never leave the queue.
+   */
+  const detachRef = useRef(new Map<string, () => void>());
 
   /**
    * Cancel pressed before the job id came back.
@@ -30,12 +39,13 @@ export function useRun(op: Operation | null): {
    */
   const cancelPendingRef = useRef(false);
 
-  useEffect(
-    () => () => {
-      detachRef.current?.();
-    },
-    [],
-  );
+  useEffect(() => {
+    const open = detachRef.current;
+    return () => {
+      for (const detach of open.values()) detach();
+      open.clear();
+    };
+  }, []);
 
   const start = useCallback(
     (editedArgv: readonly string[] | null) => {
@@ -95,8 +105,23 @@ export function useRun(op: Operation | null): {
             elapsedMs: 0,
             measurement: null,
           });
-          detachRef.current?.();
-          detachRef.current = subscribeToJob(jobId, (event) => {
+          addJob({
+            jobId,
+            kind: op?.kind ?? null,
+            title: `${op ? operationDescriptor(op.kind).label : 'Edited command'} · ${meta?.displayName ?? 'file'}`,
+            status: 'running',
+            position: 0,
+            progress: 0,
+            determinate: false,
+            passLabel: '',
+            elapsedMs: 0,
+            outputId: null,
+            outputName: null,
+            sizeBytes: null,
+            message: null,
+          });
+
+          const detach = subscribeToJob(jobId, (event) => {
             switch (event.type) {
               case 'progress':
                 setRun({
@@ -110,6 +135,17 @@ export function useRun(op: Operation | null): {
                   elapsedMs: event.elapsedMs,
                   measurement,
                 });
+                updateJob(jobId, {
+                  status: 'running',
+                  position: 0,
+                  progress: event.progress,
+                  determinate: event.determinate,
+                  passLabel: event.passLabel,
+                  elapsedMs: event.elapsedMs,
+                });
+                return;
+              case 'queued':
+                updateJob(jobId, { status: 'queued', position: event.position });
                 return;
               case 'measured':
                 measurement = {
@@ -127,15 +163,27 @@ export function useRun(op: Operation | null): {
                   elapsedMs: event.elapsedMs,
                   measurement,
                 });
+                updateJob(jobId, {
+                  status: 'done',
+                  progress: 1,
+                  determinate: true,
+                  outputId: event.outputId,
+                  outputName: event.outputName,
+                  sizeBytes: event.sizeBytes,
+                  elapsedMs: event.elapsedMs,
+                });
                 return;
               case 'error':
                 setRun({ status: 'failed', message: event.message, detail: event.detail });
+                updateJob(jobId, { status: 'failed', message: event.message });
                 return;
               case 'cancelled':
                 setRun({ status: 'cancelled' });
+                updateJob(jobId, { status: 'cancelled' });
                 return;
             }
           });
+          detachRef.current.set(jobId, detach);
         })
         .catch((error: unknown) => {
           if (error instanceof ApiError) {

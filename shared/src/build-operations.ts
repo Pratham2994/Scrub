@@ -10,8 +10,15 @@
 import type { CommandIo, CommandPlan } from './build-args.js';
 import { OVERWRITE_ARG, TRANSPORT_ARGS } from './build-args.js';
 import { InvalidOperation } from './errors.js';
-import type { AudioFormat, VideoContainer, VideoGif } from './operations.js';
+import type {
+  AudioFormat,
+  VideoContainer,
+  VideoCrop,
+  VideoGif,
+  VideoTargetSize,
+} from './operations.js';
 import type { ProbeResult } from './probe.js';
+import { maxDurationSec, videoBitrateKbps } from './size-presets.js';
 import { formatSeconds } from './time.js';
 
 /**
@@ -565,4 +572,236 @@ export function buildLoudness(
 function joinPath(directory: string, name: string): string {
   const separator = directory.includes('\\') ? '\\' : '/';
   return `${directory.replace(/[\\/]+$/, '')}${separator}${name}`;
+}
+
+/**
+ * Hit a size, in two passes.
+ *
+ * The bitrate is arithmetic: the target divided by the duration, less whatever
+ * the audio takes. One pass at that bitrate would spend it evenly and waste it
+ * on the still parts; two passes let the encoder look at the whole file first
+ * and then put the bits where the picture moves. That is the difference between
+ * a 10 MB file that looks watchable and one that does not.
+ *
+ * `-maxrate` and `-bufsize` cap the peak so a busy few seconds cannot blow the
+ * budget and push the file over the limit it exists to stay under.
+ *
+ * Pass one writes nothing, but still has to be told the same video settings:
+ * it is measuring how this encode behaves and not some other one.
+ */
+export function buildTargetSize(
+  op: VideoTargetSize,
+  meta: ProbeResult,
+  io: CommandIo,
+): CommandPlan {
+  if (meta.video === null) {
+    throw new InvalidOperation('target-size', 'this file has no picture to fit into a size');
+  }
+  const bitrate = videoBitrateKbps(op.targetMiB, meta.durationSec, op.audioKbps);
+  if (bitrate === null) {
+    const longest = maxDurationSec(op.targetMiB, op.audioKbps);
+    throw new InvalidOperation(
+      'target-size',
+      `${String(op.targetMiB)} MB cannot hold ${formatSeconds(meta.durationSec)} of video. About ${formatSeconds(longest)} is the most that fits. Trim it first, or pick a larger target.`,
+    );
+  }
+
+  /**
+   * The log ffmpeg writes in pass one and reads in pass two. It goes in the
+   * working directory, and the name is fixed so a second run overwrites it
+   * rather than leaving a trail of them.
+   */
+  const logPrefix = `${io.workDir}/scrub-2pass`;
+
+  const scale = op.maxWidth === null ? [] : ['-vf', `scale=min(${String(op.maxWidth)}\\,iw):-2`];
+
+  const shared = [
+    '-c:v',
+    'libx264',
+    '-b:v',
+    `${String(bitrate)}k`,
+    // A peak ceiling, and a buffer worth two seconds at it.
+    '-maxrate',
+    `${String(Math.round(bitrate * 1.5))}k`,
+    '-bufsize',
+    `${String(bitrate * 2)}k`,
+    ...scale,
+    '-passlogfile',
+    logPrefix,
+  ];
+
+  return {
+    passes: [
+      {
+        label: 'Analyse',
+        outputDurationSec: meta.durationSec,
+        argv: [
+          ...TRANSPORT_ARGS,
+          '-i',
+          io.inputPath,
+          ...shared,
+          '-pass',
+          '1',
+          // No audio and no output: this pass exists only to write the log.
+          '-an',
+          '-f',
+          'null',
+          '-',
+        ],
+      },
+      {
+        label: 'Encode',
+        outputDurationSec: meta.durationSec,
+        argv: [
+          ...TRANSPORT_ARGS,
+          '-i',
+          io.inputPath,
+          ...shared,
+          '-pass',
+          '2',
+          ...(meta.audio === null ? ['-an'] : ['-c:a', 'aac', '-b:a', `${String(op.audioKbps)}k`]),
+          '-movflags',
+          '+faststart',
+          OVERWRITE_ARG,
+          io.outputPath,
+        ],
+      },
+    ],
+  };
+}
+
+/**
+ * `atempo` clamps to 0.5..2.0 per instance, so a bigger change is several of
+ * them multiplied together: 4x is `atempo=2.0,atempo=2.0`.
+ *
+ * Exported for the tests, which check the chain multiplies back to the factor
+ * that was asked for. Getting that wrong desynchronises the sound from the
+ * picture, which is the one failure this operation must not have.
+ */
+export function atempoChain(factor: number): string {
+  const steps: number[] = [];
+  let remaining = factor;
+  while (remaining > 2) {
+    steps.push(2);
+    remaining /= 2;
+  }
+  while (remaining < 0.5) {
+    steps.push(0.5);
+    remaining /= 0.5;
+  }
+  steps.push(Math.round(remaining * 1000) / 1000);
+  return steps.map((step) => `atempo=${String(step)}`).join(',');
+}
+
+/**
+ * Faster or slower, with the sound kept in step.
+ *
+ * `setpts` restamps the frames; dividing the timestamps by two makes the video
+ * play twice as fast. The audio needs `atempo`, a different filter with a
+ * different unit, and the two have to agree exactly or the result drifts apart
+ * as it plays. They are one control here for that reason.
+ *
+ * `atempo` changes tempo without changing pitch, so speech stays speech rather
+ * than becoming a chipmunk.
+ */
+export function buildSpeed(factor: number, meta: ProbeResult, io: CommandIo): CommandPlan {
+  if (!Number.isFinite(factor) || factor < 0.25 || factor > 4) {
+    throw new InvalidOperation('speed', `speed must be between 0.25 and 4, got ${String(factor)}`);
+  }
+  if (meta.video === null) {
+    throw new InvalidOperation('speed', 'this file has no picture');
+  }
+
+  const audio =
+    meta.audio === null ? ['-an'] : ['-af', atempoChain(factor), '-c:a', 'aac', '-b:a', '128k'];
+
+  return {
+    passes: [
+      {
+        label: 'Speed',
+        /**
+         * The output is shorter or longer than the source, and progress divides
+         * against the output. Using the source duration here would make the bar
+         * finish at half way, or run past the end and sit at 100%.
+         */
+        outputDurationSec: meta.durationSec / factor,
+        argv: [
+          ...TRANSPORT_ARGS,
+          '-i',
+          io.inputPath,
+          '-vf',
+          `setpts=PTS/${String(factor)}`,
+          ...audio,
+          '-c:v',
+          'libx264',
+          '-crf',
+          '20',
+          '-preset',
+          'medium',
+          '-movflags',
+          '+faststart',
+          OVERWRITE_ARG,
+          io.outputPath,
+        ],
+      },
+    ],
+  };
+}
+
+/**
+ * A rectangle out of the picture.
+ *
+ * Every number is forced even, for the same reason `-2` exists in resize:
+ * libx264 needs even dimensions, and an odd *offset* puts the chroma plane half
+ * a pixel out, which shows up as a colour fringe along the edges rather than as
+ * an error anyone would notice.
+ *
+ * The rectangle is clamped to the frame. ffmpeg fails outright on a crop that
+ * runs off the edge, and a filter graph error is a worse way to find out you
+ * dragged too far than simply not being able to.
+ */
+export function buildCrop(op: VideoCrop, meta: ProbeResult, io: CommandIo): CommandPlan {
+  const source = meta.video;
+  if (source === null) {
+    throw new InvalidOperation('crop', 'this file has no picture to crop');
+  }
+
+  const even = (value: number): number => Math.floor(value / 2) * 2;
+  const x = Math.max(0, even(op.x));
+  const y = Math.max(0, even(op.y));
+  const width = Math.min(even(op.width), even(source.width - x));
+  const height = Math.min(even(op.height), even(source.height - y));
+
+  if (width < 16 || height < 16) {
+    throw new InvalidOperation('crop', 'the selection is too small to encode');
+  }
+
+  return {
+    passes: [
+      {
+        label: 'Crop',
+        outputDurationSec: meta.durationSec,
+        argv: [
+          ...TRANSPORT_ARGS,
+          '-i',
+          io.inputPath,
+          '-vf',
+          `crop=${String(width)}:${String(height)}:${String(x)}:${String(y)}`,
+          '-c:v',
+          'libx264',
+          '-crf',
+          '20',
+          '-preset',
+          'medium',
+          // A crop does not touch the sound, so it is copied rather than
+          // re-encoded for nothing.
+          ...(meta.audio === null ? [] : ['-c:a', 'copy']),
+          '-movflags',
+          '+faststart',
+          OVERWRITE_ARG,
+          io.outputPath,
+        ],
+      },
+    ],
+  };
 }

@@ -5,6 +5,7 @@ import {
   type Operation,
   type OperationKind,
   outputPathFor,
+  type ProbeResult,
   OVERWRITE_ARG,
   TRANSPORT_ARGS,
   type VideoCompress,
@@ -77,7 +78,7 @@ export function useCommand(kind: OperationKind | null): LiveCommand {
       };
     }
 
-    const op = operationFor(kind, trim, params);
+    const op = operationFor(kind, trim, params, meta);
     if (!op) {
       // The operation has no argv yet, but a file *is* loaded — so rather than a
       // dimmed example about someone else's file, show a real skeleton against
@@ -150,6 +151,7 @@ function operationFor(
   kind: OperationKind,
   trim: TrimParams,
   params: OperationParams,
+  meta: ProbeResult,
 ): Operation | null {
   switch (kind) {
     case 'trim':
@@ -172,6 +174,17 @@ function operationFor(
       return { kind, format: params.extractAudio.format };
     case 'mute':
       return { kind };
+    case 'target-size':
+      return {
+        kind,
+        targetMiB: params.targetSize.targetMiB,
+        audioKbps: params.targetSize.audioKbps,
+        maxWidth: params.targetSize.maxWidth,
+      };
+    case 'speed':
+      return { kind, factor: params.speed.factor };
+    case 'crop':
+      return cropOperation(params, meta);
     case 'replace-audio':
       // Nothing to run until the replacement track has been chosen.
       return params.replaceAudio.audioId === null
@@ -193,6 +206,28 @@ function operationFor(
         targetLRA: params.loudness.targetLRA,
       };
   }
+}
+
+/**
+ * The crop rectangle, in pixels.
+ *
+ * The store holds it as fractions of the frame so that dragging it over a
+ * preview means the same thing whatever size the window is. This is the one
+ * place that turns into pixels, against the dimensions ffprobe actually
+ * reported — and `buildCrop` evens every number afterwards, because libx264
+ * needs even dimensions and an odd offset smears the chroma.
+ */
+function cropOperation(params: OperationParams, meta: ProbeResult): Operation | null {
+  const source = meta.video;
+  if (source === null) return null;
+  const { x, y, width, height } = params.crop;
+  return {
+    kind: 'crop',
+    x: Math.round(x * source.width),
+    y: Math.round(y * source.height),
+    width: Math.round(width * source.width),
+    height: Math.round(height * source.height),
+  };
 }
 
 /**

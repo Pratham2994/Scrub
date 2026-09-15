@@ -27,7 +27,7 @@ export function createApp(tools: FfmpegTools): Express {
 
   app.use(healthRouter(tools));
   app.use(uploadRouter(tools));
-  app.use(metaRouter());
+  app.use(metaRouter(tools));
   app.use(runRouter(tools));
   app.use(downloadRouter());
   app.use(filmstripRouter(tools));

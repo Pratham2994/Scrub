@@ -4,12 +4,15 @@ import {
   buildAudioTrim,
   buildCompress,
   buildConvert,
+  buildCrop,
   buildExtractAudio,
   buildGif,
   buildLoudness,
   buildMute,
   buildReplaceAudio,
   buildResize,
+  buildSpeed,
+  buildTargetSize,
   trimWindow,
 } from './build-operations.js';
 import { InvalidOperation } from './errors.js';
@@ -115,6 +118,12 @@ export function buildArgs(op: Operation, meta: ProbeResult, io: CommandIo): Comm
       return buildExtractAudio(op.format, meta, io);
     case 'mute':
       return buildMute(meta, io);
+    case 'target-size':
+      return buildTargetSize(op, meta, io);
+    case 'speed':
+      return buildSpeed(op.factor, meta, io);
+    case 'crop':
+      return buildCrop(op, meta, io);
     case 'replace-audio':
       // The replacement track is a second upload; the server resolves its id to
       // a path and passes it in, so buildArgs stays pure and path-free.

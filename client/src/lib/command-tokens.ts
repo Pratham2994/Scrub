@@ -17,7 +17,20 @@ function isFlag(token: string): boolean {
   return token.startsWith('-') && !/^-?\d/.test(token.slice(1));
 }
 
+/**
+ * A path, as opposed to a filter that happens to contain a slash.
+ *
+ * `setpts=PTS/2` was being read as a path and shortened to its "basename", so
+ * the bar displayed `-vf 2`. The command bar's whole promise is that what it
+ * shows is what runs, and abbreviating a filter into something that means
+ * nothing breaks that more thoroughly than a long path ever could.
+ *
+ * Every ffmpeg filter is `name=value`, and a file path almost never contains an
+ * equals sign. Where one does, the cost is that it is shown in full — which is
+ * the safe direction to be wrong in.
+ */
 function isPath(token: string): boolean {
+  if (token.includes('=')) return false;
   return /[\\/]/.test(token) || /\.[a-z0-9]{2,5}$/i.test(token);
 }
 

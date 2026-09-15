@@ -195,6 +195,11 @@ export type JobEvent =
       readonly elapsedMs: number;
     }
   | {
+      /** Waiting behind another encode. `position` is how many are in front. */
+      readonly type: 'queued';
+      readonly position: number;
+    }
+  | {
       /** What the loudness measurement pass found, between the two commands. */
       readonly type: 'measured';
       readonly inputI: string;

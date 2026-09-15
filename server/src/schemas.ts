@@ -48,6 +48,28 @@ export const operationSchema = z.discriminatedUnion('kind', [
   }),
   z.object({ kind: z.literal('mute') }),
   z.object({
+    kind: z.literal('target-size'),
+    /**
+     * Bounded on both sides. Under a quarter of a mebibyte there is no bitrate
+     * that produces a picture, and the upper bound is simply larger than any
+     * platform limit worth targeting.
+     */
+    targetMiB: z.number().positive().min(0.25).max(4096),
+    audioKbps: z.number().int().min(32).max(320),
+    maxWidth: z.number().int().min(64).max(7680).nullable(),
+  }),
+  z.object({
+    kind: z.literal('speed'),
+    factor: z.number().min(0.25).max(4),
+  }),
+  z.object({
+    kind: z.literal('crop'),
+    width: z.number().int().positive().max(7680),
+    height: z.number().int().positive().max(7680),
+    x: z.number().int().min(0).max(7680),
+    y: z.number().int().min(0).max(7680),
+  }),
+  z.object({
     kind: z.literal('replace-audio'),
     audioId: idSchema,
   }),

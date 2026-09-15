@@ -55,6 +55,7 @@ show you one that cannot work.
 | Compress, Convert, Resize | no picture                 | yes             | yes               |
 | GIF                       | no frames                  | yes             | yes               |
 | Mute                      | nothing left               | already silent  | yes               |
+| Fit a size, Speed, Crop   | no picture                 | yes             | yes               |
 | Replace audio             | no picture                 | yes             | yes               |
 | Extract audio             | already audio, use Convert | no track        | yes               |
 | Audio: Convert            | yes                        | no track        | use Extract audio |
@@ -246,6 +247,99 @@ audio or letting video run silent — are both decisions the user should make, s
 surface it rather than baking it in.
 
 The replacement track arrives as its own upload id; the server resolves it to a path.
+
+### Fit a size — two passes ✅
+
+```
+ffmpeg -i in.mp4 -c:v libx264 -b:v 1143k -maxrate 1715k -bufsize 2286k \
+  -vf scale=min(1280\,iw):-2 -passlogfile /work/.tmp/scrub-2pass -pass 1 -an -f null -
+ffmpeg -i in.mp4 -c:v libx264 -b:v 1143k -maxrate 1715k -bufsize 2286k \
+  -vf scale=min(1280\,iw):-2 -passlogfile /work/.tmp/scrub-2pass -pass 2 \
+  -c:a aac -b:a 128k -movflags +faststart -y out.mp4
+```
+
+The question every other compression control cannot answer. CRF asks how _good_,
+and gives whatever size that quality happens to take; a platform limit asks how
+_big_. They are different questions and they need different commands.
+
+**The bitrate is arithmetic, not a guess.** `videoBitrateKbps()` in `shared` is the
+whole of it: the target in kbit, less 2% for muxing overhead, less the audio budget,
+divided by the duration. Both deductions are why a "10 MB" encode otherwise lands at
+10.4 MB and gets refused after the upload, which is worse than not having offered.
+
+**Two passes, because one would waste the budget.** A single pass at a fixed bitrate
+spends it evenly across the file. The first pass here writes a log describing how
+hard each part is to encode and the second spends the budget accordingly, so the
+parts that move get the bits and the still parts do not. At small targets this is
+the difference between watchable and blocky.
+
+`-maxrate` at 1.5x and `-bufsize` at 2x cap the peak, so a busy few seconds cannot
+blow the budget and push the file over the limit the operation exists to stay under.
+
+**It refuses rather than encode a smear.** Below about 100 kbit/s h264 stops being a
+picture. When the target cannot hold the duration, `buildArgs` throws with the
+length that _would_ have fitted, because "no" on its own is not actionable.
+
+Pass one must be given the same video settings as pass two. It is measuring how
+_this_ encode behaves; different settings would measure a different one. It writes
+nothing — `-f null -` — and `-an` keeps it from spending time on audio it discards.
+
+The presets live in `shared/src/size-presets.ts`, with the date each limit was
+checked and a note saying why that number. They move: Discord's free tier was
+rolling out from 10 MB toward 20 MB through 2026, so Scrub aims at the number that
+works on every account. Gmail's "25 MB" is the _encoded_ size and attachments are
+base64, which adds about a third — the real ceiling for the file is nearer 18 MB.
+Where a limit is ambiguous the smaller number wins: too small is merely smaller
+than it needed to be, too large is rejected.
+
+### Speed ✅
+
+```
+ffmpeg -i in.mp4 -vf setpts=PTS/2 -af atempo=2 -c:a aac -b:a 128k \
+  -c:v libx264 -crf 20 -preset medium -movflags +faststart -y out.mp4
+```
+
+`setpts` restamps the frames — dividing the timestamps by two plays it twice as
+fast. The audio needs `atempo`, a different filter taking a different unit, and the
+two have to agree exactly or the result drifts apart as it plays. That is why this
+is one control and not two.
+
+`atempo` accepts 0.5 to 2.0 per instance, so anything beyond is a chain: 4x is
+`atempo=2.0,atempo=2.0`. `atempoChain()` builds it and a test checks the product
+multiplies back to the factor asked for, because a chain that does not is a file
+whose sound slides away from its picture.
+
+`atempo` changes tempo without changing pitch, so speech stays speech.
+
+**The pass's `outputDurationSec` is the source duration divided by the factor**, not
+the source duration. Progress divides against the output; getting this wrong stops
+the bar at 50% for a 2x speed-up, or runs it past the end for a slow-down.
+
+### Crop ✅
+
+```
+ffmpeg -i in.mp4 -vf crop=640:360:100:50 -c:v libx264 -crf 20 -preset medium \
+  -c:a copy -movflags +faststart -y out.mp4
+```
+
+`crop=w:h:x:y`, with the offset measured from the top left.
+
+**Every number is rounded down to an even one.** libx264 needs even dimensions, for
+the same reason `-2` exists in resize. The offset matters just as much and is easier
+to miss: in yuv420p the chroma planes are half resolution, so an odd `x` or `y` puts
+them half a pixel out of step with the luma. That does not fail — it produces a
+colour fringe along the edges that nobody notices until they look closely.
+
+The rectangle is clamped to the frame. ffmpeg errors outright on a crop that runs
+off the edge, and a filter graph error is a worse way to learn you dragged too far
+than simply not being able to.
+
+The sound is copied, not re-encoded. A crop does not touch it.
+
+The UI holds the rectangle as **fractions of the frame**, not pixels, so the same
+selection means the same crop whatever size the preview is drawn at, and it survives
+the window being resized mid-drag. `use-command.ts` converts once, against the
+dimensions ffprobe reported.
 
 ## Audio
 

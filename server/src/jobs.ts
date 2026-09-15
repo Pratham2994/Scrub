@@ -38,6 +38,14 @@ export type JobEvent =
       readonly inputLRA: string;
     }
   | {
+      /**
+       * Waiting behind another encode. `position` is how many are in front, so
+       * 1 means "next". A job that starts immediately never sends this.
+       */
+      readonly type: 'queued';
+      readonly position: number;
+    }
+  | {
       readonly type: 'done';
       readonly outputId: string;
       readonly outputName: string;
@@ -85,6 +93,25 @@ export function subscribe(job: Job, subscriber: Subscriber): () => void {
 export function cancelJob(job: Job): boolean {
   if (job.status !== 'running') return false;
   job.cancelled = true;
+
+  /**
+   * A job still in the queue has no process to kill, and marking it cancelled
+   * is not enough: `runPasses` only notices between passes, so it would start
+   * and run its first pass to completion before looking. It comes out of the
+   * line instead.
+   */
+  const queuedAt = waiting.findIndex((entry) => entry.job === job);
+  if (queuedAt !== -1) {
+    waiting.splice(queuedAt, 1);
+    job.status = 'cancelled';
+    emit(job, { type: 'cancelled' });
+    // Everyone behind it just moved up one.
+    for (const [index, entry] of waiting.entries()) {
+      emit(entry.job, { type: 'queued', position: index + 1 });
+    }
+    return true;
+  }
+
   job.child?.kill();
   return true;
 }
@@ -107,7 +134,38 @@ export type StartJobOptions = {
   readonly outputName: string;
 };
 
-/** Starts the plan and returns immediately; progress arrives over the job's events. */
+/**
+ * One encode at a time.
+ *
+ * ffmpeg already uses every core it can get, so a second encode alongside the
+ * first does not finish sooner - it makes both slower and the progress of each
+ * meaningless. Queuing means you can set up the next operation while one runs,
+ * which is the point, without the machine grinding.
+ *
+ * A plain FIFO. There is one user and they are sitting in front of it, so the
+ * order they asked for things in is the right order.
+ */
+const waiting: { readonly job: Job; readonly options: StartJobOptions }[] = [];
+let running = false;
+
+function pump(): void {
+  if (running) return;
+  const next = waiting.shift();
+  if (!next) return;
+
+  running = true;
+  // Everything behind this one has moved up.
+  for (const [index, entry] of waiting.entries()) {
+    emit(entry.job, { type: 'queued', position: index + 1 });
+  }
+
+  void runPasses(next.job, next.options).finally(() => {
+    running = false;
+    pump();
+  });
+}
+
+/** Queues the plan and returns immediately; everything else arrives over the events. */
 export function startJob(options: StartJobOptions): string {
   const id = randomUUID();
   const job: Job = {
@@ -119,8 +177,21 @@ export function startJob(options: StartJobOptions): string {
     cancelled: false,
   };
   jobs.set(id, job);
+  waiting.push({ job, options });
 
-  void runPasses(job, options);
+  /**
+   * Told about the wait before anything else, so a client that subscribes a
+   * moment later still finds it in the job's history and can say "2nd in line"
+   * rather than showing a progress bar at zero that is not moving.
+   */
+  /**
+   * `waiting` holds the not-yet-started, this job included, and the one being
+   * encoded has already been shifted out of it - so the number in front is the
+   * length of the list, not the length less this one. Off by one here reads as
+   * "0 in line" for a job that plainly has something ahead of it.
+   */
+  if (running) emit(job, { type: 'queued', position: waiting.length });
+  pump();
   return id;
 }
 

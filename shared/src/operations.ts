@@ -59,6 +59,53 @@ export type VideoMute = {
   readonly kind: 'mute';
 };
 
+/**
+ * Fit the file under a size, rather than aim at a quality.
+ *
+ * Compress asks for a CRF and gives you whatever size that quality happens to
+ * take, which is the honest answer to "how good" and useless for "it has to be
+ * under 10 MB or Discord refuses it". This is the other question, and it needs a
+ * genuinely different command: a bitrate worked out from the target divided by
+ * the duration, encoded in two passes so the encoder can spend that budget where
+ * the picture needs it.
+ */
+export type VideoTargetSize = {
+  readonly kind: 'target-size';
+  /** What the whole file must come in under, in mebibytes. */
+  readonly targetMiB: number;
+  /** Audio is given a fixed slice of the budget; the picture gets the rest. */
+  readonly audioKbps: number;
+  /** Scale down as well, when the source is far larger than the target needs. */
+  readonly maxWidth: number | null;
+};
+
+/**
+ * Faster or slower, picture and sound together.
+ *
+ * `setpts` restamps the frames and `atempo` stretches the audio to match. They
+ * have to move together or the result drifts out of sync, so this is one control
+ * and not two.
+ */
+export type VideoSpeed = {
+  readonly kind: 'speed';
+  /** 2 is twice as fast, 0.5 is half. */
+  readonly factor: number;
+};
+
+/**
+ * A rectangle out of the picture.
+ *
+ * Every value is even. libx264 needs even dimensions and an odd offset lands the
+ * chroma plane half a pixel out, which is a colour smear rather than an error.
+ */
+export type VideoCrop = {
+  readonly kind: 'crop';
+  readonly width: number;
+  readonly height: number;
+  readonly x: number;
+  readonly y: number;
+};
+
 export type VideoReplaceAudio = {
   readonly kind: 'replace-audio';
   /** Upload id of the replacement audio track, resolved to a path by the server. */
@@ -95,6 +142,9 @@ export type Operation =
   | VideoGif
   | VideoExtractAudio
   | VideoMute
+  | VideoTargetSize
+  | VideoSpeed
+  | VideoCrop
   | VideoReplaceAudio
   | AudioConvert
   | AudioTrim
@@ -114,8 +164,13 @@ export type OperationDescriptor = {
 };
 
 /**
- * Rail order. Eleven operations — DESIGN.md's wireframe says ten because it omits
- * "Replace audio", which CLAUDE.md's list includes.
+ * Rail order. Fourteen operations.
+ *
+ * The list is still closed - it is not a settings panel and it does not grow to
+ * cover ffmpeg - but it is closed around what people actually do, and three
+ * things were missing from that. "Under 10 MB" is the most common video request
+ * there is and compress could not answer it; speed and crop are in the same
+ * everyday category as trim and resize.
  */
 export const OPERATIONS: readonly OperationDescriptor[] = [
   { kind: 'trim', label: 'Trim', group: 'video', blurb: 'Cut a clip out of a video.' },
@@ -130,6 +185,14 @@ export const OPERATIONS: readonly OperationDescriptor[] = [
     blurb: 'Pull the audio track out.',
   },
   { kind: 'mute', label: 'Mute', group: 'video', blurb: 'Drop the audio track.' },
+  {
+    kind: 'target-size',
+    label: 'Fit a size',
+    group: 'video',
+    blurb: 'Hit a file size, for somewhere that has a limit.',
+  },
+  { kind: 'speed', label: 'Speed', group: 'video', blurb: 'Faster or slower, sound kept in step.' },
+  { kind: 'crop', label: 'Crop', group: 'video', blurb: 'Cut a rectangle out of the picture.' },
   {
     kind: 'replace-audio',
     label: 'Replace audio',

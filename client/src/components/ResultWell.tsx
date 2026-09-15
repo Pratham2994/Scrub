@@ -1,8 +1,9 @@
-import { Download, RotateCcw } from 'lucide-react';
+import { CornerDownLeft, Download, RotateCcw } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-import { downloadUrl, outputExists, sourceUrl } from '@/lib/api';
+import { downloadUrl, fetchMeta, outputExists, sourceUrl } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { useScrubStore } from '@/store/use-scrub-store';
 
 type Side = 'result' | 'source';
 
@@ -59,6 +60,8 @@ export function ResultWell({
    * 84-byte JSON error called `clip-muted.mp4` and said nothing.
    */
   const [missing, setMissing] = useState(false);
+  const continueFrom = useScrubStore((state) => state.continueFrom);
+  const [chaining, setChaining] = useState(false);
 
   useEffect(() => {
     setMissing(false);
@@ -218,6 +221,41 @@ export function ResultWell({
             <RotateCcw aria-hidden size={14} />
             Adjust and run again
           </button>
+          {!missing && (
+            /**
+             * Trim then compress is two operations on one file, and without this
+             * the second one meant saving the first result and dropping it back
+             * in by hand. The result is already in the working folder with an
+             * id; this points the workspace at it.
+             *
+             * A button rather than something automatic: running three
+             * compressions from one source to compare them is just as common,
+             * and swapping the source under someone doing that would be
+             * infuriating.
+             */
+            <button
+              type="button"
+              disabled={chaining}
+              onClick={() => {
+                setChaining(true);
+                fetchMeta(outputId)
+                  .then((meta) => {
+                    continueFrom(outputId, meta);
+                  })
+                  .catch(() => {
+                    // The file went while the panel was open. The well says so.
+                    setMissing(true);
+                  })
+                  .finally(() => {
+                    setChaining(false);
+                  });
+              }}
+              className="text-label text-ink border-line hover:border-accent hover:text-accent flex items-center gap-1.5 rounded-button border px-3 py-2 transition-colors duration-100 disabled:opacity-40"
+            >
+              <CornerDownLeft aria-hidden size={14} />
+              {chaining ? 'Loading' : 'Keep working on this'}
+            </button>
+          )}
           {missing ? (
             // Not a link. Saving now would write the 404 body to their disk
             // under a name that says it is a video.
