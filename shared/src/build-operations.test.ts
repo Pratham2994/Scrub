@@ -32,10 +32,29 @@ const withSecond: CommandIo = { ...io, secondaryInputPath: '/work/.tmp/replaceme
  */
 const audioMeta: ProbeResult = { ...meta, video: null, container: 'wav' };
 
-const metaFor = (kind: Operation['kind']): ProbeResult =>
-  kind === 'audio-convert' || kind === 'audio-trim' ? audioMeta : meta;
+const AUDIO_ONLY = new Set<Operation['kind']>([
+  'audio-convert',
+  'audio-trim',
+  'merge-audio',
+  'audio-fade',
+  'audio-loop',
+  'audio-volume',
+]);
+
+const metaFor = (kind: Operation['kind']): ProbeResult => (AUDIO_ONLY.has(kind) ? audioMeta : meta);
 
 const AUDIO_ID = '11111111-2222-4333-8444-555555555555';
+
+/** Extra inputs for the multi-input kinds, per kind's own rules. */
+const extraVideo = { path: '/work/.tmp/b-clip.mp4', meta: { ...meta, displayName: 'b.mp4' } };
+const extraAudio = { path: '/work/.tmp/b-song.m4a', meta: { ...audioMeta, displayName: 'b.m4a' } };
+
+const ioFor = (kind: Operation['kind']): CommandIo =>
+  kind === 'merge' || kind === 'watermark'
+    ? { ...withSecond, secondaryInputs: [extraVideo] }
+    : kind === 'merge-audio' || kind === 'add-music'
+      ? { ...withSecond, secondaryInputs: [extraAudio] }
+      : withSecond;
 
 /** One representative of each kind, so no operation can be added without argv. */
 const ALL: readonly Operation[] = [
@@ -55,6 +74,40 @@ const ALL: readonly Operation[] = [
   { kind: 'audio-convert', format: 'mp3', bitrateKbps: 192 },
   { kind: 'audio-trim', startSec: 1, endSec: 4 },
   { kind: 'loudness', targetI: -16, targetTP: -1.5, targetLRA: 11 },
+  {
+    kind: 'merge',
+    clipIds: ['22222222-3333-4444-8555-666666666666'],
+    crossfadeSec: 0.5,
+    fadeInSec: 0,
+    fadeOutSec: 0,
+    crf: 20,
+  },
+  {
+    kind: 'merge-audio',
+    clipIds: ['22222222-3333-4444-8555-666666666666'],
+    crossfadeSec: 2,
+    fadeInSec: 0,
+    fadeOutSec: 0,
+    bitrateKbps: 192,
+  },
+  {
+    kind: 'add-music',
+    musicId: '33333333-4444-4555-8666-777777777777',
+    originalPercent: 100,
+    musicPercent: 35,
+  },
+  {
+    kind: 'watermark',
+    imageId: '44444444-5555-4666-8777-888888888888',
+    position: 'se',
+    opacity: 80,
+  },
+  { kind: 'fade', fadeInSec: 1, fadeOutSec: 2 },
+  { kind: 'audio-fade', fadeInSec: 1, fadeOutSec: 2 },
+  { kind: 'loop', times: 3 },
+  { kind: 'audio-loop', times: 3 },
+  { kind: 'volume', gainDb: 6 },
+  { kind: 'audio-volume', gainDb: 6 },
 ];
 
 describe('buildArgs - every operation', () => {
@@ -63,7 +116,7 @@ describe('buildArgs - every operation', () => {
   });
 
   it.each(ALL)('$kind produces runnable passes', (op) => {
-    const plan = buildArgs(op, metaFor(op.kind), withSecond);
+    const plan = buildArgs(op, metaFor(op.kind), ioFor(op.kind));
     expect(plan.passes.length).toBeGreaterThan(0);
 
     for (const pass of plan.passes) {
@@ -78,7 +131,7 @@ describe('buildArgs - every operation', () => {
   // The rule the linter also enforces for hand-edited commands. Worth pinning on
   // the generated side too: a filter with `copy` fails, and it fails obscurely.
   it.each(ALL)('$kind never filters while stream-copying', (op) => {
-    for (const pass of buildArgs(op, metaFor(op.kind), withSecond).passes) {
+    for (const pass of buildArgs(op, metaFor(op.kind), ioFor(op.kind)).passes) {
       const hasFilter = ['-vf', '-filter:v', '-lavfi'].some((f) => pass.argv.includes(f));
       if (!hasFilter) continue;
       const videoCodec = pass.argv[pass.argv.indexOf('-c:v') + 1];
