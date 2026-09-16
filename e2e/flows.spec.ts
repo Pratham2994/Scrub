@@ -1145,15 +1145,15 @@ test.describe('the Tube theme', () => {
 
     const rail = page.locator('nav');
     const strip = await rail.boundingBox();
-    expect(strip).not.toBeNull();
+    if (strip === null) throw new Error('the rail rendered with no bounding box');
     // Wide and short: the strip. The vertical rail is tall and narrow.
-    expect(strip!.width).toBeGreaterThan(strip!.height * 4);
+    expect(strip.width).toBeGreaterThan(strip.height * 4);
 
     // Light restores the vertical rail.
     await page.getByRole('button', { name: 'Light', exact: true }).click();
     const column = await rail.boundingBox();
-    expect(column).not.toBeNull();
-    expect(column!.height).toBeGreaterThan(column!.width);
+    if (column === null) throw new Error('the rail rendered with no bounding box');
+    expect(column.height).toBeGreaterThan(column.width);
   });
 
   test('turns the command bar into a prompt with a block cursor', async ({ page }) => {
