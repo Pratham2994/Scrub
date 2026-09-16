@@ -26,7 +26,8 @@
     "format:check": "prettier --check .",
     "test": "npm run test --workspace @scrub/shared && npm run test --workspace @scrub/server",
     "test:e2e": "playwright test",
-    "verify": "npm run typecheck && npm run lint && npm run format:check && npm run build && npm run test && npm run test:e2e"
+    "contrast": "node client/scripts/contrast-check.mjs",
+    "verify": "npm run typecheck && npm run lint && npm run format:check && npm run contrast && npm run build && npm run test && npm run test:e2e"
   },
   "devDependencies": {
     "@eslint/js": "^9.38.0",

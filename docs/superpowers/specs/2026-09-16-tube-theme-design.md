@@ -82,7 +82,7 @@ Switching away from Tube restores the previous layout, because nothing in the st
 
 ## Floors
 
-Computed, not estimated: ink 10.35:1, muted 6.04:1 on paper and 5.68:1 on surface, line-strong 3.54:1 on surface, on-accent 13.92:1, signal 10.96:1, transport 4.59:1 on the well. All text is 4.5:1 or better, all interactive borders 3:1 or better. The focus ring stays a 2px solid accent ring with the halo added, never the halo instead.
+Computed, not estimated: ink 10.35:1, muted 6.04:1 on paper and 5.68:1 on surface, line-strong 3.54:1 on surface, on-accent 13.92:1, transport 4.59:1 on the well. Amber is the progress fill, never text on paper, so its text pair is the label riding on it: well-coloured text on signal measures 8.95:1 in light and clears in every world. All text is 4.5:1 or better, all interactive borders 3:1 or better. The focus ring stays a 2px solid accent ring with the halo added, never the halo instead.
 
 ## Testing
 
