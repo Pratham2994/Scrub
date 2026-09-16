@@ -14,15 +14,15 @@ The line that keeps this out of editor territory: transitions are exactly one ki
 
 Nothing re-encodes unless ffmpeg forces it, and where it forces it, the defaults are high.
 
-| Operation | Video stream | Audio stream |
-|---|---|---|
-| Loop | copied | copied |
-| Volume (on a video) | copied | re-encoded, aac 192k |
-| Add music | copied | mixed and re-encoded, aac 192k |
-| Fade | re-encoded if a video fade is set, crf 20 | re-encoded if an audio fade is set, aac 192k |
-| Watermark | re-encoded, crf 20 | copied |
-| Merge (video) | re-encoded, crf 20 (or the quality field) | re-encoded, aac 192k |
-| Merge audio | none | re-encoded, aac at the bitrate field, default 192k |
+| Operation           | Video stream                              | Audio stream                                       |
+| ------------------- | ----------------------------------------- | -------------------------------------------------- |
+| Loop                | copied                                    | copied                                             |
+| Volume (on a video) | copied                                    | re-encoded, aac 192k                               |
+| Add music           | copied                                    | mixed and re-encoded, aac 192k                     |
+| Fade                | re-encoded if a video fade is set, crf 20 | re-encoded if an audio fade is set, aac 192k       |
+| Watermark           | re-encoded, crf 20                        | copied                                             |
+| Merge (video)       | re-encoded, crf 20 (or the quality field) | re-encoded, aac 192k                               |
+| Merge audio         | none                                      | re-encoded, aac at the bitrate field, default 192k |
 
 Re-encoding operations that keep a single source's container (watermark, add music, fade on video) reuse convert's codec map for BOTH streams, so a webm stays vp9 and a mov stays h264, and any audio re-encode inside them follows the map too: aac for mp4/mov/mkv, opus for webm. The aac 192k defaults in the table mean "192k in the map's codec". Merge owns its container instead: always mp4 + h264 + aac, because a composition of several files has no single owner, and the merge audio operation writes m4a.
 
@@ -66,9 +66,9 @@ All seven follow the existing operation contract: a pure `buildArgs` in shared, 
 
 ### Fade
 
-- One file, video or audio.
-- Fade in and fade out in seconds, each 0 to 10, both 0 does nothing (the op refuses to run: it would write an identical file).
-- Video fade: `fade` filter on the video stream only; audio stream copies. Audio fade: `afade` on the audio stream only. An audio-only file gets audio fades. Container stays the source's; the faded stream re-encodes per the codec map (crf 20 for video, aac 192k for audio). Named `fade-<in>s-<out>s`.
+- Fade (video group): fades the picture AND the sound together, both streams re-encoded per the codec map (crf 20 for video, aac 192k for audio). Fading a clip at the end means both, which is what people expect.
+- Audio fade (audio group): fades the sound only, 0 to 10s each side, both 0 refused (it would write an identical file). On a video it copies the picture untouched, the same argument as Loudness.
+- Named `fade-<in>s-<out>s`.
 
 ### Loop
 
@@ -87,14 +87,14 @@ All seven follow the existing operation contract: a pure `buildArgs` in shared, 
 
 ## The multi-input model
 
-The app stays single-primary. The store keeps `uploadId` and `meta` exactly as they are, and gains `extraFiles: UploadedFile[]` (id, meta, displayName) used only by the multi-input operations. Those operations render an Inputs card listing the primary file and every extra, with add, remove, and reorder controls. Adding a file uploads it through the same `/upload` endpoint and probes it the same way; nothing on the server grows a new route.
+The app stays single-primary. The store keeps `uploadId` and `meta` exactly as they are. Each multi-input operation keeps its own inputs in its `params` entry, mirroring exactly how replace-audio already carries its second file (id, name, path, meta, status): merge and merge-audio hold `clipIds` and the clip metas, add-music holds the music file, watermark holds the image. Those entries are session state and are dropped from localStorage the same way replace-audio's is. A shared Inputs card renders the primary file plus the extras, with add, remove, and reorder controls. Adding a file uploads it through the same `/upload` endpoint and probes it the same way; nothing on the server grows a new route.
 
 - Merge (video) needs 1 to 3 extras, all video.
 - Merge audio needs 1 to 11 extras, all audio.
 - Add music needs exactly 1 extra, audio.
 - Watermark needs exactly 1 extra, an image.
 
-The upload accept list gains `image/*`, for watermark only. Availability reflects the rules above, with the existing "use that instead" pointer where a refusal has a sibling operation.
+The Inputs card's hidden picker sets `accept="image/*"` for watermark only; the server's upload accepts any file and ffprobe reads images, so nothing server-side changes. Availability reflects the rules above, with the existing "use that instead" pointer where a refusal has a sibling operation.
 
 ## Scope guards
 
@@ -120,8 +120,7 @@ shared/src/build-operations.ts  buildMerge, buildMergeAudio, buildAddMusic,
 shared/src/output-name.ts       the new suffixes
 shared/src/availability.ts      the new rules and the cross-pointers
 shared/src/*.test.ts            snapshots for each builder
-server/src/routes/upload.ts     accept image/* uploads (watermark only)
-server/src/routes/run.ts        nothing: the generic run path already works
+server/src/routes/run.ts        resolves the extra ids into io.secondaryInputs
 client/src/store/use-scrub-store.ts   extraFiles, add/remove/reorder/clear
 client/src/lib/use-upload.ts    upload an extra file
 client/src/components/InputsCard.tsx   the shared multi-input list UI
