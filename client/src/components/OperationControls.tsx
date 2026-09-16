@@ -25,6 +25,18 @@ import {
 } from '@/components/controls/Field';
 import { ApiError, uploadFile } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import {
+  AddMusic,
+  AudioFade,
+  AudioLoop,
+  AudioVolume,
+  Fade,
+  Loop,
+  Merge,
+  MergeAudio,
+  Volume,
+  Watermark,
+} from '@/components/ComposeControls';
 import { CropFrame } from '@/components/CropFrame';
 import { Filmstrip } from '@/components/Filmstrip';
 import { TrimControls } from '@/components/TrimControls';
@@ -96,6 +108,26 @@ export function OperationControls({
       return <TrimControls id={id} meta={meta} audioOnly />;
     case 'loudness':
       return <Loudness meta={meta} />;
+    case 'merge':
+      return <Merge meta={meta} />;
+    case 'merge-audio':
+      return <MergeAudio meta={meta} />;
+    case 'add-music':
+      return <AddMusic meta={meta} />;
+    case 'watermark':
+      return <Watermark meta={meta} />;
+    case 'fade':
+      return <Fade meta={meta} />;
+    case 'audio-fade':
+      return <AudioFade meta={meta} />;
+    case 'loop':
+      return <Loop meta={meta} />;
+    case 'audio-loop':
+      return <AudioLoop meta={meta} />;
+    case 'volume':
+      return <Volume meta={meta} />;
+    case 'audio-volume':
+      return <AudioVolume meta={meta} />;
   }
 }
 
