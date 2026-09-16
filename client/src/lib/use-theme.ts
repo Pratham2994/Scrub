@@ -22,7 +22,7 @@ function read(): Theme {
  *
  * "system" removes the attribute rather than resolving it to a value, so the
  * `prefers-color-scheme` media query in the stylesheet stays in charge and the
- * page follows the OS live — including when the user changes it while Scrub is
+ * page follows the OS live - including when the user changes it while Scrub is
  * open, with no listener needed here.
  */
 function apply(theme: Theme): void {

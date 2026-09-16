@@ -50,14 +50,14 @@ const SEVERITY_STYLE: Record<Diagnostic['severity'], { icon: typeof Info; classN
  * free. It wraps, because a hand-edited command is being read carefully rather
  * than glanced at, and horizontal scrolling while typing is miserable.
  *
- * Diagnostics appear as you type and never block typing — only Run is withheld,
+ * Diagnostics appear as you type and never block typing - only Run is withheld,
  * and only for things that genuinely cannot run.
  */
 export function CommandEditor({ text, onTextChange, result }: CommandEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [dismissed, setDismissed] = useState(false);
 
-  // Focus on open, cursor at the end rather than selecting everything — the user
+  // Focus on open, cursor at the end rather than selecting everything - the user
   // came to adjust a flag, not to replace the line.
   useEffect(() => {
     const element = textareaRef.current;

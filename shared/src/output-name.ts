@@ -7,7 +7,7 @@ import type { Operation } from './operations.js';
  * work the name out for itself and the server worked it out again, and they did
  * not agree: converting to WebM previewed as `clip-convert.mp4` and wrote
  * `clip-convert.webm`. ffmpeg picks its muxer from the extension, so anyone who
- * copied the shown command got VP9 and Opus inside an MP4 — a different file
+ * copied the shown command got VP9 and Opus inside an MP4 - a different file
  * from the one Scrub had just made for them, from a command bar whose entire
  * promise is that it shows what runs.
  *

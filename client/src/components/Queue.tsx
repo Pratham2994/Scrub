@@ -53,9 +53,16 @@ export function Queue() {
   );
 }
 
+/** "2m" or "40s". Short enough to sit inside a chip. */
+function formatShort(ms: number): string {
+  const seconds = Math.round(ms / 1000);
+  if (seconds < 60) return `${String(seconds)}s`;
+  return `${String(Math.round(seconds / 60))}m`;
+}
+
 /**
  * One job. A finished one is a link to its operation, because the thing you
- * want after "done" is to look at it — and the result panel lives on the
+ * want after "done" is to look at it - and the result panel lives on the
  * operation's own route.
  */
 function JobChip({ job }: { readonly job: QueuedJob }) {
@@ -73,6 +80,10 @@ function JobChip({ job }: { readonly job: QueuedJob }) {
       {job.status === 'running' && (
         <span className="text-micro text-muted shrink-0 tabular-nums">
           {job.determinate ? `${String(percent)}%` : job.passLabel || 'working'}
+          {/* Only on the long ones. Under ten seconds it changes faster than
+              it can be read, and a number flickering next to a progress bar
+              reads as instability rather than as information. */}
+          {job.etaMs !== null && job.etaMs > 10_000 && ` · ${formatShort(job.etaMs)}`}
         </span>
       )}
       {job.status === 'done' && (

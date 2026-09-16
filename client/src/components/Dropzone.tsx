@@ -1,6 +1,7 @@
 import { Upload } from 'lucide-react';
 import { useRef, useState } from 'react';
 
+import { RecentFiles } from '@/components/RecentFiles';
 import { useAcceptFile } from '@/lib/use-upload';
 import { cn } from '@/lib/utils';
 import { useScrubStore } from '@/store/use-scrub-store';
@@ -13,7 +14,7 @@ type DropzoneProps = {
 /**
  * The way a file gets into Scrub.
  *
- * The whole area accepts a drop and a click, and there is also a real button —
+ * The whole area accepts a drop and a click, and there is also a real button -
  * a dashed rectangle reads as a drop target to people who already know the
  * pattern and as nothing at all to people who do not. The outer element is a
  * div rather than a button because a button cannot legally contain another
@@ -67,6 +68,8 @@ export function Dropzone({ headline, hint }: DropzoneProps) {
         <Upload aria-hidden size={14} />
         Choose a file
       </button>
+
+      <RecentFiles />
 
       {load.status === 'failed' && (
         <div className="mt-2 max-w-lg text-left">

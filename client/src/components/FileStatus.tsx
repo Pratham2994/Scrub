@@ -11,7 +11,7 @@ type FileStatusProps = {
  *
  * Both routes render this rather than each deciding for itself. When they did
  * decide separately, `/op/:name` fell back to the dropzone mid-upload and threw
- * the progress away — you dropped a file and the screen looked like it had not
+ * the progress away - you dropped a file and the screen looked like it had not
  * noticed.
  */
 export function FileStatus({ headline, hint }: FileStatusProps) {

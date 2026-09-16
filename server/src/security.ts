@@ -9,8 +9,8 @@ import { config } from './config.js';
  * keeps Scrub off the network; it does nothing about the user's own browser. Any
  * page they have open can `fetch('http://127.0.0.1:5174/run', { method: 'POST' })`,
  * and with a simple content type there is no preflight to stop it. Point that at an
- * editable command bar and a random website gets arbitrary ffmpeg argv — which
- * means arbitrary file reads and writes — on the user's machine.
+ * editable command bar and a random website gets arbitrary ffmpeg argv - which
+ * means arbitrary file reads and writes - on the user's machine.
  *
  * A custom header cannot be set on a simple cross-origin request, so requiring one
  * forces a preflight, and the preflight is refused below. Host and Origin checks
@@ -41,12 +41,12 @@ function deny(res: Response, reason: string): void {
  * A few GETs are exempt, and the reason is mechanical rather than a relaxation:
  * the browser APIs that reach them cannot set a request header at all.
  * `<video src>`, `<img src>` and `<a download>` cannot, and neither can
- * `EventSource` — so requiring one would make the preview, the filmstrip, the
+ * `EventSource` - so requiring one would make the preview, the filmstrip, the
  * download and the progress stream impossible rather than secure.
  *
  * Every exempt route is side-effect free and needs an unguessable uuid, and the
  * Host and Origin checks above still apply to all of them. Everything that
- * changes state — uploading, running, cancelling — keeps the requirement, and
+ * changes state - uploading, running, cancelling - keeps the requirement, and
  * those are the routes a hostile page would actually want.
  */
 function requiresClientHeader(method: string, path: string): boolean {

@@ -3,11 +3,27 @@ import { Router } from 'express';
 import type { FfmpegTools } from '../ffmpeg/locate.js';
 import { ProbeFailed, probeFile } from '../ffmpeg/probe.js';
 import { idParamsSchema } from '../schemas.js';
-import { getFile, putFile } from '../store.js';
+import { getFile, putFile, recentSources } from '../store.js';
 import type { ApiError } from './errors.js';
 
 export function metaRouter(tools: FfmpegTools): Router {
   const router = Router();
+
+  /**
+   * The files still in the working folder, so one can be picked up again
+   * without being uploaded a second time.
+   *
+   * Capped at six: this is a shortcut on an empty screen, not a file manager.
+   */
+  router.get('/recent', (_req, res) => {
+    res.json({
+      files: recentSources(6).map((file) => ({
+        id: file.id,
+        displayName: file.displayName,
+        meta: file.meta,
+      })),
+    });
+  });
 
   router.get('/meta/:id', (req, res) => {
     const params = idParamsSchema.safeParse(req.params);

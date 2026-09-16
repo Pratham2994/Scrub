@@ -1,5 +1,5 @@
 import { availabilityOf, OPERATIONS, type OperationGroup } from '@scrub/shared';
-import { Fragment } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink } from 'react-router';
 
 import { cn } from '@/lib/utils';
@@ -15,13 +15,13 @@ const GROUPS: readonly { readonly id: OperationGroup; readonly label: string }[]
  * half-describe a verb, and "compress" has no good glyph. Words are unambiguous
  * and this audience reads.
  *
- * The groups are marked by micro labels sitting in hairlines — "Video" above the
+ * The groups are marked by micro labels sitting in hairlines - "Video" above the
  * video operations, "Audio" between the groups. They are separators with a word
  * in them, not headings, so they mark the split without competing with the verbs.
  *
  * The active operation is a dark chip with an accent tick. The dark marks the
- * three places where the work happens — the picture (well), the command (bar),
- * and the selection (here) — and the tick ties the selection to the focus ring,
+ * three places where the work happens - the picture (well), the command (bar),
+ * and the selection (here) - and the tick ties the selection to the focus ring,
  * which is the only other place accent appears in the chrome.
  *
  * Below 900px the rail lies down into a horizontal scroller; the legends go and
@@ -29,14 +29,51 @@ const GROUPS: readonly { readonly id: OperationGroup; readonly label: string }[]
  */
 export function Rail() {
   const meta = useScrubStore((state) => state.meta);
+  const railRef = useRef<HTMLElement>(null);
+  /**
+   * Whether there are operations below the fold.
+   *
+   * Fourteen of them do not fit a laptop shorter than about 560px once the
+   * header and command bar have taken their share, and a list that is quietly
+   * cut off is worse than one that is visibly scrollable: the operation you are
+   * looking for appears not to exist.
+   */
+  const [clipped, setClipped] = useState(false);
+
+  const measure = useCallback(() => {
+    const el = railRef.current;
+    if (!el) return;
+    const more = el.scrollHeight - el.clientHeight - el.scrollTop > 2;
+    setClipped((previous) => (previous === more ? previous : more));
+  }, []);
+
+  useEffect(() => {
+    const el = railRef.current;
+    if (!el) return undefined;
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    measure();
+    return () => {
+      observer.disconnect();
+    };
+  }, [measure]);
 
   return (
     <nav
+      ref={railRef}
+      onScroll={measure}
       aria-label="Operations"
       className={cn(
         'border-line bg-paper flex min-w-0 shrink-0 gap-1 overflow-x-auto border-b px-3 py-2',
         'workspace:w-rail workspace:flex-col workspace:gap-0 workspace:overflow-x-visible',
-        'workspace:overflow-y-auto workspace:border-r workspace:border-b-0 workspace:px-3 workspace:py-4',
+        'workspace:overflow-y-auto workspace:border-r workspace:border-b-0 workspace:px-3',
+        /**
+         * Tighter on a short screen. Fourteen operations plus two legends need
+         * about 540px, and a 1366x768 laptop leaves the rail roughly 478 - so
+         * Loudness sat below the fold with nothing saying there was more. The
+         * padding goes before the labels do.
+         */
+        'workspace:py-2 tall:workspace:py-4',
       )}
     >
       {GROUPS.map((group, index) => (
@@ -70,7 +107,8 @@ export function Rail() {
                   aria-label={group.id === 'audio' ? `${op.label} audio` : op.label}
                   className={({ isActive }) =>
                     cn(
-                      'text-body relative block shrink-0 rounded-button px-2 py-1.5 whitespace-nowrap transition-colors duration-100',
+                      'text-body relative block shrink-0 rounded-button px-2 whitespace-nowrap transition-colors duration-100',
+                      'py-1.5 short:workspace:py-1',
                       isActive
                         ? 'bg-well text-white font-medium'
                         : blocked
@@ -96,12 +134,23 @@ export function Rail() {
           </div>
         </Fragment>
       ))}
+      {clipped && (
+        /**
+         * Sticky rather than absolute: the nav is the scroll container, so an
+         * absolutely positioned fade would scroll away with the content it is
+         * meant to be hinting at.
+         */
+        <div
+          aria-hidden
+          className="from-paper pointer-events-none sticky bottom-0 -mt-6 hidden h-6 bg-gradient-to-t to-transparent workspace:block"
+        />
+      )}
     </nav>
   );
 }
 
 /**
- * "── Audio ──" — a micro label sitting in a hairline. In the horizontal rail
+ * "── Audio ──" - a micro label sitting in a hairline. In the horizontal rail
  * (below 900px) there is no room for a legend, so it collapses to nothing and
  * the bare vertical divider above takes over.
  */
@@ -110,7 +159,7 @@ function GroupLegend({ label, spaced }: { readonly label: string; readonly space
     <div
       className={cn(
         'hidden items-center gap-2 workspace:flex',
-        spaced ? 'workspace:my-4' : 'workspace:mb-4',
+        spaced ? 'workspace:my-2 tall:workspace:my-4' : 'workspace:mb-2 tall:workspace:mb-4',
       )}
     >
       <span aria-hidden className="bg-line h-px flex-1" />

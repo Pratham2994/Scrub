@@ -1,10 +1,10 @@
-# Scrub — design
+# Scrub - design
 
 ## The idea
 
 Every video tool is dark. Premiere, Resolve, Final Cut, Handbrake, every ffmpeg wrapper on GitHub. Dark chrome exists in those tools for a real reason: you are judging colour for hours and surrounding brightness biases your eye.
 
-Scrub is not that. It is a utility you open for ninety seconds in the middle of the day, next to a browser, to cut thirty seconds off a clip. So the chrome is light and the video well is dark. The dark belongs to the three places where work happens — the picture (the well), the command (the bar), and the selected operation (a dark chip in the rail) — and nowhere else. That inversion is what makes it not look like every other ffmpeg GUI.
+Scrub is not that. It is a utility you open for ninety seconds in the middle of the day, next to a browser, to cut thirty seconds off a clip. So the chrome is light and the video well is dark. The dark belongs to the three places where work happens - the picture (the well), the command (the bar), and the selected operation (a dark chip in the rail) - and nowhere else. That inversion is what makes it not look like every other ffmpeg GUI.
 
 The bold element is the **command bar**: a full-width dark strip fixed to the bottom, monospace, syntax-coloured by token role, updating live as you move any control. It is the only loud thing on the screen. Everything else stays quiet so it can be loud.
 
@@ -14,7 +14,7 @@ The bold element is the **command bar**: a full-width dark strip fixed to the bo
 
 ```
 --paper        #EAECF5   app background, a cool violet-cast grey, never white or cream
---surface      #FFFFFF   panels, controls — white is for surfaces, not the app
+--surface      #FFFFFF   panels, controls - white is for surfaces, not the app
 --line         #CFD4DE   hairlines
 --line-strong  #8E949E   control borders and the dropzone outline (3:1 on white)
 --ink          #14161A   primary text
@@ -30,7 +30,7 @@ Warm cream with a terracotta accent is the current default look for generated in
 
 ### Dark mode
 
-Light is the default and stays the default — the argument above is about a utility you open for ninety seconds, and that does not change because the lights are off. Dark is offered in Settings, defaulting to the operating system's preference.
+Light is the default and stays the default - the argument above is about a utility you open for ninety seconds, and that does not change because the lights are off. Dark is offered in Settings, defaulting to the operating system's preference.
 
 Dark is **not** the light scheme inverted. "The dark is where the picture is" still has to hold, so the well remains the darkest surface on screen and the chrome sits above it. Panels become _lighter_ than the page here, the reverse of light mode, because on a dark ground a raised thing reads as nearer.
 
@@ -48,7 +48,7 @@ Dark is **not** the light scheme inverted. "The dark is where the picture is" st
 
 Two things fall out of this and are not negotiable:
 
-**The well needs an edge.** Two dark surfaces cannot separate by luminance the way near-white paper did — 16:1 in light, 1.3:1 here. So the well earns a hairline in dark mode (`--well-edge`), which is the same way everything else in Scrub is separated. In light mode that token is transparent.
+**The well needs an edge.** Two dark surfaces cannot separate by luminance the way near-white paper did - 16:1 in light, 1.3:1 here. So the well earns a hairline in dark mode (`--well-edge`), which is the same way everything else in Scrub is separated. In light mode that token is transparent.
 
 **Text on the accent flips.** White on the lifted accent is 2.7:1 and fails outright; the dark `--on-accent` is 7.2:1. Any element that puts text on `--accent` uses that token, never `text-white`.
 
@@ -105,7 +105,7 @@ One workspace. Left rail of operations, centre well, fixed command bar. Left ali
 └──────────┴───────────────────────────────────────────┘
 ```
 
-Rail: 180px, labels only, no icons. Eleven operations with icons would mean eleven icons that each half-describe a verb, and "compress" has no good glyph. Words are unambiguous and this audience reads. The groups are marked by micro labels sitting in hairlines — "Video" above the video operations, "Audio" between the groups. They are separators with a word in them, not headings, so they mark the split without competing with the verbs. The active operation is a dark chip with an accent tick on its left edge, matching the well and the bar: the dark marks where the work is, and the tick is the same accent as the focus ring.
+Rail: 180px, labels only, no icons. Eleven operations with icons would mean eleven icons that each half-describe a verb, and "compress" has no good glyph. Words are unambiguous and this audience reads. The groups are marked by micro labels sitting in hairlines - "Video" above the video operations, "Audio" between the groups. They are separators with a word in them, not headings, so they mark the split without competing with the verbs. The active operation is a dark chip with an accent tick on its left edge, matching the well and the bar: the dark marks where the work is, and the tick is the same accent as the focus ring.
 
 Well: `--well` background, 6px radius, and the video letterboxed inside it. The well keeps its size when the operation changes so the layout does not jump.
 
@@ -127,7 +127,7 @@ It sits beneath the filmstrip for video trim and becomes the entire timeline for
 
 The scale is `cbrt`, chosen by measuring. On a track peaking around -22 dB the drawn shape covered 2% of the height with `lin`, 13% with `sqrt` and 26% with `cbrt`, while `log` reached 61% but flattened ordinary material into a solid block. The picture exists so someone can see where the sound is, so visibility on quiet material matters, and so does keeping the envelope readable on everything else.
 
-**Progress.** The Run button becomes the progress bar in place — it fills left to right in `--signal` with the percentage and elapsed time in mono inside it. No separate progress row appearing and shifting the layout, no spinner. The thing you pressed is the thing that reports.
+**Progress.** The Run button becomes the progress bar in place - it fills left to right in `--signal` with the percentage and elapsed time in mono inside it. No separate progress row appearing and shifting the layout, no spinner. The thing you pressed is the thing that reports.
 
 ## Motion
 
@@ -141,11 +141,11 @@ No entrance animations on panels, no hover lift on anything, no stagger on lists
 
 Operation names are verbs the user already has in their head: Trim, Compress, Convert, Resize, GIF, Extract audio, Mute, Replace audio, Normalise loudness.
 
-Button says what happens and the result echoes it. "Run" produces "Done — 4.2 MB, 12s". Never "Submit", never "Processing…".
+Button says what happens and the result echoes it. "Run" produces "Done - 4.2 MB, 12s". Never "Submit", never "Processing…".
 
 Empty state: `Drop a video or audio file` on `--paper`, dashed `--line-strong` border, plus one line of `--muted` micro text listing what it can do. An empty screen is an invitation, not a mood.
 
-Errors are specific and never apologise. If ffmpeg fails, the message is what it printed, in mono, with the exit code. If preview is unavailable because the source is HEVC: `Preview unavailable — this file is HEVC, which browsers can't decode. Trimming still works; the timecode fields are exact.` The user needs to know that the tool is not broken.
+Errors are specific and never apologise. If ffmpeg fails, the message is what it printed, in mono, with the exit code. If preview is unavailable because the source is HEVC: `Preview unavailable - this file is HEVC, which browsers can't decode. Trimming still works; the timecode fields are exact.` The user needs to know that the tool is not broken.
 
 ## Quality floor
 

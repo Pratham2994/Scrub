@@ -40,6 +40,11 @@ export type RunState =
        * says it is working instead of showing a number that never moves.
        */
       readonly determinate: boolean;
+      /**
+       * How much longer. Elapsed alone answers "has it hung"; on a ten minute
+       * encode the question is whether to wait or walk away.
+       */
+      readonly etaMs: number | null;
       readonly passLabel: string;
       readonly passIndex: number;
       readonly passCount: number;
@@ -61,7 +66,7 @@ export type RunState =
  * The id of the file currently loaded, kept in sessionStorage.
  *
  * Per tab, not per browser: two Scrub tabs are two workspaces. It holds only the
- * id — the metadata is refetched from the server on boot, so a file the TTL
+ * id - the metadata is refetched from the server on boot, so a file the TTL
  * sweeper has removed is discovered immediately rather than rendering a
  * workspace around a file that is gone.
  */
@@ -97,7 +102,7 @@ export type TrimParams = {
  *
  * All of them at once rather than only the selected one, so switching to an
  * operation and back does not silently reset what you had dialled in. The
- * defaults are the answer to "what does someone usually want" — CRF 23 is
+ * defaults are the answer to "what does someone usually want" - CRF 23 is
  * x264's own default, -16 LUFS is the streaming target, 12fps is the rate a GIF
  * stops looking like a slideshow.
  */
@@ -247,6 +252,7 @@ export type QueuedJob = {
   readonly position: number;
   readonly progress: number;
   readonly determinate: boolean;
+  readonly etaMs: number | null;
   readonly passLabel: string;
   readonly elapsedMs: number;
   readonly outputId: string | null;
@@ -333,7 +339,7 @@ export const useScrubStore = create<ScrubState>()((set) => ({
 
   setActiveOperation: (kind) => {
     set((state) =>
-      // Changing operation invalidates a finished result — the "Done" chip belongs
+      // Changing operation invalidates a finished result - the "Done" chip belongs
       // to the operation that produced it, not to whatever is selected now.
       state.activeOperation === kind
         ? { activeOperation: kind }

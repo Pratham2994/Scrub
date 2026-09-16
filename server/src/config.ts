@@ -2,7 +2,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-/** `server/src` in dev (tsx) and `server/dist` in a build — both are one level under `server/`. */
+/** `server/src` in dev (tsx) and `server/dist` in a build - both are one level under `server/`. */
 const repoRoot = path.resolve(here, '..', '..');
 
 /**

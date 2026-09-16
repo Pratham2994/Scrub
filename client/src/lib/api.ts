@@ -3,7 +3,7 @@ import type { Operation, ProbeResult } from '@scrub/shared';
 /**
  * The server requires this header on everything but the health check. A simple
  * cross-origin request cannot set a custom header, so requiring one forces a
- * preflight — which is what stops a random web page from driving Scrub.
+ * preflight - which is what stops a random web page from driving Scrub.
  */
 const CLIENT_HEADER = 'X-Scrub-Client';
 
@@ -47,7 +47,7 @@ export type UploadResponse = {
 /**
  * Uploaded with XMLHttpRequest rather than fetch, for one reason: fetch cannot
  * report upload progress. A phone clip is routinely a gigabyte, and the copy into
- * Scrub's working directory is the slowest part of the whole operation — a UI
+ * Scrub's working directory is the slowest part of the whole operation - a UI
  * that sits silent through it looks broken.
  */
 export function uploadFile(
@@ -117,6 +117,37 @@ export function filmstripUrl(id: string): string {
 /** The audio drawn as a picture, for the timeline. Also loaded by an <img>. */
 export function waveformUrl(id: string): string {
   return `${BASE}/waveform/${id}`;
+}
+
+export type JobSnapshot = {
+  readonly jobId: string;
+  readonly title: string;
+  readonly kind: string | null;
+  readonly status: 'running' | 'done' | 'failed' | 'cancelled';
+  readonly startedAt: number;
+  readonly last: JobEvent | null;
+};
+
+/** Jobs the server is working on, or has recently. Used to rebuild the queue. */
+export async function fetchJobs(): Promise<readonly JobSnapshot[]> {
+  const response = await fetch(`${BASE}/jobs`, { headers: { [CLIENT_HEADER]: '1' } });
+  if (!response.ok) throw await toApiError(response);
+  const body = (await response.json()) as { jobs: readonly JobSnapshot[] };
+  return body.jobs;
+}
+
+export type RecentFile = {
+  readonly id: string;
+  readonly displayName: string;
+  readonly meta: ProbeResult;
+};
+
+/** Files still in the working folder, newest first. */
+export async function fetchRecent(): Promise<readonly RecentFile[]> {
+  const response = await fetch(`${BASE}/recent`, { headers: { [CLIENT_HEADER]: '1' } });
+  if (!response.ok) throw await toApiError(response);
+  const body = (await response.json()) as { files: readonly RecentFile[] };
+  return body.files;
 }
 
 export function downloadUrl(id: string): string {
@@ -189,6 +220,8 @@ export type JobEvent =
       readonly progress: number;
       /** False while a pass runs that ffmpeg cannot report a fraction for. */
       readonly determinate: boolean;
+      /** Milliseconds left, from ffmpeg's own speed. Null when unknowable. */
+      readonly etaMs: number | null;
       readonly passIndex: number;
       readonly passCount: number;
       readonly passLabel: string;
@@ -234,7 +267,7 @@ export async function startRun(id: string, target: RunTarget): Promise<string> {
  *
  * The server replays what already happened before this connected, because POST
  * /run and this GET are two round trips and a stream copy can finish inside that
- * gap — a fast trim of a short clip regularly does.
+ * gap - a fast trim of a short clip regularly does.
  */
 export function subscribeToJob(jobId: string, onEvent: (event: JobEvent) => void): () => void {
   const source = new EventSource(`${BASE}/run/${jobId}/events`);
@@ -243,7 +276,7 @@ export function subscribeToJob(jobId: string, onEvent: (event: JobEvent) => void
    * Only a terminal event closes this, and the set is named rather than
    * inferred from "not progress". The loudness measurement arrives between the
    * two passes, and treating it as terminal closed the stream before `done`
-   * ever came — the run finished on disk while the bar sat there forever.
+   * ever came - the run finished on disk while the bar sat there forever.
    */
   const TERMINAL = new Set(['done', 'error', 'cancelled']);
 
@@ -255,7 +288,7 @@ export function subscribeToJob(jobId: string, onEvent: (event: JobEvent) => void
 
   source.addEventListener('error', () => {
     // EventSource reconnects on its own, but the server ends the stream after a
-    // terminal event — so a closed connection here means "finished", not "broken".
+    // terminal event - so a closed connection here means "finished", not "broken".
     if (source.readyState === EventSource.CLOSED) return;
     source.close();
     onEvent({ type: 'error', message: 'Lost the connection to Scrub.', detail: [] });

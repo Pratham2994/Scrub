@@ -21,7 +21,7 @@ import { useScrubStore } from '@/store/use-scrub-store';
 
 type Handle = 'move' | 'nw' | 'ne' | 'sw' | 'se';
 
-/** Nothing smaller than this, as a fraction — below it the handles overlap. */
+/** Nothing smaller than this, as a fraction - below it the handles overlap. */
 const MIN = 0.05;
 
 export function CropFrame({ id, meta }: { readonly id: string; readonly meta: ProbeResult }) {

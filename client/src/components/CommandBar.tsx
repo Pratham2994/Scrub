@@ -32,7 +32,7 @@ type CommandBarProps = {
 
 /**
  * The only loud thing on the screen. Full bleed, radius 0 because it meets the
- * window edges, and the one element carrying a shadow — an upward hairline.
+ * window edges, and the one element carrying a shadow - an upward hairline.
  *
  * A real command does not fit on one line at any window size, so the row scrolls
  * horizontally under fades. It scrolls when the user scrolls it and at no other
@@ -69,7 +69,7 @@ export function CommandBar({
   const text = draft ?? generatedLine;
   const dirty = draft !== null && draft !== generatedLine;
 
-  // A new file or a different operation makes the edit meaningless — it described
+  // A new file or a different operation makes the edit meaningless - it described
   // a command against something else, and silently running it would be worse
   // than dropping it.
   useEffect(() => {
@@ -83,7 +83,7 @@ export function CommandBar({
    *
    * `text` follows the generated command when there is no draft, so without this
    * guard every drag of a trim handle re-parsed and re-linted a command Scrub
-   * wrote itself — sixty times a second, to reach the same conclusion each time.
+   * wrote itself - sixty times a second, to reach the same conclusion each time.
    */
   const active = editing || draft !== null;
   const analysis = useMemo(
@@ -113,7 +113,7 @@ export function CommandBar({
     const left = el.scrollLeft > 1;
     const right = el.scrollLeft + el.clientWidth < el.scrollWidth - 1;
     // Bail when nothing changed. A fresh object here would re-render on every
-    // observation, and this is driven by a ResizeObserver — a render that
+    // observation, and this is driven by a ResizeObserver - a render that
     // changes layout feeds the next observation and the loop pins the main
     // thread, which looks exactly like the page freezing.
     setEdges((previous) =>
@@ -136,6 +136,35 @@ export function CommandBar({
   // Whether a fade belongs there is a fact about the content, so re-measure when
   // the content changes.
   useEffect(measure, [measure, tokens]);
+
+  const runnable = (canRun || edited !== null) && !placeholder && !blocked;
+
+  /**
+   * Ctrl or Cmd with Return runs what the bar is showing.
+   *
+   * Every other interaction in Scrub is keyboard reachable - Space, the
+   * brackets, the arrows, the crop corners - and then the verb the whole screen
+   * exists for needed the mouse.
+   *
+   * It lives here rather than with the other shortcuts because this component
+   * is the only thing that knows whether there is an edit to run instead of the
+   * generated command. And unlike the rest it deliberately still fires while
+   * typing: finishing an edit in the editor below and running it is one thought,
+   * which is why the modifier is required - plain Return belongs to the timecode
+   * fields.
+   */
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key !== 'Enter' || !(event.metaKey || event.ctrlKey)) return;
+      if (run.status === 'running' || !runnable) return;
+      event.preventDefault();
+      onRun(edited);
+    };
+    window.addEventListener('keydown', onKeyDown, true);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown, true);
+    };
+  }, [edited, onRun, run.status, runnable]);
 
   return (
     <div
@@ -200,10 +229,10 @@ export function CommandBar({
           /**
            * GIF and loudness genuinely run two commands. Showing only the first
            * would be showing half of what happens, which is exactly what the
-           * command bar exists to prevent — so both are reachable, labelled.
+           * command bar exists to prevent - so both are reachable, labelled.
            *
            * These pick which command is *shown*. They were read as two actions
-           * to perform in order — "generate, then apply" — which is a fair
+           * to perform in order - "generate, then apply" - which is a fair
            * reading of two numbered buttons sitting next to Run. The word in
            * front of them says what they are, and every one of them says that
            * Run does both.
@@ -271,8 +300,8 @@ export function CommandBar({
       <RunControl
         run={run}
         // An edited command can run even when the operation itself is not built
-        // yet — that is exactly what the editable bar is for.
-        canRun={(canRun || edited !== null) && !placeholder && !blocked}
+        // yet - that is exactly what the editable bar is for.
+        canRun={runnable}
         onRun={() => {
           onRun(edited);
         }}
@@ -378,7 +407,7 @@ function EditButton({
  * appearing elsewhere and shifting the layout. The thing you pressed is the
  * thing that reports.
  *
- * The label is drawn twice — once dark, clipped to the filled region, once light
+ * The label is drawn twice - once dark, clipped to the filled region, once light
  * over the unfilled one. A single colour cannot work, because the text sits
  * across the moving boundary and white on `--signal` is only 2.2:1.
  */
@@ -401,12 +430,20 @@ function RunControl({
      *
      * GIF's palette pass writes a single image, so there is no output timeline
      * to divide against. It used to leave the bar frozen at "0%  0ms" for
-     * roughly half the job, which is indistinguishable from a hang — and the
+     * roughly half the job, which is indistinguishable from a hang - and the
      * first thing anyone does about a hang is kill it. A number that is not
      * moving is worse than no number.
      */
     const waiting = !run.determinate;
-    const label = `${run.passCount > 1 ? `${run.passLabel} · ` : ''}${waiting ? '' : `${String(percent)}%  `}${formatElapsed(run.elapsedMs)}`;
+    /**
+     * Elapsed answers "has it hung". Remaining answers "do I wait", which is
+     * the question on anything longer than a few seconds, and it comes from
+     * ffmpeg's own reported speed rather than from arithmetic on the clock.
+     * It is left out under ten seconds, where it changes faster than it reads.
+     */
+    const remaining =
+      run.etaMs !== null && run.etaMs > 10_000 ? `  ${formatElapsed(run.etaMs)} left` : '';
+    const label = `${run.passCount > 1 ? `${run.passLabel} · ` : ''}${waiting ? '' : `${String(percent)}%  `}${formatElapsed(run.elapsedMs)}${remaining}`;
     return (
       <div className="flex shrink-0 items-center gap-1">
         <div
@@ -435,7 +472,7 @@ function RunControl({
              * A band travelling the length of the button, because the fill has
              * no width to pulse: an unreportable pass starts at the floor of its
              * own slice, which for GIF's first pass is zero. Travelling rather
-             * than filling is the point — it says work is happening without
+             * than filling is the point - it says work is happening without
              * claiming to know how much is left.
              */
             <div

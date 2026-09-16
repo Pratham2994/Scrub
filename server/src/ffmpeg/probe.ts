@@ -60,9 +60,9 @@ export class ProbeFailed extends Error {
 }
 
 /**
- * Read a media file's real shape. Everything downstream — the duration the
+ * Read a media file's real shape. Everything downstream - the duration the
  * scrubber spans, the codec the preview needs, the dimensions a resize starts
- * from — comes from here, so a file that will not probe is a file Scrub refuses
+ * from - comes from here, so a file that will not probe is a file Scrub refuses
  * rather than guesses about.
  */
 export async function probeFile(

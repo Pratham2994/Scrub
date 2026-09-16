@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
  * loaded.
  *
  * Without this the only drop target was the empty state, so swapping files meant
- * finding "Close file" first — and dragging a file onto a workspace that already
+ * finding "Close file" first - and dragging a file onto a workspace that already
  * has one is the most natural way to say "use this instead".
  *
  * Listeners go on the window rather than a wrapper element because a drag that

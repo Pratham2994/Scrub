@@ -19,7 +19,7 @@ import type { ApiError } from './errors.js';
  *
  * The point is the command bar. It shows the real path's basename, so a stored
  * name of `holiday-clip-3036c17e.mp4` makes the displayed command readable while
- * still being exactly the file that gets spawned — readability without the
+ * still being exactly the file that gets spawned - readability without the
  * preview and the execution drifting apart.
  */
 function safeStem(originalName: string): string {

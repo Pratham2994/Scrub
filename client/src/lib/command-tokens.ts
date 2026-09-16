@@ -26,7 +26,7 @@ function isFlag(token: string): boolean {
  * nothing breaks that more thoroughly than a long path ever could.
  *
  * Every ffmpeg filter is `name=value`, and a file path almost never contains an
- * equals sign. Where one does, the cost is that it is shown in full — which is
+ * equals sign. Where one does, the cost is that it is shown in full - which is
  * the safe direction to be wrong in.
  */
 function isPath(token: string): boolean {
@@ -42,7 +42,7 @@ function basename(token: string): string {
 /**
  * Classify an argv for the command bar.
  *
- * The array comes straight from `buildArgs` — this only decides what colour each
+ * The array comes straight from `buildArgs` - this only decides what colour each
  * token is drawn in, and whether a path is shown short. Nothing here changes what
  * runs, and `full` always carries the real token so copying stays truthful.
  */

@@ -4,7 +4,7 @@ import { ApiError, fetchMeta, uploadFile } from '@/lib/api';
 import { recallUpload, useScrubStore } from '@/store/use-scrub-store';
 
 /**
- * Accepts a file from anywhere — the dropzone, the file picker, a drop on the
+ * Accepts a file from anywhere - the dropzone, the file picker, a drop on the
  * operation panel. One implementation so every entry point behaves identically.
  */
 export function useAcceptFile(): (file: File | undefined | null) => void {

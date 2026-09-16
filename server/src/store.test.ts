@@ -8,7 +8,7 @@ import { findByFingerprint, forgetFile, getFile, putFile, type StoredFile } from
 
 /**
  * Ids map to absolute paths here and nowhere else. Routes look a file up by id
- * and use the stored path — they never join an id onto a directory, which is
+ * and use the stored path - they never join an id onto a directory, which is
  * what makes an id like `../../etc/passwd` fail as "unknown id" rather than
  * resolving to a file.
  */
@@ -49,7 +49,7 @@ describe('looking a file up', () => {
 
   /**
    * The traversal case. An id is never joined onto a directory, so this is not
-   * "sanitised" — it simply is not a key anyone registered.
+   * "sanitised" - it simply is not a key anyone registered.
    */
   it('treats a path-shaped id as an unknown id', () => {
     expect(getFile('../../etc/passwd')).toBeNull();

@@ -12,7 +12,7 @@ import { expect, type Page, test } from '@playwright/test';
  * shows is the command that runs", and a suite that stubbed the server out
  * would be testing the one half of that claim which was never in doubt.
  *
- * The fixture is three seconds at 320x180 and about 47 kB — small enough to
+ * The fixture is three seconds at 320x180 and about 47 kB - small enough to
  * commit, real enough to encode.
  */
 const FIXTURES = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures');
@@ -230,7 +230,7 @@ test.describe('running an operation', () => {
   /**
    * The command bar's one promise. It said `.mp4` for a WebM convert while
    * ffmpeg wrote `.webm`, so a command copied out of the bar would have written
-   * VP9 and Opus into an MP4 — the extension is how ffmpeg picks its muxer.
+   * VP9 and Opus into an MP4 - the extension is how ffmpeg picks its muxer.
    */
   test('shows the output path ffmpeg is actually given', async ({ page }) => {
     await page.goto('/op/convert');
@@ -905,20 +905,24 @@ test.describe('the queue', () => {
     await page.goto('/op/compress');
     await loadFixture(page);
 
-    await expect(page.getByText('Clear finished')).toBeHidden();
-
+    /**
+     * No assertion that the strip starts empty. Jobs belong to the server and
+     * every test in this file shares one, so earlier tests leave finished chips
+     * behind - which is the behaviour, not a leak: the queue is rebuilt from the
+     * server on load and keeps the last few.
+     */
     await page.getByRole('button', { name: 'Run', exact: true }).click();
     // In-app navigation, the way the rail actually works.
     await railLink(page, 'crop').click();
     await page.getByRole('button', { name: 'Run', exact: true }).click();
 
     // Both are tracked, whichever of them is running at this instant.
-    await expect(page.getByText(/Compress · clip\.mp4/)).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByText(/Crop · clip\.mp4/)).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText(/Compress · clip\.mp4/).first()).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText(/Crop · clip\.mp4/).first()).toBeVisible({ timeout: 30_000 });
 
     await expect(page.getByText('Clear finished')).toBeVisible({ timeout: 120_000 });
     await page.getByText('Clear finished').click();
-    await expect(page.getByText(/Compress · clip\.mp4/)).toBeHidden();
+    await expect(page.getByText(/Compress · clip\.mp4/)).toHaveCount(0);
   });
 });
 
@@ -975,5 +979,133 @@ test.describe('remembering how you like things', () => {
     // Put it back, so the next test does not inherit it.
     await page.getByLabel('Quality value').fill('23');
     await page.getByLabel('Quality value').press('Enter');
+  });
+});
+
+test.describe('the rail on a short screen', () => {
+  /**
+   * Fourteen operations plus two legends need about 540px, and a 1366x768
+   * laptop leaves the rail roughly 478. Adding three operations pushed Loudness
+   * below the fold with nothing saying there was more, which makes an operation
+   * that exists look like one that does not.
+   */
+  test('shows every operation on the most common laptop', async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 625 });
+    await page.goto('/op/trim');
+
+    const clipped = await page.evaluate(() => {
+      const nav = document.querySelector('nav');
+      if (!nav) return null;
+      const links = Array.from(nav.querySelectorAll('a'));
+      const last = links[links.length - 1];
+      if (!last) return null;
+      return {
+        hidden: nav.scrollHeight - nav.clientHeight,
+        lastInView: last.getBoundingClientRect().bottom <= nav.getBoundingClientRect().bottom + 1,
+      };
+    });
+    expect(clipped?.hidden).toBeLessThanOrEqual(0);
+    expect(clipped?.lastInView).toBe(true);
+  });
+
+  /** Shorter than that it genuinely does not fit, and has to say so. */
+  test('marks the list as scrollable when it truly does not fit', async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 460 });
+    await page.goto('/op/trim');
+    await expect(page.locator('nav div[aria-hidden].sticky')).toBeAttached();
+  });
+});
+
+test.describe('pointing at the other operation', () => {
+  /**
+   * Compress spends a paragraph explaining that it cannot give you a size. The
+   * person reading that is exactly the person who wants Fit a size, and nothing
+   * used to tell them it was there.
+   */
+  test('compress links to Fit a size', async ({ page }) => {
+    await page.goto('/op/compress');
+    await loadFixture(page);
+
+    // Scoped to the panel: the rail has a link of the same name, which is the
+    // point of the rail.
+    const link = page.getByRole('main').getByRole('link', { name: 'Fit a size' });
+    await expect(link).toBeVisible();
+    await link.click();
+    await expect(page.getByRole('heading', { name: 'Fit a size' })).toBeVisible();
+  });
+});
+
+test.describe('running from the keyboard', () => {
+  test('Ctrl and Return starts the run', async ({ page }) => {
+    await page.goto('/op/mute');
+    await loadFixture(page);
+
+    await page.keyboard.press('Control+Enter');
+
+    await expect(page.getByRole('link', { name: 'Save', exact: true })).toBeVisible({
+      timeout: 60_000,
+    });
+  });
+
+  test('does nothing when there is nothing to run', async ({ page }) => {
+    await page.goto('/op/mute');
+    await page.keyboard.press('Control+Enter');
+    // Still the empty state, and nothing started: no progress bar appeared.
+    // Not asserted against the queue strip, which may hold chips from earlier
+    // tests in this file - they share one server.
+    await expect(page.getByText(/Drop a file to mute/)).toBeVisible();
+    await expect(page.getByRole('progressbar')).toHaveCount(0);
+  });
+});
+
+test.describe('the queue after a reload', () => {
+  /**
+   * Jobs run in the server process and keep going whatever the browser does. A
+   * refresh mid-encode used to lose sight of work that was still happening, and
+   * the output appeared in the working folder later with nothing having said so.
+   */
+  test('comes back, with what finished while the page was away', async ({ page }) => {
+    test.slow();
+    await page.goto('/op/compress');
+    await loadFixture(page);
+
+    await page.getByRole('button', { name: 'Run', exact: true }).click();
+    await expect(page.getByText(/Compress · clip\.mp4/).first()).toBeVisible({ timeout: 30_000 });
+
+    await page.reload();
+    await expect(page.locator('video').first()).toBeVisible({ timeout: 30_000 });
+
+    // The job is the server's, so it survived the page.
+    await expect(page.getByText(/Compress · clip\.mp4/).first()).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText('Clear finished')).toBeVisible({ timeout: 120_000 });
+  });
+});
+
+test.describe('picking a file up again', () => {
+  /**
+   * A clip that was open a few minutes ago is still on disk, probed, with its
+   * filmstrip already drawn. Uploading it again is waiting for something that
+   * has already happened.
+   */
+  test('offers a file still in the working folder, and loads it', async ({ page }) => {
+    await page.goto('/');
+    await loadFixture(page);
+    await page.getByRole('button', { name: 'Close file' }).click();
+    await expect(page.getByText('Drop a video or audio file')).toBeVisible();
+
+    /**
+     * Scoped to the dropzone: the queue strip also holds chips named after the
+     * same file, because they are jobs that ran on it.
+     */
+    const recent = page
+      .getByRole('main')
+      .getByRole('button', { name: /clip\.mp4/ })
+      .first();
+    await expect(recent).toBeVisible({ timeout: 30_000 });
+    await recent.click();
+
+    // Loaded without a second upload: straight to the workspace.
+    await expect(page.locator('video').first()).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator('header')).toContainText('clip.mp4');
   });
 });

@@ -20,7 +20,7 @@ describe('reading settings from the environment', () => {
   /**
    * Zero is a value, not an absence. This used to require a positive number, so
    * setting a limit to 0 to switch it off silently fell back to the default
-   * instead — which is the worst way for a setting to behave, because it looks
+   * instead - which is the worst way for a setting to behave, because it looks
    * applied and is not.
    */
   it('accepts zero rather than treating it as unset', () => {

@@ -32,7 +32,7 @@ export function OperationPanel() {
   const kind = name !== undefined && isOperationKind(name) ? name : null;
 
   // The route is the source of truth for which operation is selected; the store
-  // mirrors it so the command bar — which lives outside the route — can follow.
+  // mirrors it so the command bar - which lives outside the route - can follow.
   useEffect(() => {
     setActiveOperation(kind);
   }, [kind, setActiveOperation]);
@@ -78,7 +78,7 @@ export function OperationPanel() {
         ) : (
           // Landing here from a bookmark or a reload with nothing loaded used to be
           // a dead end that just said "No file loaded". The way forward has to be
-          // on the screen the user actually arrived at — and at the same size as on
+          // on the screen the user actually arrived at - and at the same size as on
           // the home page, because it is the same invitation.
           <FileStatus
             headline={`Drop a file to ${descriptor.label.toLowerCase()}`}

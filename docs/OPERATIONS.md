@@ -27,7 +27,7 @@ non-negotiable exists to prevent.
 
 **`argv` is complete and real.** It carries the actual tmp paths and the transport
 flags, because it is handed to `spawn` untouched. The command bar shortens paths to
-basenames for reading and dims the transport flags, but that is rendering — `Copy`
+basenames for reading and dims the transport flags, but that is rendering - `Copy`
 yields the true command, and nothing is appended downstream.
 
 **`outputDurationSec` is the progress denominator.** Not the source duration. See
@@ -81,11 +81,11 @@ Every pass begins with `TRANSPORT_ARGS`:
 
 and ends its options with `-y` before the output path.
 
-- `-nostdin` — without it ffmpeg reads stdin and can swallow keystrokes or block.
-- `-nostats -progress pipe:1` — machine-readable progress on **stdout**. The
+- `-nostdin` - without it ffmpeg reads stdin and can swallow keystrokes or block.
+- `-nostats -progress pipe:1` - machine-readable progress on **stdout**. The
   human-readable stderr log is not a progress source; it is rate-limited, carriage
   returned, and format-unstable.
-- `-y` — output ids are freshly minted, but with `-nostdin` a collision would hang
+- `-y` - output ids are freshly minted, but with `-nostdin` a collision would hang
   rather than prompt.
 
 They are in `argv` rather than prepended by the server so that what the bar shows is
@@ -114,7 +114,7 @@ Two traps:
 
 ## Video
 
-### Trim — fast ✅
+### Trim - fast ✅
 
 ```
 ffmpeg -ss 12.4 -i in.mp4 -t 35.7 -c copy -avoid_negative_ts make_zero -y out.mp4
@@ -122,7 +122,7 @@ ffmpeg -ss 12.4 -i in.mp4 -t 35.7 -c copy -avoid_negative_ts make_zero -y out.mp
 
 `-ss` **before** `-i` is an input option: ffmpeg seeks the demuxer instead of
 decoding up to the mark. That is the entire point of the fast path, and also its
-cost — with `-c copy` the cut can only land on a keyframe, so the output may begin
+cost - with `-c copy` the cut can only land on a keyframe, so the output may begin
 _earlier_ than asked and run _longer_. Users read "Fast" as "less accurate"; they do
 not expect "longer than I asked for". The UI has to say so.
 
@@ -131,7 +131,7 @@ with an input-side `-ss` is the exact pairing whose meaning people get wrong. Th
 user thinks in start/end; the conversion to a duration happens in `buildArgs`, once,
 where a test pins it.
 
-`-avoid_negative_ts make_zero` — a stream copy starting mid-stream carries the
+`-avoid_negative_ts make_zero` - a stream copy starting mid-stream carries the
 source's timestamps, and the first packet can land before zero. Some players render
 that as a frozen opening frame.
 
@@ -139,7 +139,7 @@ End is clamped to `meta.durationSec`: a scrub handle dragged to the far right ca
 land a hair past the probed duration through float accumulation, and the displayed
 command should say where the cut actually ends.
 
-### Trim — precise ✅
+### Trim - precise ✅
 
 ```
 ffmpeg -i in.mp4 -ss 12.4 -t 35.7 -c:v libx264 -crf 18 -preset veryfast -c:a copy -y out.mp4
@@ -147,10 +147,10 @@ ffmpeg -i in.mp4 -ss 12.4 -t 35.7 -c:v libx264 -crf 18 -preset veryfast -c:a cop
 
 `-ss` **after** `-i` is an output option: frame-accurate, because ffmpeg decodes to
 the mark and re-encodes from there. Slower and lossy. Do not pick fast or precise for
-the user — the trim UI exposes it as a toggle, and states what each one costs.
+the user - the trim UI exposes it as a toggle, and states what each one costs.
 
 CRF 18 because this is a cut, not a compression: the user asked for a different
-length, not a smaller file. `veryfast` for the same reason — the point is to get
+length, not a smaller file. `veryfast` for the same reason - the point is to get
 the cut, not to squeeze out the last few percent of size.
 
 Audio can usually still be `-c:a copy`. Re-encoding it as well costs quality for no
@@ -164,7 +164,7 @@ ffmpeg -i in.mp4 -c:v libx264 -crf 23 -preset medium -c:a aac -b:a 128k -movflag
 
 CRF, not a target bitrate: the user wants "smaller" and does not have a bitrate
 budget in mind. 18 is near-lossless, 23 default, 28 visibly soft. `-preset` trades
-encode time for file size at the same quality — it is not a quality control, which
+encode time for file size at the same quality - it is not a quality control, which
 is worth saying in the UI because everyone assumes it is.
 
 `+faststart` moves the moov atom to the front so the file starts playing before it
@@ -196,7 +196,7 @@ ratio exactly and can produce an odd number, which fails the encode. `-2` rounds
 the nearest even number. The zod schema also constrains the requested width to a
 multiple of 2, because an odd _width_ would break it just as surely.
 
-### GIF — two passes ✅
+### GIF - two passes ✅
 
 ```
 pass 1: ffmpeg -i in.mp4 -vf fps=12,scale=480:-2:flags=lanczos,palettegen -y palette.png
@@ -212,7 +212,7 @@ different pixels than it is applied to.
 
 `palette.png` goes in `io.workDir` and is swept with everything else.
 
-Pass 1's `outputDurationSec` is `null` — it produces a single PNG, not a timeline.
+Pass 1's `outputDurationSec` is `null` - it produces a single PNG, not a timeline.
 
 ### Extract audio ✅
 
@@ -221,7 +221,7 @@ ffmpeg -i in.mp4 -vn -acodec copy -y out.m4a
 ```
 
 `-vn` drops video. Prefer `-acodec copy` when the requested format already matches
-the source codec — an AAC track out of an mp4 needs no re-encode, and re-encoding it
+the source codec - an AAC track out of an mp4 needs no re-encode, and re-encoding it
 to mp3 "because the user picked mp3" loses quality for nothing. Fall back to a real
 encoder when the formats genuinely differ.
 
@@ -242,13 +242,13 @@ ffmpeg -i in.mp4 -i new.m4a -map 0:v:0 -map 1:a:0 -c:v copy -shortest -y out.mp4
 `-map` is required; without it ffmpeg's default stream selection picks one stream per
 type from whichever input it prefers and silently ignores the other file.
 
-`-shortest` ends at whichever track runs out first. The alternatives — padding the
-audio or letting video run silent — are both decisions the user should make, so
+`-shortest` ends at whichever track runs out first. The alternatives - padding the
+audio or letting video run silent - are both decisions the user should make, so
 surface it rather than baking it in.
 
 The replacement track arrives as its own upload id; the server resolves it to a path.
 
-### Fit a size — two passes ✅
+### Fit a size - two passes ✅
 
 ```
 ffmpeg -i in.mp4 -c:v libx264 -b:v 1143k -maxrate 1715k -bufsize 2286k \
@@ -282,13 +282,13 @@ length that _would_ have fitted, because "no" on its own is not actionable.
 
 Pass one must be given the same video settings as pass two. It is measuring how
 _this_ encode behaves; different settings would measure a different one. It writes
-nothing — `-f null -` — and `-an` keeps it from spending time on audio it discards.
+nothing - `-f null -` - and `-an` keeps it from spending time on audio it discards.
 
 The presets live in `shared/src/size-presets.ts`, with the date each limit was
 checked and a note saying why that number. They move: Discord's free tier was
 rolling out from 10 MB toward 20 MB through 2026, so Scrub aims at the number that
 works on every account. Gmail's "25 MB" is the _encoded_ size and attachments are
-base64, which adds about a third — the real ceiling for the file is nearer 18 MB.
+base64, which adds about a third - the real ceiling for the file is nearer 18 MB.
 Where a limit is ambiguous the smaller number wins: too small is merely smaller
 than it needed to be, too large is rejected.
 
@@ -299,7 +299,7 @@ ffmpeg -i in.mp4 -vf setpts=PTS/2 -af atempo=2 -c:a aac -b:a 128k \
   -c:v libx264 -crf 20 -preset medium -movflags +faststart -y out.mp4
 ```
 
-`setpts` restamps the frames — dividing the timestamps by two plays it twice as
+`setpts` restamps the frames - dividing the timestamps by two plays it twice as
 fast. The audio needs `atempo`, a different filter taking a different unit, and the
 two have to agree exactly or the result drifts apart as it plays. That is why this
 is one control and not two.
@@ -327,7 +327,7 @@ ffmpeg -i in.mp4 -vf crop=640:360:100:50 -c:v libx264 -crf 20 -preset medium \
 **Every number is rounded down to an even one.** libx264 needs even dimensions, for
 the same reason `-2` exists in resize. The offset matters just as much and is easier
 to miss: in yuv420p the chroma planes are half resolution, so an odd `x` or `y` puts
-them half a pixel out of step with the luma. That does not fail — it produces a
+them half a pixel out of step with the luma. That does not fail - it produces a
 colour fringe along the edges that nobody notices until they look closely.
 
 The rectangle is clamped to the frame. ffmpeg errors outright on a crop that runs
@@ -350,7 +350,7 @@ ffmpeg -i in.wav -c:a libmp3lame -b:a 192k -y out.mp3
 ```
 
 Encoder by target: `libmp3lame` / `aac` / `pcm_s16le` (wav) / `flac` / `libopus`.
-Bitrate is meaningless for `wav` and `flac` — they are uncompressed and lossless
+Bitrate is meaningless for `wav` and `flac` - they are uncompressed and lossless
 respectively, so the control should disappear rather than be ignored.
 
 ### Trim
@@ -359,7 +359,7 @@ Same argument as video trim, minus the keyframe problem. Audio codecs have far
 smaller frames, so `-c copy` is close to sample-accurate and there is no
 fast/precise decision to force on anyone.
 
-### Loudness — two passes, with a data dependency ✅
+### Loudness - two passes, with a data dependency ✅
 
 ```
 pass 1: ffmpeg -i in.wav -af loudnorm=I=-16:TP=-1.5:LRA=11:print_format=json -f null -
@@ -373,12 +373,12 @@ block **on stderr**; the five measured values go into pass 2.
 Pass 2's argv carries them as `@measured_I@`, `@measured_TP@`, `@measured_LRA@`,
 `@measured_thresh@` and `@offset@`, and the server substitutes them once it has
 parsed pass 1. Marking them rather than omitting them keeps the command bar
-honest — it shows that pass 2 depends on pass 1, instead of displaying a command
+honest - it shows that pass 2 depends on pass 1, instead of displaying a command
 that is not the one which runs.
 
 The markers are deliberately invalid ffmpeg syntax. A pass that somehow reached
 `spawn` unsubstituted has to fail loudly, because the alternative is normalising
-against nothing — silently producing the blind, pumping result that two passes
+against nothing - silently producing the blind, pumping result that two passes
 exist to avoid.
 
 Verified end to end: a track at -43.85 LUFS normalised to a -16 target comes out
@@ -390,7 +390,7 @@ Two-pass is a linear gain calculated from real measurements.
 `-f null -` in pass 1 means "decode and measure, write nothing". Note the trailing
 `-`: it is the output path.
 
-Pass 1's `outputDurationSec` is the source duration — it decodes the whole file even
+Pass 1's `outputDurationSec` is the source duration - it decodes the whole file even
 though it writes nothing, so progress is meaningful.
 
 ---
@@ -399,16 +399,16 @@ though it writes nothing, so progress is meaningful.
 
 Not in the closed list, with reasons.
 
-- **Concat** — only trivial with identical codecs, timebases and resolutions. Doing
+- **Concat** - only trivial with identical codecs, timebases and resolutions. Doing
   it properly means either the concat demuxer plus a compatibility check, or
   re-encoding everything through `concat` filter. Both are a second file-management
   UI, which is a different product.
-- **Rotate** — mostly a metadata problem, not a filter problem. Phone video carries a
+- **Rotate** - mostly a metadata problem, not a filter problem. Phone video carries a
   rotation tag and the correct fix is usually to change the tag, not re-encode.
   Getting that wrong produces silently sideways video.
-- **Subtitle burn-in** — needs font resolution, `libass`, and a file picker for the
+- **Subtitle burn-in** - needs font resolution, `libass`, and a file picker for the
   subtitle track. Large surface, narrow audience.
-- **Batch** — the whole UI assumes one loaded file. Batch is a different shape of
+- **Batch** - the whole UI assumes one loaded file. Batch is a different shape of
   application, not a feature.
 
 Anything here, and anything else, is reachable through the editable command bar.

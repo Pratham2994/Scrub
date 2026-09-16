@@ -9,7 +9,7 @@ export type FfmpegTool = {
    *
    * Scrub spawns this, not the bare name. Two reasons: PATH can change under a
    * long-running process, and on Windows Node refuses to spawn a `.bat`/`.cmd`
-   * without `shell: true` (the CVE-2024-27980 hardening) — which we will not do.
+   * without `shell: true` (the CVE-2024-27980 hardening) - which we will not do.
    * Resolving here means a shim-installed ffmpeg fails at boot with a readable
    * message instead of at Run with a bare EINVAL.
    */
@@ -28,7 +28,7 @@ const WINDOWS_EXECUTABLE_EXTENSIONS = ['.exe', '.com'];
 /**
  * PATH lookup without a dependency. Deliberately does not consider `.bat`/`.cmd`:
  * Node cannot spawn those without a shell, so finding one would be worse than not
- * finding it — we would report success and then fail at Run.
+ * finding it - we would report success and then fail at Run.
  */
 function resolveOnPath(binary: string): string | null {
   const override = process.env[`SCRUB_${binary.toUpperCase()}_PATH`];
@@ -62,7 +62,7 @@ function resolveOnPath(binary: string): string | null {
  * winget install: the installer's PATH links exist, but the terminal still
  * holds its pre-install environment. Searching the known install locations
  * directly means Scrub works there instead of telling the user to open a new
- * terminal. Only directories holding real executables are listed — scoop and
+ * terminal. Only directories holding real executables are listed - scoop and
  * chocolatey ship .exe shims, which spawn without a shell just fine.
  */
 function windowsWellKnownDirs(): readonly string[] {
@@ -154,7 +154,7 @@ export function installInstructions(): string {
 
 /**
  * Boot gate. Scrub refuses to start without both binaries, because "nothing happens
- * when I press Run" is a miserable thing to debug an hour later — far worse than a
+ * when I press Run" is a miserable thing to debug an hour later - far worse than a
  * refusal at startup that says exactly what is missing and how to get it.
  */
 export function requireFfmpeg(): FfmpegTools {
@@ -183,7 +183,7 @@ export function requireFfmpeg(): FfmpegTools {
       '  SCRUB_FFMPEG_PATH=/full/path/to/ffmpeg',
       '  SCRUB_FFPROBE_PATH=/full/path/to/ffprobe',
       '',
-      'Note that a .bat or .cmd wrapper will not work — Scrub spawns the executable',
+      'Note that a .bat or .cmd wrapper will not work - Scrub spawns the executable',
       'without a shell on purpose, so it needs the real binary.',
       '',
     ].join('\n'),

@@ -15,7 +15,7 @@ type HandoffProps = {
  *
  * It earns the exception because it is the only point where the screen becomes
  * a different screen. Everything before it is an invitation and everything
- * after it is work, and without a transition the swap reads as a page load —
+ * after it is work, and without a transition the swap reads as a page load -
  * which is exactly the confusion the upload states were added to fix. A file
  * arriving should look like it arrived *here*.
  *

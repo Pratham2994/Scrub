@@ -4,7 +4,7 @@ import { buildArgs, type CommandIo, type ProbeResult } from '@scrub/shared';
  * The dimmed command on the empty state.
  *
  * Built by calling the real `buildArgs` rather than typing a plausible-looking
- * string, so the first thing a user sees is genuinely what Scrub produces — and so
+ * string, so the first thing a user sees is genuinely what Scrub produces - and so
  * the shared package is proven to be wired into the client at render time.
  */
 const sampleMeta: ProbeResult = {

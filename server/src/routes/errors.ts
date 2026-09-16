@@ -1,7 +1,7 @@
 import type { Response } from 'express';
 
 /**
- * Errors are values on the server boundary — nothing throws across an HTTP or SSE
+ * Errors are values on the server boundary - nothing throws across an HTTP or SSE
  * response. One shape, so the client has one thing to render.
  */
 export type ApiError = {

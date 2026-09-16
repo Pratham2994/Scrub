@@ -62,7 +62,7 @@ describe('parseCommandLine', () => {
   });
 });
 
-describe('lintCommand — structure', () => {
+describe('lintCommand - structure', () => {
   it('accepts the command Scrub itself generates', () => {
     const clean = lint(
       'ffmpeg -hide_banner -nostdin -nostats -progress pipe:1 -ss 0 -i /work/.tmp/holiday-8f3a4c19.mp4 -t 6 -c copy -avoid_negative_ts make_zero -y /work/.tmp/out.mp4',
@@ -128,7 +128,7 @@ describe('lintCommand — structure', () => {
   });
 });
 
-describe('lintCommand — the traps from OPERATIONS.md', () => {
+describe('lintCommand - the traps from OPERATIONS.md', () => {
   it('rejects filtering while stream-copying', () => {
     expect(
       has('ffmpeg -i a.mp4 -vf scale=640:-2 -c copy -y out.mp4', 'cannot run with "copy"'),
@@ -180,7 +180,7 @@ describe('lintCommand — the traps from OPERATIONS.md', () => {
   });
 });
 
-describe('lintCommand — leaving the workspace', () => {
+describe('lintCommand - leaving the workspace', () => {
   it('warns when the input is not the loaded file', () => {
     const found = lint('ffmpeg -i /etc/passwd -y out.mp4').find((d) =>
       d.message.includes('not the file Scrub has loaded'),
@@ -199,7 +199,7 @@ describe('lintCommand — leaving the workspace', () => {
   });
 });
 
-describe('lintCommand — severity ordering', () => {
+describe('lintCommand - severity ordering', () => {
   it('reports a broken command as errors, not suggestions', () => {
     expect(messages('ffmpeg -vf scale=640:-1')).toEqual(
       expect.arrayContaining([expect.stringMatching(/^error: No input/)]),

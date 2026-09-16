@@ -10,7 +10,7 @@ import { useScrubStore } from '@/store/use-scrub-store';
  *
  * Two range inputs stacked over one track make the handles: it is not the
  * filmstrip scrubber yet, but it is a real two-handed range over the real
- * duration, and it is keyboard-operable for free — which matters, because
+ * duration, and it is keyboard-operable for free - which matters, because
  * landing on an exact frame with a mouse is the thing Scrub exists to make less
  * painful.
  */
@@ -118,7 +118,7 @@ function TimecodeField({
    * Follow the store, but never while the field has focus.
    *
    * This used to be `key={seconds}`, which tore the input out of the DOM and
-   * rebuilt it on every store update — once per pointer move while a handle was
+   * rebuilt it on every store update - once per pointer move while a handle was
    * being dragged, and mid-word if the value changed while someone was typing.
    */
   useEffect(() => {
@@ -183,7 +183,7 @@ function ModeOption({
   );
 }
 
-/** Accepts `HH:MM:SS.mm`, `MM:SS`, or plain seconds — whatever the user types. */
+/** Accepts `HH:MM:SS.mm`, `MM:SS`, or plain seconds - whatever the user types. */
 export function parseTimecode(input: string): number | null {
   const trimmed = input.trim();
   if (trimmed === '') return null;

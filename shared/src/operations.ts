@@ -22,7 +22,7 @@ export type VideoTrim = {
 
 export type VideoCompress = {
   readonly kind: 'compress';
-  /** Constant Rate Factor. Lower is bigger and better; 18–28 is the useful band. */
+  /** Constant Rate Factor. Lower is bigger and better; 18-28 is the useful band. */
   readonly crf: number;
   readonly preset: 'ultrafast' | 'veryfast' | 'fast' | 'medium' | 'slow' | 'veryslow';
 };

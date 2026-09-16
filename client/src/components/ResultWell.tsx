@@ -43,7 +43,7 @@ export function ResultWell({
   /**
    * Extract audio and the audio operations produce a file with no picture. Put
    * one in a `<video>` sized for a frame and you get a tall black rectangle with
-   * a control bar marooned in the middle of it — which is what this did, and it
+   * a control bar marooned in the middle of it - which is what this did, and it
    * ran straight over the format cards underneath.
    */
   const isAudio = /\.(mp3|m4a|aac|wav|flac|opus|ogg)$/i.test(outputName);
@@ -69,7 +69,7 @@ export function ResultWell({
 
   /**
    * Re-check on the way back to the tab. The media element reports a file that
-   * was already gone when it loaded, but not one that disappeared afterwards —
+   * was already gone when it loaded, but not one that disappeared afterwards -
    * and "left it open and came back later" is exactly how the TTL catches
    * someone.
    */

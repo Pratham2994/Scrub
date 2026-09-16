@@ -8,7 +8,7 @@ import type { ApiError } from './errors.js';
  * `dotfiles: 'allow'` is required, not optional.
  *
  * Scrub's working directory is `.tmp`, and Express's `send` refuses any path
- * containing a dot-segment by default — it answers "Not Found" for a file that
+ * containing a dot-segment by default - it answers "Not Found" for a file that
  * is plainly there. Without this every preview and every download fails.
  *
  * It is not a traversal risk: the path comes from the store, keyed by a uuid the
@@ -29,7 +29,7 @@ export function downloadRouter(): Router {
    * The file behind a `<video src>`.
    *
    * `res.sendFile` handles Range requests, which a video element depends on for
-   * seeking — without byte ranges the browser has to fetch the whole file before
+   * seeking - without byte ranges the browser has to fetch the whole file before
    * it can jump anywhere.
    */
   router.get('/source/:id', (req, res) => {

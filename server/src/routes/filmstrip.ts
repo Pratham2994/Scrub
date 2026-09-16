@@ -7,7 +7,7 @@ import { idParamsSchema } from '../schemas.js';
 import { getFile } from '../store.js';
 import type { ApiError } from './errors.js';
 
-/** `dotfiles: 'allow'` — the working directory is `.tmp`; see download.ts. */
+/** `dotfiles: 'allow'` - the working directory is `.tmp`; see download.ts. */
 const SEND_OPTIONS = { dotfiles: 'allow' } as const;
 
 export function filmstripRouter(tools: FfmpegTools): Router {
@@ -54,7 +54,7 @@ export function filmstripRouter(tools: FfmpegTools): Router {
       try {
         const strip = await filmstripFor(tools.ffmpeg, params.data.id, file.path, durationSec);
         // The strip is derived from an immutable upload, so it can be cached
-        // hard — the id changes whenever the file does.
+        // hard - the id changes whenever the file does.
         res.setHeader('Cache-Control', 'private, max-age=86400, immutable');
         res.setHeader('X-Frame-Count', String(FRAME_COUNT));
         res.sendFile(strip, SEND_OPTIONS, (error) => {

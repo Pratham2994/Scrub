@@ -6,8 +6,8 @@
  * store would re-render the workspace sixty times a second to move one line.
  * Subscribers get the time and write it straight to a DOM node instead.
  *
- * `timeupdate` is not enough on its own — browsers fire it about four times a
- * second, which is visibly steppy — so this drives an animation frame loop while
+ * `timeupdate` is not enough on its own - browsers fire it about four times a
+ * second, which is visibly steppy - so this drives an animation frame loop while
  * something is actually listening and the video is actually playing.
  */
 

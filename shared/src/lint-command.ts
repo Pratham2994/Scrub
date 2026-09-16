@@ -1,7 +1,7 @@
 /**
  * Diagnostics for a hand-edited ffmpeg command.
  *
- * The command bar is editable because the operation list is closed — anything
+ * The command bar is editable because the operation list is closed - anything
  * Scrub does not offer is done by typing. But ffmpeg's failure modes are mostly
  * silent or cryptic: `-1` in a scale filter fails the encode with a codec error
  * that says nothing about the `-1`, and a single-pass GIF succeeds while looking
@@ -108,7 +108,7 @@ const PRESETS = new Set([
   'placebo',
 ]);
 
-/** Levenshtein, capped — only used to suggest a flag the user probably meant. */
+/** Levenshtein, capped - only used to suggest a flag the user probably meant. */
 function editDistance(a: string, b: string): number {
   const rows = a.length + 1;
   const cols = b.length + 1;
@@ -246,7 +246,7 @@ export function lintCommand(argv: readonly string[], context: LintContext): read
     const index = flagIndex.get('-c') ?? flagIndex.get('-c:v') ?? flagIndex.get('-vcodec') ?? null;
     add(
       'error',
-      'A video filter cannot run with "copy" — copying passes packets through without decoding them. Pick an encoder such as libx264.',
+      'A video filter cannot run with "copy" - copying passes packets through without decoding them. Pick an encoder such as libx264.',
       index,
       null,
     );
@@ -285,7 +285,7 @@ export function lintCommand(argv: readonly string[], context: LintContext): read
   if (preset !== undefined && !PRESETS.has(preset)) {
     add(
       'warning',
-      `"${preset}" is not an x264 preset. They run ultrafast through veryslow, and trade encode time for file size — not quality.`,
+      `"${preset}" is not an x264 preset. They run ultrafast through veryslow, and trade encode time for file size - not quality.`,
       (flagIndex.get('-preset') ?? 0) + 1,
     );
   }

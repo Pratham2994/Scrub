@@ -29,7 +29,7 @@ const io: CommandIo = {
   workDir: '/work/.tmp',
 };
 
-describe('buildArgs — fast trim', () => {
+describe('buildArgs - fast trim', () => {
   // This snapshot is the contract. Both the command bar and spawn() consume this
   // array, so a diff here is a change to what Scrub actually executes, never a
   // cosmetic one. Update it deliberately or not at all.
@@ -119,7 +119,7 @@ describe('buildArgs — fast trim', () => {
   });
 });
 
-describe('buildArgs — precise trim', () => {
+describe('buildArgs - precise trim', () => {
   const op: Operation = { kind: 'trim', startSec: 12.4, endSec: 48.1, mode: 'precise' };
 
   it('produces the exact argv that will be spawned', () => {

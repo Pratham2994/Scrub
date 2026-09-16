@@ -6,7 +6,7 @@ import { operationSuffix, outputExtension, outputNameFor, outputPathFor } from '
 /**
  * One source for the whole table, so the extension column shows which
  * operations change the container and which keep the source's. The audio
- * operations keep it, which is why audio-trim comes out .mp4 here — on a real
+ * operations keep it, which is why audio-trim comes out .mp4 here - on a real
  * audio file it would be that file's container, and availability never offers
  * audio-trim on a video in the first place.
  */
@@ -64,7 +64,7 @@ describe('what the output file is called', () => {
   /**
    * The bug this module was written for. ffmpeg chooses its muxer from the
    * extension, so a preview that said `.mp4` for a WebM convert was telling the
-   * user that copying the command would give them VP9 and Opus inside an MP4 —
+   * user that copying the command would give them VP9 and Opus inside an MP4 -
    * a different file from the one Scrub had just written.
    */
   it('gives the container the operation actually produces', () => {

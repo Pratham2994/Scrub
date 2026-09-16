@@ -22,7 +22,7 @@ import { formatSeconds } from './time.js';
 
 /**
  * Tokens ffmpeg needs in order to talk to Scrub, as opposed to tokens that do the
- * user's work. They are part of `argv` — CLAUDE.md's first non-negotiable says the
+ * user's work. They are part of `argv` - CLAUDE.md's first non-negotiable says the
  * displayed command and the executed command are the same array, and a prefix the
  * server appended behind the preview's back would break that. They are exported so
  * the command bar can render them dimmed and so "copy without them" stays a single
@@ -69,7 +69,7 @@ export type CommandPlan = {
 
 /**
  * Real filesystem paths. These land in `argv` verbatim, so what the command bar
- * shows is what runs — the bar shortens them to basenames for reading, but the
+ * shows is what runs - the bar shortens them to basenames for reading, but the
  * copy button and `spawn` both take this array untouched.
  */
 export type CommandIo = {
@@ -146,7 +146,7 @@ export function buildArgs(op: Operation, meta: ProbeResult, io: CommandIo): Comm
  * decoding up to the mark. That is the whole point of the fast path, and it is also
  * its cost: with `-c copy` the cut can only land on a keyframe, so the clip may
  * begin slightly earlier than asked and run slightly long. The UI has to say that
- * out loud — users read "Fast" as "less accurate", not as "possibly longer".
+ * out loud - users read "Fast" as "less accurate", not as "possibly longer".
  *
  * `-t` rather than `-to`: `-t` is unambiguously the duration of the output, while
  * `-to` after an input-side `-ss` is the exact combination whose meaning people
@@ -195,11 +195,11 @@ function buildTrim(
   /**
    * Precise trim: `-ss` *after* `-i` is an output option, so ffmpeg decodes up to
    * the mark and starts the output exactly there. Frame-accurate, and necessarily
-   * a re-encode — there is no way to begin a stream copy mid-GOP.
+   * a re-encode - there is no way to begin a stream copy mid-GOP.
    *
    * CRF 18 because this is a cut, not a compression: the user asked for a
    * different length, not a smaller file, so the re-encode should cost as little
-   * quality as it reasonably can. `veryfast` for the same reason — the point is
+   * quality as it reasonably can. `veryfast` for the same reason - the point is
    * to get the cut, not to squeeze the last few percent of file size.
    *
    * Audio is still copied. Only the video needed cutting accurately, and

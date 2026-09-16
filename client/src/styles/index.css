@@ -26,7 +26,7 @@
   /* A cool violet-cast grey, light enough to feel like the original paper but
      with a hue, so it never reads as white and never reads as muddy grey. The
      violet sits one step from the indigo accent, which is what makes the chrome
-     feel like one palette instead of a default. Surfaces stay #FFFFFF — white
+     feel like one palette instead of a default. Surfaces stay #FFFFFF - white
      belongs to panels, not to the app. */
   --color-paper: #eaecf5;
   --color-surface: #ffffff;
@@ -43,7 +43,7 @@
   --color-muted: #5e646e;
   --color-well: #0e1013;
   --color-accent: #3a4fe0;
-  /* Text on the accent. White in light mode, dark in dark mode — the accent
+  /* Text on the accent. White in light mode, dark in dark mode - the accent
      lifts on a dark ground and white would fall to 2.7:1 against it. */
   --color-on-accent: #ffffff;
   /* The well needs no edge on light paper; in dark mode it earns one. */
@@ -57,7 +57,7 @@
   --color-token-value: #e8a33d;
   --color-token-path: #7fd1a8;
   /* Flags ffmpeg needs to talk to Scrub rather than to do the user's work.
-     Dimmed, but still 4.58:1 on --well — it is readable text, not decoration. */
+     Dimmed, but still 4.58:1 on --well - it is readable text, not decoration. */
   --color-token-transport: #757d89;
 
   --font-sans: 'Switzer', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -128,7 +128,7 @@
 
    Dark is not that argument inverted. The rule "the dark is where the picture is"
    still has to hold, so the well stays the *darkest* surface on screen and the
-   chrome sits above it — cool grey-black that leans violet like the light paper,
+   chrome sits above it - cool grey-black that leans violet like the light paper,
    never pure #000. Panels get lighter than the page here, the reverse of light
    mode, because on a dark ground raised things read as nearer.
 
@@ -152,7 +152,7 @@
     --color-well: #0b0d11;
     /* Two dark surfaces cannot separate by luminance the way near-white paper
        did (16:1 in light, 1.3:1 here), so the well earns its edge with a
-       hairline instead — the same way DESIGN.md separates everything else. */
+       hairline instead - the same way DESIGN.md separates everything else. */
     --color-well-edge: #3a3f4f;
     /* #3A4FE0 is a light-mode accent; on a dark ground it reads as a hole.
        Lifted to stay recognisably the same indigo while clearing AA on paper. */
@@ -177,7 +177,7 @@
       --color-well: #0b0d11;
       /* Two dark surfaces cannot separate by luminance the way near-white paper
          did (16:1 in light, 1.3:1 here), so the well earns its edge with a
-         hairline instead — the same way DESIGN.md separates everything else. */
+         hairline instead - the same way DESIGN.md separates everything else. */
       --color-well-edge: #3a3f4f;
       /* #3A4FE0 is a light-mode accent; on a dark ground it reads as a hole.
          Lifted to stay recognisably the same indigo while clearing AA on paper. */
@@ -229,7 +229,7 @@
 
   /* Reduced motion drops to opacity-only rather than to nothing.
      `[data-motion='opacity']` marks the handful of animations that never move
-     anything — they are the ones worth keeping, because a change with no
+     anything - they are the ones worth keeping, because a change with no
      transition at all leaves no evidence of what replaced what. */
   @media (prefers-reduced-motion: reduce) {
     *:not([data-motion='opacity']),
@@ -248,7 +248,7 @@
  *
  * Moving one control rewrites one or two arguments out of twenty, and without
  * this there is nothing connecting the control you just touched to the flag it
- * governs — the command simply looks slightly different than it did. Only the
+ * governs - the command simply looks slightly different than it did. Only the
  * spans that actually changed re-mount, so only those run this.
  *
  * Opacity-only, so it survives reduced motion by construction.
@@ -271,7 +271,7 @@
  * starts again; it never suggests a position, because there is none to suggest.
  *
  * Reduced motion keeps the fade and drops the travel, which still reads as
- * working — see the opacity-only exemption above.
+ * working - see the opacity-only exemption above.
  */
 @keyframes scrub-pass-working {
   0% {

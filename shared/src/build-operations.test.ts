@@ -57,7 +57,7 @@ const ALL: readonly Operation[] = [
   { kind: 'loudness', targetI: -16, targetTP: -1.5, targetLRA: 11 },
 ];
 
-describe('buildArgs — every operation', () => {
+describe('buildArgs - every operation', () => {
   it('covers the whole rail, so a new operation cannot ship without argv', () => {
     expect(new Set(ALL.map((op) => op.kind))).toEqual(new Set(OPERATIONS.map((op) => op.kind)));
   });
@@ -263,7 +263,7 @@ describe('loudness pass two declares what pass one must give it', () => {
 
   /**
    * The placeholder has to be invalid ffmpeg. If an unsubstituted pass ever
-   * reached spawn, it must fail loudly rather than normalise against nothing —
+   * reached spawn, it must fail loudly rather than normalise against nothing -
    * which is exactly the silent, pumping result two passes exist to avoid.
    */
   it('uses a marker ffmpeg cannot mistake for a value', () => {

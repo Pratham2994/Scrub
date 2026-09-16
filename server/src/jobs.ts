@@ -21,6 +21,14 @@ export type JobEvent =
        * is working rather than showing a number that is not moving.
        */
       readonly determinate: boolean;
+      /**
+       * Milliseconds left, or null when it cannot be known.
+       *
+       * Worked out from ffmpeg's own `speed` against how much of the output is
+       * still to write, plus the passes that have not started. Null before
+       * ffmpeg has reported a speed, and for a pass with no measurable output.
+       */
+      readonly etaMs: number | null;
       readonly passIndex: number;
       readonly passCount: number;
       readonly passLabel: string;
@@ -64,11 +72,15 @@ type Subscriber = (event: JobEvent) => void;
 
 type Job = {
   readonly id: string;
+  /** What this job is, in the user's words. Needed to rebuild the queue. */
+  readonly title: string;
+  readonly kind: string | null;
+  readonly startedAt: number;
   status: 'running' | 'done' | 'failed' | 'cancelled';
   /**
    * Replayed to a subscriber that attaches late. POST /run and the EventSource
    * that follows it are two round trips, and a short encode can finish inside
-   * that gap — without replay the UI would wait forever for an event that has
+   * that gap - without replay the UI would wait forever for an event that has
    * already been and gone.
    */
   history: JobEvent[];
@@ -78,6 +90,27 @@ type Job = {
 };
 
 const jobs = new Map<string, Job>();
+
+/**
+ * How many finished jobs are kept, and for how long.
+ *
+ * The map used to grow for the life of the process, which is a slow leak and,
+ * once the queue could be rebuilt after a reload, something the user could see:
+ * an afternoon of work meant every refresh brought back a wall of chips for
+ * encodes that finished hours ago. Anything still running is always kept.
+ */
+const KEEP_FINISHED = 8;
+const KEEP_FINISHED_MS = 30 * 60_000;
+
+function pruneFinished(now: number): void {
+  const finished = [...jobs.values()]
+    .filter((job) => job.status !== 'running')
+    .sort((a, b) => b.startedAt - a.startedAt);
+
+  for (const [index, job] of finished.entries()) {
+    if (index >= KEEP_FINISHED || now - job.startedAt > KEEP_FINISHED_MS) jobs.delete(job.id);
+  }
+}
 
 export function getJob(id: string): Job | null {
   return jobs.get(id) ?? null;
@@ -132,6 +165,10 @@ export type StartJobOptions = {
   readonly plan: CommandPlan;
   readonly outputPath: string;
   readonly outputName: string;
+  /** "Compress · holiday.mp4". The queue is rebuilt from this after a reload. */
+  readonly title: string;
+  /** The operation's slug, or null for a hand-edited command. */
+  readonly kind: string | null;
 };
 
 /**
@@ -170,6 +207,9 @@ export function startJob(options: StartJobOptions): string {
   const id = randomUUID();
   const job: Job = {
     id,
+    title: options.title,
+    kind: options.kind,
+    startedAt: Date.now(),
     status: 'running',
     history: [],
     subscribers: new Set(),
@@ -177,6 +217,7 @@ export function startJob(options: StartJobOptions): string {
     cancelled: false,
   };
   jobs.set(id, job);
+  pruneFinished(Date.now());
   waiting.push({ job, options });
 
   /**
@@ -199,7 +240,7 @@ export function startJob(options: StartJobOptions): string {
  * ffmpeg emits a progress block far more often than a person can read one, and
  * every one of them crosses the SSE stream and re-renders the client. Ten a
  * second is already smoother than the eye resolves; the rest is just work.
- * The final frame of each pass is never dropped — see below.
+ * The final frame of each pass is never dropped - see below.
  */
 const PROGRESS_INTERVAL_MS = 100;
 
@@ -229,11 +270,21 @@ async function runPasses(job: Job, options: StartJobOptions): Promise<void> {
        * is close enough that weighting them would be machinery for a couple of
        * percent.
        */
-      const report = (fraction: number, determinate: boolean): void => {
+      const report = (
+        fraction: number,
+        determinate: boolean,
+        speed: number | null = null,
+      ): void => {
         emit(job, {
           type: 'progress',
           progress: (index + fraction) / passes.length,
           determinate,
+          etaMs: estimateRemainingMs(
+            pass.outputDurationSec,
+            fraction,
+            speed,
+            passes.length - index,
+          ),
           passIndex: index,
           passCount: passes.length,
           passLabel: pass.label,
@@ -246,7 +297,7 @@ async function runPasses(job: Job, options: StartJobOptions): Promise<void> {
       /**
        * A pass that cannot report still has to look alive.
        *
-       * Without this the bar froze for the whole of GIF's palette pass — no
+       * Without this the bar froze for the whole of GIF's palette pass - no
        * percentage, no label, no elapsed time, on roughly half the job. A
        * stopped timer on a working encode reads as a hang, and the first thing
        * anyone does about a hang is kill it.
@@ -265,13 +316,13 @@ async function runPasses(job: Job, options: StartJobOptions): Promise<void> {
           job,
           options.ffmpeg,
           argv,
-          (fraction) => {
+          (fraction, speed) => {
             const now = Date.now();
             // Always let a completed pass through, so the bar never stalls at 97%
             // because the last update happened to arrive inside the window.
             if (fraction < 1 && now - lastEmit < PROGRESS_INTERVAL_MS) return;
             lastEmit = now;
-            report(fraction, true);
+            report(fraction, true, speed);
           },
           pass.outputDurationSec,
         );
@@ -353,7 +404,7 @@ async function runPasses(job: Job, options: StartJobOptions): Promise<void> {
   } finally {
     job.subscribers.clear();
     // Keep the record around briefly so a reconnecting client can still read the
-    // outcome, then let it go — this map is the only thing holding it.
+    // outcome, then let it go - this map is the only thing holding it.
     setTimeout(() => jobs.delete(job.id), 60_000).unref();
   }
 }
@@ -376,7 +427,7 @@ function runPass(
   job: Job,
   ffmpeg: FfmpegTool,
   argv: readonly string[],
-  onProgress: (fraction: number) => void,
+  onProgress: (fraction: number, speed: number | null) => void,
   outputDurationSec: number | null,
 ): Promise<PassResult> {
   return new Promise((resolve, reject) => {
@@ -388,16 +439,23 @@ function runPass(
     let stderr = '';
     let stdoutBuffer = '';
 
+    // ffmpeg writes `speed` after `out_time` within a block, so the figure used
+    // for an estimate is at most one block old. That is a tenth of a second.
+    let speed: number | null = null;
+
     child.stdout.on('data', (chunk: Buffer) => {
       stdoutBuffer += chunk.toString();
       // -progress emits whole lines; the last fragment may be partial.
       const lines = stdoutBuffer.split('\n');
       stdoutBuffer = lines.pop() ?? '';
       for (const line of lines) {
+        const reported = parseSpeed(line);
+        if (reported !== null) speed = reported;
+
         const microseconds = parseOutTime(line);
         if (microseconds === null || outputDurationSec === null || outputDurationSec <= 0) continue;
         const fraction = microseconds / 1_000_000 / outputDurationSec;
-        onProgress(Math.min(1, Math.max(0, fraction)));
+        onProgress(Math.min(1, Math.max(0, fraction)), speed);
       }
     });
 
@@ -419,7 +477,7 @@ function runPass(
  * `out_time_us=12400000` -> 12400000.
  *
  * Deliberately not `out_time_ms`, which ffmpeg has long reported in microseconds
- * despite its name — reading it as milliseconds makes every encode look 1000x
+ * despite its name - reading it as milliseconds makes every encode look 1000x
  * further along than it is.
  */
 function parseOutTime(line: string): number | null {
@@ -429,6 +487,51 @@ function parseOutTime(line: string): number | null {
   return Number.isFinite(value) && value >= 0 ? value : null;
 }
 
+/**
+ * `speed=0.805x` -> 0.805. `N/A` before the encode settles, and at the very end.
+ *
+ * ffmpeg's own ratio of encoded time to real time, which is what makes a
+ * time-remaining figure arithmetic rather than a guess.
+ */
+function parseSpeed(line: string): number | null {
+  const trimmed = line.trim();
+  if (!trimmed.startsWith('speed=')) return null;
+  const value = Number.parseFloat(trimmed.slice('speed='.length));
+  return Number.isFinite(value) && value > 0 ? value : null;
+}
+
+/**
+ * How much longer, in milliseconds. Exported for the tests.
+ *
+ * What is left of this pass, plus the passes not started yet, over how fast it
+ * is actually going. Passes after this one are assumed to take as long as a
+ * whole one at the current speed: right for GIF, whose two passes measure at
+ * 47/53, and close enough for loudness at 42/58.
+ */
+export function estimateRemainingMs(
+  outputDurationSec: number | null,
+  fraction: number,
+  speed: number | null,
+  passesLeft: number,
+): number | null {
+  if (speed === null || speed <= 0) return null;
+  if (outputDurationSec === null || outputDurationSec <= 0) return null;
+  /**
+   * Nothing until a tenth of the pass is done.
+   *
+   * ffmpeg's `speed` is a cumulative average, so the first readings carry the
+   * cost of starting the process and opening the file and are wildly
+   * pessimistic: measured at 3% into a 60s encode it said 3m 42s for something
+   * that finished in 20s. A figure that drops by a factor of ten while you
+   * watch it is worse than no figure, because it teaches you not to trust the
+   * next one either.
+   */
+  if (fraction < 0.1) return null;
+  const thisPass = outputDurationSec * (1 - fraction);
+  const later = outputDurationSec * (passesLeft - 1);
+  return Math.round(((thisPass + later) / speed) * 1000);
+}
+
 function lastLines(text: string, count: number): readonly string[] {
   return text
     .trimEnd()
@@ -436,4 +539,37 @@ function lastLines(text: string, count: number): readonly string[] {
     .map((line) => line.trimEnd())
     .filter((line) => line !== '')
     .slice(-count);
+}
+
+/**
+ * Everything the client needs to rebuild its queue after a reload.
+ *
+ * Jobs live on the server and keep running whatever the browser does, so a
+ * refresh mid-encode used to lose sight of work that was still going: the file
+ * would appear in the working folder later with nothing having said so. The
+ * last progress event is replayed out of each job's own history rather than
+ * being tracked separately, so there is one source for it.
+ */
+export type JobSnapshot = {
+  readonly jobId: string;
+  readonly title: string;
+  readonly kind: string | null;
+  readonly status: Job['status'];
+  readonly startedAt: number;
+  readonly last: JobEvent | null;
+};
+
+export function listJobs(): readonly JobSnapshot[] {
+  pruneFinished(Date.now());
+  return [...jobs.values()]
+    .sort((a, b) => a.startedAt - b.startedAt)
+    .map((job) => ({
+      jobId: job.id,
+      title: job.title,
+      kind: job.kind,
+      status: job.status,
+      startedAt: job.startedAt,
+      // The terminal event if there is one, otherwise the latest progress.
+      last: job.history[job.history.length - 1] ?? null,
+    }));
 }

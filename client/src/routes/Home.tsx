@@ -13,7 +13,7 @@ import { useScrubStore } from '@/store/use-scrub-store';
  * It has four states, and the one that used to be missing is the important one:
  * after an upload succeeds the file is loaded, and this has to *show* that.
  * Falling back to the dropzone meant the only evidence anything had happened was
- * the file name in the header — so the app looked like it had ignored you.
+ * the file name in the header - so the app looked like it had ignored you.
  */
 export function Home() {
   const meta = useScrubStore((state) => state.meta);
@@ -38,7 +38,7 @@ export function Home() {
 /**
  * The file is in. Show it, then answer the only question left: what now.
  *
- * The rail already lists everything, so this is not a second menu — it is the
+ * The rail already lists everything, so this is not a second menu - it is the
  * four operations people reach for most, sitting where the eye already is after
  * watching the upload finish.
  */

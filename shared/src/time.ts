@@ -20,7 +20,7 @@ export function formatSeconds(seconds: number): string {
   return rounded.toFixed(3).replace(/\.?0+$/, '');
 }
 
-/** `HH:MM:SS.mm` for timecode readouts. Display only — never an ffmpeg argument. */
+/** `HH:MM:SS.mm` for timecode readouts. Display only - never an ffmpeg argument. */
 export function formatTimecode(seconds: number): string {
   const clamped = Math.max(0, seconds);
   const hours = Math.floor(clamped / 3600);

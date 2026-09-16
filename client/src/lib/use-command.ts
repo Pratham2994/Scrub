@@ -28,7 +28,7 @@ export type LiveCommand = {
   readonly argv: readonly string[];
   /**
    * Every pass in the plan. GIF and loudness genuinely run two commands, and
-   * showing only the first would be showing half of what happens — which is the
+   * showing only the first would be showing half of what happens - which is the
    * one thing the command bar must never do.
    */
   readonly passes: readonly CommandPassView[];
@@ -66,7 +66,7 @@ export function useCommand(kind: OperationKind | null): LiveCommand {
     if (!kind) {
       // A file is loaded but no operation is chosen yet. Showing the example
       // about someone else's holiday clip here is the one moment it actively
-      // misleads — the user has just uploaded and is looking for proof it
+      // misleads - the user has just uploaded and is looking for proof it
       // worked. Their own file, dimmed, says so.
       const argv = skeletonArgv(meta.path, skeletonPath(meta.path, 'convert'));
       return {
@@ -80,7 +80,7 @@ export function useCommand(kind: OperationKind | null): LiveCommand {
 
     const op = operationFor(kind, trim, params, meta);
     if (!op) {
-      // The operation has no argv yet, but a file *is* loaded — so rather than a
+      // The operation has no argv yet, but a file *is* loaded - so rather than a
       // dimmed example about someone else's file, show a real skeleton against
       // this one. It is the starting point for the editable command bar, which is
       // how anything outside the closed operation list gets done.
@@ -98,7 +98,7 @@ export function useCommand(kind: OperationKind | null): LiveCommand {
       const plan = buildArgs(op, meta, {
         inputPath: meta.path,
         // The same call the server makes, so the path in the bar is the path
-        // ffmpeg is given — extension included, which is how ffmpeg picks its
+        // ffmpeg is given - extension included, which is how ffmpeg picks its
         // muxer. These were computed separately once and disagreed: converting
         // to WebM previewed as .mp4 and wrote .webm.
         outputPath: outputPathFor(meta.path, op),
@@ -144,7 +144,7 @@ export function useCommand(kind: OperationKind | null): LiveCommand {
  * The operation the current controls describe.
  *
  * Everything reads from the store, so moving any control rewrites the command in
- * the bar immediately — and the object built here is the exact one posted to
+ * the bar immediately - and the object built here is the exact one posted to
  * /run, where the server rebuilds the argv from it with the same function.
  */
 function operationFor(
@@ -214,7 +214,7 @@ function operationFor(
  * The store holds it as fractions of the frame so that dragging it over a
  * preview means the same thing whatever size the window is. This is the one
  * place that turns into pixels, against the dimensions ffprobe actually
- * reported — and `buildCrop` evens every number afterwards, because libx264
+ * reported - and `buildCrop` evens every number afterwards, because libx264
  * needs even dimensions and an odd offset smears the chroma.
  */
 function cropOperation(params: OperationParams, meta: ProbeResult): Operation | null {
@@ -232,7 +232,7 @@ function cropOperation(params: OperationParams, meta: ProbeResult): Operation | 
 
 /**
  * A minimal but genuinely runnable command: copy the file. It does nothing
- * interesting on its own, which is the point — it is a correct starting line for
+ * interesting on its own, which is the point - it is a correct starting line for
  * an operation Scrub does not generate yet, with the real paths already in place.
  */
 function skeletonArgv(inputPath: string, outputPath: string): readonly string[] {

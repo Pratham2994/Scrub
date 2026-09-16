@@ -13,9 +13,9 @@ Not a wrapper that exposes ffmpeg's flags. If the user has to know ffmpeg to use
 
 ## Stack
 
-- **Client** — Vite, React 19, TypeScript, Tailwind v4, shadcn/ui, Motion, Zustand, Wavesurfer.js
-- **Server** — Node 22, Express 5, TypeScript, multer, zod, SSE for progress
-- **Test** — Vitest on `buildArgs`, Playwright for end-to-end flows
+- **Client** - Vite, React 19, TypeScript, Tailwind v4, shadcn/ui, Motion, Zustand, Wavesurfer.js
+- **Server** - Node 22, Express 5, TypeScript, multer, zod, SSE for progress
+- **Test** - Vitest on `buildArgs`, Playwright for end-to-end flows
 - npm workspaces, `npm run dev` starts both
 
 Deliberately not used: `fluent-ffmpeg` (it hides the command, which is the feature), three.js, any state library heavier than Zustand, Python.
@@ -25,7 +25,7 @@ Deliberately not used: `fluent-ffmpeg` (it hides the command, which is the featu
 Video: trim (fast/precise), compress, fit a size, convert, resize, crop, speed, GIF, extract audio, mute, replace audio.
 Audio: convert, trim, normalise loudness.
 
-The list is closed, and closed does not mean frozen — it means it grows only for something people already do, never to expose more of ffmpeg. Fit a size, speed and crop were added because "get this under 10 MB" is the most common video request there is and compress could not answer it, and because speed and crop sit in the same everyday category as trim and resize. A tenth checkbox inside an operation is still the failure mode.
+The list is closed, and closed does not mean frozen - it means it grows only for something people already do, never to expose more of ffmpeg. Fit a size, speed and crop were added because "get this under 10 MB" is the most common video request there is and compress could not answer it, and because speed and crop sit in the same everyday category as trim and resize. A tenth checkbox inside an operation is still the failure mode.
 
 Details, exact commands, and the traps in each live in `docs/OPERATIONS.md`. Read that before touching `buildArgs`.
 
@@ -34,7 +34,7 @@ Deferred with reasons in that file: concat, rotate, subtitle burn-in, batch.
 ## Architecture
 
 ```
-client/   React SPA. One workspace, not multiple pages — the loaded file is
+client/   React SPA. One workspace, not multiple pages - the loaded file is
           the state. Routes are /op/:name for deep-linking, but it is one
           layout with a swapping centre panel.
 

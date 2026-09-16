@@ -11,6 +11,7 @@ import { SettingsPanel } from '@/components/SettingsPanel';
 import { useCommand } from '@/lib/use-command';
 import { useRun } from '@/lib/use-run';
 import { useShortcuts } from '@/lib/use-shortcuts';
+import { useRestoreJobs } from '@/lib/use-restore-jobs';
 import { useRestoreUpload } from '@/lib/use-upload';
 import { useScrubStore } from '@/store/use-scrub-store';
 
@@ -34,7 +35,7 @@ function formatBytes(bytes: number): string {
 
 /**
  * One workspace: header, rail, centre, command bar. Routes swap the centre panel
- * only — the loaded file is the state, not the page.
+ * only - the loaded file is the state, not the page.
  *
  * Rows are `auto / minmax(0, 1fr) / auto` so the centre is the only thing that
  * scrolls and the command bar is on screen from the first second, including on the
@@ -57,6 +58,8 @@ export function AppShell({ children }: { readonly children: React.ReactNode }) {
 
   // Puts the workspace back after a reload, before anything renders an empty state.
   useRestoreUpload();
+  // And the queue, which outlives the page because the jobs run on the server.
+  useRestoreJobs();
   // Space, [ and ], and the arrows. See DESIGN.md's quality floor.
   useShortcuts();
 
@@ -74,7 +77,7 @@ export function AppShell({ children }: { readonly children: React.ReactNode }) {
             className="text-heading text-ink flex items-center gap-2 rounded-button font-semibold"
           >
             {/* The favicon mark: a filmstrip with the accent cursor bar. Small enough
-              to be a signature, real enough not to be decoration — it is the tool. */}
+              to be a signature, real enough not to be decoration - it is the tool. */}
             <svg aria-hidden width="16" height="16" viewBox="0 0 32 32">
               <rect width="32" height="32" rx="6" fill="var(--color-well)" />
               <rect

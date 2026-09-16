@@ -4,7 +4,7 @@ import { z } from 'zod';
 /**
  * What `loudnorm`'s first pass prints, on stderr, as JSON.
  *
- * Every value is a string — including `"-inf"` when a file is silent, which is
+ * Every value is a string - including `"-inf"` when a file is silent, which is
  * why these are not parsed as numbers here. They are substituted back into the
  * filter verbatim, and ffmpeg understands its own output better than a round
  * trip through a float would.

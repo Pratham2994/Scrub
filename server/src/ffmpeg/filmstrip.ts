@@ -17,7 +17,7 @@ export const FRAME_HEIGHT = 64;
 /**
  * One strip per upload, generated once.
  *
- * Two requests for the same file arriving together share the same promise —
+ * Two requests for the same file arriving together share the same promise -
  * without that, opening Trim twice in quick succession would start two full
  * decode passes over the same video.
  */
@@ -67,8 +67,8 @@ export async function filmstripFor(
  * positioned with CSS rather than assembled in the DOM.
  *
  * `fps=count/duration` spreads the samples evenly across the whole timeline. The
- * decode is the expensive part — ffmpeg has to walk the file to land on evenly
- * spaced times — so this is cached per upload.
+ * decode is the expensive part - ffmpeg has to walk the file to land on evenly
+ * spaced times - so this is cached per upload.
  */
 async function generate(
   ffmpeg: FfmpegTool,

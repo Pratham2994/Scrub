@@ -26,7 +26,7 @@ type FilmstripProps = {
  * own video.
  *
  * Trimmed-out regions are the same frames at reduced opacity, not a scrim laid
- * over them — you can still see what you are cutting, which is the entire point
+ * over them - you can still see what you are cutting, which is the entire point
  * of showing frames rather than a bar.
  */
 export function Filmstrip({
@@ -90,7 +90,7 @@ export function Filmstrip({
   /**
    * The wipe itself. The waveform gets it too, because for an audio file the
    * waveform *is* the timeline and showwavespic draws it in the same direction
-   * — leaving it out would have meant half the files Scrub opens arriving with
+   * - leaving it out would have meant half the files Scrub opens arriving with
    * no handoff at all.
    */
   const revealStyle = {
@@ -108,7 +108,7 @@ export function Filmstrip({
         /**
          * Half height below 900px, per DESIGN.md's quality floor. Vertical space
          * is what a short laptop window is short of, and the strip is the one
-         * element here that reads perfectly well at half the size — it is a
+         * element here that reads perfectly well at half the size - it is a
          * ribbon of frames, not something you inspect.
          */
         className={cn(
@@ -132,7 +132,7 @@ export function Filmstrip({
             </div>
           ) : (
             <>
-              {/* The frames, dimmed. Everything outside the range stays visible —
+              {/* The frames, dimmed. Everything outside the range stays visible -
                   a scrim would hide exactly what the user is deciding to cut. */}
               <img
                 src={filmstripUrl(id)}
@@ -239,7 +239,7 @@ export function Filmstrip({
  * One mark on the timeline.
  *
  * A real button rather than a styled div, so it is focusable and answers arrow
- * keys — landing on an exact frame with a mouse is the task Scrub exists to make
+ * keys - landing on an exact frame with a mouse is the task Scrub exists to make
  * less painful, and for some users the keyboard is the only precise way to do it.
  * `setPointerCapture` keeps the drag alive when the pointer leaves the strip.
  */
@@ -283,7 +283,7 @@ function Handle({
       }}
       onKeyDown={(event) => {
         // One frame is too fine to guess at, so a second and a tenth of one are
-        // what the arrows move — shift for the coarse step, as everywhere else.
+        // what the arrows move - shift for the coarse step, as everywhere else.
         const step = event.shiftKey ? 1 : 0.1;
         if (event.key === 'ArrowLeft') {
           event.preventDefault();

@@ -4,6 +4,7 @@ import {
   buildArgs,
   InvalidOperation,
   NotImplemented,
+  operationDescriptor,
   outputNameFor,
   outputPathFor,
 } from '@scrub/shared';
@@ -11,7 +12,7 @@ import { Router } from 'express';
 
 import { config } from '../config.js';
 import type { FfmpegTools } from '../ffmpeg/locate.js';
-import { cancelJob, getJob, type JobEvent, startJob, subscribe } from '../jobs.js';
+import { cancelJob, getJob, type JobEvent, listJobs, startJob, subscribe } from '../jobs.js';
 import { runRequestSchema } from '../schemas.js';
 import { getFile } from '../store.js';
 import type { ApiError } from './errors.js';
@@ -20,7 +21,7 @@ import type { ApiError } from './errors.js';
  * How long an edited command's output should be, for the progress denominator.
  *
  * `-t` states it outright; `-to` minus `-ss` gives it; otherwise the whole source
- * is the best guess. A guess is fine here — being wrong makes the bar finish
+ * is the best guess. A guess is fine here - being wrong makes the bar finish
  * early or late, where having no denominator at all means no bar.
  */
 function estimateDuration(argv: readonly string[], sourceDuration: number): number {
@@ -70,7 +71,7 @@ export function runRouter(tools: FfmpegTools): Router {
     }
 
     // An edited command runs exactly as typed. buildArgs is bypassed because
-    // there is no operation to build from — the user's argv *is* the plan.
+    // there is no operation to build from - the user's argv *is* the plan.
     if ('argv' in parsed.data) {
       const argv = parsed.data.argv;
       const last = argv[argv.length - 1] ?? '';
@@ -88,6 +89,10 @@ export function runRouter(tools: FfmpegTools): Router {
         },
         outputPath: editedOutput,
         outputName: path.basename(editedOutput),
+        title: `Edited command · ${source.displayName}`,
+        // A hand-written command belongs to no operation, so there is no route
+        // to send someone back to when it finishes.
+        kind: null,
       });
       res.status(202).json({ jobId });
       return;
@@ -97,7 +102,7 @@ export function runRouter(tools: FfmpegTools): Router {
     /**
      * The same two calls the command bar made, against the same source path.
      * The bar shows this exact string, so a command copied out of it writes the
-     * file Scrub would have written — including the extension, which is how
+     * file Scrub would have written - including the extension, which is how
      * ffmpeg chooses its muxer.
      */
     const outputPath = outputPathFor(source.path, op);
@@ -105,7 +110,7 @@ export function runRouter(tools: FfmpegTools): Router {
 
     try {
       // The same call the command bar made. If these ever produced different
-      // argv, the preview would be a lie — which is the one thing Scrub must not do.
+      // argv, the preview would be a lie - which is the one thing Scrub must not do.
       // replace-audio takes a second upload; resolve its id to a path here so
       // buildArgs stays pure and never touches the store.
       let secondaryInputPath: string | undefined;
@@ -130,7 +135,14 @@ export function runRouter(tools: FfmpegTools): Router {
         ...(secondaryInputPath === undefined ? {} : { secondaryInputPath }),
       });
 
-      const jobId = startJob({ ffmpeg: tools.ffmpeg, plan, outputPath, outputName });
+      const jobId = startJob({
+        ffmpeg: tools.ffmpeg,
+        plan,
+        outputPath,
+        outputName,
+        title: `${operationDescriptor(op.kind).label} · ${source.displayName}`,
+        kind: op.kind,
+      });
       res.status(202).json({ jobId });
     } catch (error) {
       if (error instanceof NotImplemented) {
@@ -150,8 +162,20 @@ export function runRouter(tools: FfmpegTools): Router {
   });
 
   /**
+   * Everything the server is working on, or has recently.
+   *
+   * Jobs outlive the page: they run in the server process and keep going
+   * whatever the browser does. Without this a refresh mid-encode lost sight of
+   * work that was still happening, and the output simply appeared in the
+   * working folder later with nothing having mentioned it.
+   */
+  router.get('/jobs', (_req, res) => {
+    res.json({ jobs: listJobs() });
+  });
+
+  /**
    * Progress stream. Separate from POST /run because EventSource can only issue
-   * a GET — and separating them means a dropped connection can reattach to a job
+   * a GET - and separating them means a dropped connection can reattach to a job
    * that is still going rather than starting a second encode.
    */
   router.get('/run/:jobId/events', (req, res) => {
@@ -173,7 +197,7 @@ export function runRouter(tools: FfmpegTools): Router {
     /**
      * Only a terminal event closes the stream. This used to end on anything
      * that was not progress, which held while `done`, `error` and `cancelled`
-     * were the only other kinds — the loudness measurement arrives in the
+     * were the only other kinds - the loudness measurement arrives in the
      * middle of a job, and closing on it would stop the second pass ever being
      * reported.
      */

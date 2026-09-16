@@ -1,6 +1,7 @@
 import {
   type AudioFormat,
   formatTimecode as formatSeconds,
+  operationDescriptor,
   maxDurationSec,
   type OperationKind,
   type ProbeResult,
@@ -11,6 +12,7 @@ import {
 } from '@scrub/shared';
 
 import { useRef, useState } from 'react';
+import { Link } from 'react-router';
 
 import {
   Choice,
@@ -27,6 +29,24 @@ import { CropFrame } from '@/components/CropFrame';
 import { Filmstrip } from '@/components/Filmstrip';
 import { TrimControls } from '@/components/TrimControls';
 import { useScrubStore } from '@/store/use-scrub-store';
+
+/**
+ * A pointer from one operation to another.
+ *
+ * Several panels explain what they are not for, and until now none of them said
+ * where to go instead. Compress spends a paragraph on "this is not a size" and
+ * the person reading it is exactly the person who wants Fit a size.
+ */
+function OtherOperation({ kind }: { readonly kind: OperationKind }) {
+  return (
+    <Link
+      to={`/op/${kind}`}
+      className="text-ink hover:text-accent underline decoration-current/30 underline-offset-2 transition-colors duration-100"
+    >
+      {operationDescriptor(kind).label}
+    </Link>
+  );
+}
 
 /**
  * The controls for whichever operation is selected.
@@ -151,6 +171,12 @@ function Compress({ meta }: { readonly meta: ProbeResult }) {
         which is why Scrub will not pretend to know the number in advance. Speed changes how long
         the encoder spends hunting for a smaller file at the same quality. It does not change the
         quality itself.
+      </Note>
+
+      <Note>
+        If you have a number you have to come in under, that is the other question and it has its
+        own operation. <OtherOperation kind="target-size" /> works backwards from the size and the
+        length instead.
       </Note>
     </Panel>
   );
@@ -748,7 +774,7 @@ function Loudness({ meta }: { readonly meta: ProbeResult }) {
   /**
    * What the first command found. The two passes were explained in prose and
    * then never reported anything, so the whole operation looked like it had
-   * guessed at a number — there was nowhere on screen saying the measurement
+   * guessed at a number - there was nowhere on screen saying the measurement
    * had happened, let alone what it came to.
    */
   const measured = run.status === 'done' || run.status === 'running' ? run.measurement : null;

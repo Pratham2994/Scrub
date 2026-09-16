@@ -8,12 +8,12 @@ web
 
 ## Users
 
-People who have a video file and one specific thing they need done to it — cut
+People who have a video file and one specific thing they need done to it - cut
 thirty seconds out, make it small enough to send, turn it into a GIF, strip the
-audio — and who do not want to learn ffmpeg's flag grammar to get it.
+audio - and who do not want to learn ffmpeg's flag grammar to get it.
 
 The defining trait is asymmetric: they **can read** ffmpeg's output but do not want
-to **write** its input. CLAUDE.md states both halves outright — "if the user has to
+to **write** its input. CLAUDE.md states both halves outright - "if the user has to
 know ffmpeg to use it, it has failed", and "this tool's audience can read ffmpeg
 output". That is why failures surface raw stderr instead of "conversion failed", and
 why the generated command is shown rather than hidden.
@@ -36,7 +36,7 @@ command has got more than they came for, which is the point of showing it.
 Two claims a neighbouring ffmpeg wrapper could not truthfully copy:
 
 1. **The displayed command is the executed command.** Not a rendering of the
-   intent, not a reconstruction — one pure function produces the `string[]` that the
+   intent, not a reconstruction - one pure function produces the `string[]` that the
    preview shows and that `spawn` receives. Wrappers built on `fluent-ffmpeg` cannot
    say this, because that library's entire purpose is to hide the command.
 2. **The operation list is closed.** Every other wrapper grows toward exposing all
@@ -56,7 +56,7 @@ browser tab next to whatever they were already doing, and close it.
 It is a front-end, not a bundle: ffmpeg and ffprobe must already be installed, and
 the server refuses to start without them rather than failing at Run.
 
-Because it is a browser app, the file makes a round trip — uploaded into a local
+Because it is a browser app, the file makes a round trip - uploaded into a local
 working directory, probed, processed, and downloaded back out. This is accepted as
 permanent, not a staging post toward a desktop shell. It has consequences that are
 product facts rather than implementation details: large files take real time to copy
@@ -90,7 +90,7 @@ refuse a file outright, each with the date it was checked, because they move.
   the cost is stated rather than implied.
 - The fast/precise trade is never chosen on the user's behalf.
 
-**Terminology:** the operations are named with verbs the user already has — Trim,
+**Terminology:** the operations are named with verbs the user already has - Trim,
 Compress, Fit a size, Convert, Resize, Crop, Speed, GIF, Extract audio, Mute,
 Replace audio, Normalise loudness. Not "transcode", not "remux", not "encode",
 and not "two-pass VBR" for the one that hits a size.
@@ -101,7 +101,7 @@ Named **Scrub**, after the interaction that justifies the project: dragging alon
 timeline to find a frame.
 
 Voice: specific, unapologetic, British spelling. Buttons say what happens and
-results echo them — "Run" produces "Done — 4.2 MB, 12s", never "Processing…" and
+results echo them - "Run" produces "Done - 4.2 MB, 12s", never "Processing…" and
 never "Submit". Errors do not apologise and do not generalise; an ffmpeg failure is
 reported as what ffmpeg printed, with its exit code.
 
@@ -110,9 +110,9 @@ Zustand, Python.
 
 ## Evidence on Hand
 
-- `docs/OPERATIONS.md` — the command, flag reasoning and traps for all eleven
+- `docs/OPERATIONS.md` - the command, flag reasoning and traps for all eleven
   operations. Authoritative for anything touching `buildArgs`.
-- `shared/src/build-args.test.ts` — argv snapshots. A refactor cannot silently
+- `shared/src/build-args.test.ts` - argv snapshots. A refactor cannot silently
   change what gets executed.
 - Self-hosted Switzer and Commit Mono in `client/public/fonts`, with licences
   recorded.
@@ -123,7 +123,7 @@ testimonials, no published release, and no adoption of any kind.
 ## Product Principles
 
 1. **The command is the product.** If the preview and the execution could ever
-   disagree, the disagreement is the bug — no matter how much nicer the preview
+   disagree, the disagreement is the bug - no matter how much nicer the preview
    looks.
 2. **Closed list, open escape hatch.** New capability goes through the editable
    command bar, never through a new control. A tenth checkbox is the failure mode.
@@ -141,7 +141,7 @@ testimonials, no published release, and no adoption of any kind.
 WCAG AA against each element's own surface, keyboard reachable throughout with focus
 visible everywhere.
 
-The keyboard surface is a primary interface here rather than a fallback — space to
+The keyboard surface is a primary interface here rather than a fallback - space to
 play and pause, `[` and `]` to set in and out points, arrows to nudge by a frame and
 shift-arrows by a second. Landing on an exact frame with a mouse is the task Scrub
 exists to make less painful, and for many users the keyboard is the only way to do

@@ -111,7 +111,7 @@ describe('who is allowed to talk to Scrub', () => {
 describe('the custom header', () => {
   /**
    * A custom header cannot be set on a simple cross-origin request, so requiring
-   * one forces a preflight — and the preflight is refused above.
+   * one forces a preflight - and the preflight is refused above.
    */
   it('is required on anything that changes state', () => {
     for (const method of ['POST', 'DELETE', 'PUT', 'PATCH']) {

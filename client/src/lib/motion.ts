@@ -13,7 +13,7 @@ import type { Transition } from 'motion/react';
  * file lands. 320ms, spring.
  *
  * `bounce` is low on purpose. The overshoot should read as the panel settling
- * into place, not as a bounce — anything springier draws attention to the
+ * into place, not as a bounce - anything springier draws attention to the
  * animation instead of to the file that just arrived.
  */
 export const HANDOFF: Transition = { type: 'spring', duration: 0.32, bounce: 0.15 };

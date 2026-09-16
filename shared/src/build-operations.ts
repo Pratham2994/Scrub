@@ -1,7 +1,7 @@
 /**
  * The argv for every operation other than trim.
  *
- * Split out of build-args.ts purely for size — `buildArgs` is still the only
+ * Split out of build-args.ts purely for size - `buildArgs` is still the only
  * entry point, and everything here is the same kind of pure function it is.
  * Each one implements its entry in docs/OPERATIONS.md; the reasoning for the
  * flags lives next to the flags.
@@ -38,7 +38,7 @@ export const LOUDNORM_MEASURED = [
   'offset',
 ] as const;
 
-/** `@measured_I@` — deliberately not valid ffmpeg, so an unsubstituted one fails loudly. */
+/** `@measured_I@` - deliberately not valid ffmpeg, so an unsubstituted one fails loudly. */
 export function measuredPlaceholder(key: string): string {
   return `@${key}@`;
 }
@@ -68,7 +68,7 @@ export function trimWindow(
  * quality level and lets the encoder spend whatever bits that needs, which fits
  * the question actually being asked. 18 is near-lossless, 23 default, 28 soft.
  *
- * `-preset` trades encode time against file size *at the same quality* — it is
+ * `-preset` trades encode time against file size *at the same quality* - it is
  * not a quality control, though everyone assumes it is.
  *
  * `+faststart` moves the moov atom to the front so the file starts playing
@@ -134,7 +134,7 @@ const CONTAINER_ACCEPTS: Record<VideoContainer, ReadonlySet<string>> = {
 /**
  * Convert: re-encode, unless the target container can already hold what is here.
  *
- * mp4 to webm is never a copy — different container, different codec families.
+ * mp4 to webm is never a copy - different container, different codec families.
  * But h264 in mp4 to h264 in mkv is a remux, and doing that as a re-encode would
  * cost minutes and quality to change a file extension.
  */
@@ -175,7 +175,7 @@ export function buildConvert(
  * height and can land on an odd number, which libx264 refuses with an error that
  * says nothing about the `-1`. `-2` rounds to the nearest even number.
  *
- * Audio is copied — nothing about a resize touches it.
+ * Audio is copied - nothing about a resize touches it.
  */
 export function buildResize(width: number, meta: ProbeResult, io: CommandIo): CommandPlan {
   if (!Number.isInteger(width) || width <= 0 || width % 2 !== 0) {
@@ -216,7 +216,7 @@ export function buildResize(width: number, meta: ProbeResult, io: CommandIo): Co
  *
  * Pass one derives a 256-colour palette from the actual frames; pass two maps
  * against it. A single pass falls back to a fixed 216-colour web palette and
- * looks visibly worse — it is what every bad wrapper does.
+ * looks visibly worse - it is what every bad wrapper does.
  *
  * The filter chain must be identical in both passes, or the palette is built
  * from different pixels than it is applied to. That is why it is computed once
@@ -322,7 +322,7 @@ function audioCodecArgs(
 }
 
 /**
- * Extract audio. `-vn` removes the video stream — including cover art, which
+ * Extract audio. `-vn` removes the video stream - including cover art, which
  * ffmpeg also counts as video, and which is the right outcome here.
  */
 export function buildExtractAudio(
@@ -387,7 +387,7 @@ export function buildMute(meta: ProbeResult, io: CommandIo): CommandPlan {
  *
  * `-map` is not optional. Without it ffmpeg's default stream selection takes one
  * stream per type from whichever input it prefers and silently ignores the
- * other file — you get the original audio back, and no error to explain why.
+ * other file - you get the original audio back, and no error to explain why.
  *
  * `-shortest` ends at whichever track runs out first. Padding the audio or
  * letting the video run silent are both decisions the user should make, so this
@@ -492,7 +492,7 @@ export function buildAudioTrim(
 }
 
 /**
- * Loudness, in two passes — the only operation where a pass needs data from the
+ * Loudness, in two passes - the only operation where a pass needs data from the
  * one before it.
  *
  * Pass one measures and prints its findings as JSON on **stderr**; pass two
@@ -519,7 +519,7 @@ export function buildLoudness(
   const targets = `I=${String(targetI)}:TP=${String(targetTP)}:LRA=${String(targetLRA)}`;
 
   // Normalising a video's audio must not re-encode its picture. Without this,
-  // ffmpeg re-encodes the video stream to change the sound — minutes of work and
+  // ffmpeg re-encodes the video stream to change the sound - minutes of work and
   // a generation of quality lost on a file the operation never meant to touch.
   const keepVideo = meta.video === null ? [] : ['-c:v', 'copy'];
 
@@ -556,7 +556,7 @@ export function buildLoudness(
             ...LOUDNORM_MEASURED.map((key) => `${key}=${measuredPlaceholder(key)}`),
             // With the measurements in hand the correction is a single linear
             // gain. Without them this filter is a compressor working blind, and
-            // it pumps audibly — which is the whole reason for two passes.
+            // it pumps audibly - which is the whole reason for two passes.
             'linear=true',
           ].join(':'),
           ...keepVideo,
