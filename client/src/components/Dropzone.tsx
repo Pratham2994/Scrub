@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { RecentFiles } from '@/components/RecentFiles';
 import { useAcceptFile } from '@/lib/use-upload';
 import { cn } from '@/lib/utils';
+import { useTheme } from '@/lib/use-theme';
 import { useScrubStore } from '@/store/use-scrub-store';
 
 type DropzoneProps = {
@@ -23,6 +24,8 @@ type DropzoneProps = {
  */
 export function Dropzone({ headline, hint }: DropzoneProps) {
   const load = useScrubStore((state) => state.load);
+  const { theme } = useTheme();
+  const phosphor = theme === 'phosphor';
   const accept = useAcceptFile();
   const [isOver, setIsOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -45,11 +48,19 @@ export function Dropzone({ headline, hint }: DropzoneProps) {
       }}
       onClick={open}
       className={cn(
-        'flex h-full min-h-48 flex-1 cursor-pointer flex-col items-center justify-center gap-3 rounded-well border border-dashed px-6 py-10 text-center transition-colors duration-100',
+        'relative flex h-full min-h-48 flex-1 cursor-pointer flex-col items-center justify-center gap-3 rounded-well border border-dashed px-6 py-10 text-center transition-colors duration-100',
         'tall:workspace:min-h-64 tall:workspace:py-16',
         isOver ? 'border-accent bg-surface/60' : 'border-line-strong',
       )}
     >
+      {phosphor && (
+        /**
+         * Texture lives where the file isn't: faint scanlines on the empty
+         * well, the CRT's idle screen. The dropzone unmounts the moment a
+         * file lands, so the lines can never sit under a picture.
+         */
+        <div aria-hidden className="scanlines pointer-events-none absolute inset-0 rounded-well" />
+      )}
       <div className="flex flex-col items-center gap-1">
         <p className="text-display text-ink">{headline}</p>
         <p className="text-micro text-muted max-w-md">{hint}</p>
