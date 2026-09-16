@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 
 import { cancelRun, downloadUrl } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { useTheme } from '@/lib/use-theme';
 import { type QueuedJob, useScrubStore } from '@/store/use-scrub-store';
 
 /**
@@ -20,6 +21,8 @@ import { type QueuedJob, useScrubStore } from '@/store/use-scrub-store';
 export function Queue() {
   const jobs = useScrubStore((state) => state.jobs);
   const forgetFinishedJobs = useScrubStore((state) => state.forgetFinishedJobs);
+  const { theme } = useTheme();
+  const phosphor = theme === 'phosphor';
 
   if (jobs.length === 0) return null;
 
@@ -27,7 +30,7 @@ export function Queue() {
   const finished = jobs.length - active;
 
   return (
-    <div className="border-line bg-paper flex shrink-0 flex-wrap items-center gap-2 border-t px-4 py-2">
+    <div className="border-line bg-paper flex shrink-0 flex-wrap items-center gap-2 border-t px-4 py-2 phosphor:font-mono">
       <span className="text-micro text-muted mr-1 shrink-0">
         {active > 0
           ? `${String(active)} ${active === 1 ? 'job' : 'jobs'} running`
@@ -36,7 +39,7 @@ export function Queue() {
 
       <div className="flex min-w-0 flex-1 flex-wrap gap-1.5">
         {jobs.map((job) => (
-          <JobChip key={job.jobId} job={job} />
+          <JobChip key={job.jobId} job={job} phosphor={phosphor} />
         ))}
       </div>
 
@@ -65,7 +68,7 @@ function formatShort(ms: number): string {
  * want after "done" is to look at it - and the result panel lives on the
  * operation's own route.
  */
-function JobChip({ job }: { readonly job: QueuedJob }) {
+function JobChip({ job, phosphor }: { readonly job: QueuedJob; readonly phosphor: boolean }) {
   const navigate = useNavigate();
   const percent = Math.round(job.progress * 100);
 
@@ -103,6 +106,10 @@ function JobChip({ job }: { readonly job: QueuedJob }) {
       className={cn(
         'text-label relative flex max-w-xs min-w-0 items-center gap-2 overflow-hidden rounded-button border px-2.5 py-1',
         job.status === 'done' ? 'border-line-strong text-ink' : 'border-line text-muted',
+        // A scrollback line has no chrome: no border, no padding, no fill.
+        // The halo below is the only ornament, and only while running.
+        phosphor && 'border-0 px-0 py-0',
+        phosphor && job.status === 'running' && 'animate-chip-glow',
       )}
     >
       {/* The fill runs behind the label rather than beside it, so a chip is its
