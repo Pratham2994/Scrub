@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import { sourceUrl, waveformUrl } from '@/lib/api';
 import { registerVideo } from '@/lib/playback';
+import { useSaveFrame } from '@/lib/use-save-frame';
 
 /**
  * Codecs a browser will reliably decode. Everything outside this list gets the
@@ -25,6 +26,7 @@ export function MediaWell({ id, meta }: MediaWellProps) {
   /** The waveform is drawn by ffmpeg; a file it cannot draw still plays. */
   const [waveFailed, setWaveFailed] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const frame = useSaveFrame();
 
   // A different file deserves a fresh attempt, even if the last one failed.
   useEffect(() => {
@@ -116,7 +118,7 @@ export function MediaWell({ id, meta }: MediaWellProps) {
   }
 
   return (
-    <Well>
+    <Well saving={frame.saving} onSaveFrame={frame.save}>
       {/* Letterboxed inside the well: `object-contain` so the frame is never
           cropped, and the well keeps its size so the layout does not jump. */}
       <video
@@ -172,9 +174,35 @@ function describeAudio(meta: ProbeResult): string {
   return [audio.codec, channels, rate].filter((part) => part !== null).join(' · ');
 }
 
-function Well({ children }: { readonly children: React.ReactNode }) {
+function Well({
+  children,
+  saving = false,
+  onSaveFrame,
+}: {
+  readonly children: React.ReactNode;
+  readonly saving?: boolean;
+  readonly onSaveFrame?: () => void;
+}) {
   return (
-    <div className="bg-well border-well-edge flex min-h-28 flex-1 items-center justify-center overflow-hidden rounded-well border tall:min-h-32 tall:workspace:min-h-48">
+    <div className="bg-well border-well-edge relative flex min-h-28 flex-1 items-center justify-center overflow-hidden rounded-well border tall:min-h-32 tall:workspace:min-h-48">
+      {onSaveFrame !== undefined && (
+        /**
+         * Save the frame under the playhead, through the queue like any run.
+         * Over the picture rather than beside it, because it belongs to the
+         * picture: the moment you want is the one on screen right now.
+         */
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex justify-end p-2">
+          <button
+            type="button"
+            disabled={saving}
+            onClick={onSaveFrame}
+            title="Save the frame under the playhead as a PNG"
+            className="text-micro text-token-binary hover:bg-white/10 pointer-events-auto rounded-button px-2 py-1 transition-colors duration-100 disabled:opacity-40"
+          >
+            {saving ? 'Saving' : 'Save this frame'}
+          </button>
+        </div>
+      )}
       {children}
     </div>
   );
