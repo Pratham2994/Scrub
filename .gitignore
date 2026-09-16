@@ -15,6 +15,7 @@ dist/
 
 # design tooling state and its saved reviews. Local notes, not project content.
 .impeccable/
+.superpowers/
 
 # test + tooling artefacts
 coverage/
