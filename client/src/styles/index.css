@@ -15,6 +15,8 @@
  */
 @custom-variant short (@media (max-height: 720px));
 @custom-variant tall (@media (min-height: 721px));
+/* The Tube world, keyed off the data attribute the theme mechanism already sets. */
+@custom-variant phosphor (&:where([data-theme='phosphor'] *));
 
 /* ─── Scrub tokens, from docs/DESIGN.md ───────────────────────────────────────────
    Light chrome, dark well. The dark is where the picture is and nowhere else.
@@ -50,6 +52,11 @@
   --color-well-edge: transparent;
   /* Reserved. Amber anywhere that is not an operation in progress is a misuse. */
   --color-signal: #e8a33d;
+  /* What the selection inverts against. Light and dark invert against the
+     well; Tube inverts against white phosphor, because in a world where
+     everything is dark the selection cannot be darker. */
+  --color-invert: #0e1013;
+  --color-on-invert: #ffffff;
 
   /* Command bar syntax, by token role, all on --well. */
   --color-token-binary: #e7e9ec;
@@ -160,6 +167,8 @@
     /* White on the lifted accent is 2.7:1. Dark text on it is 7.2:1. */
     --color-on-accent: #0b0d11;
     --color-signal: #e8a33d;
+    --color-invert: #0b0d11;
+    --color-on-invert: #ffffff;
   }
 
   /* No explicit choice: follow the operating system. */
@@ -186,6 +195,50 @@
       --color-on-accent: #0b0d11;
       --color-signal: #e8a33d;
     }
+  }
+}
+
+/* ─── Tube ─────────────────────────────────────────────────────────────────
+   The whole app becomes the CRT the command bar has been quoting: green
+   phosphor on green-cast black. It is not a dark-mode variant; it moves the
+   layout, the chrome's type colour, the radii, and the motion. Only the
+   tokens and the rules below change; every component keeps one set of class
+   names. */
+
+@layer base {
+  :root[data-theme='phosphor'] {
+    color-scheme: dark;
+
+    --color-paper: #071008;
+    --color-surface: #0d1810;
+    --color-line: #1d3324;
+    --color-line-strong: #3a7a52;
+    --color-ink: #33d964;
+    --color-muted: #5f9d74;
+    --color-well: #030604;
+    --color-well-edge: #1d3324;
+    --color-accent: #eafff2;
+    --color-on-accent: #04301a;
+    --color-signal: #ffb454;
+    --color-invert: #eafff2;
+    --color-on-invert: #04301a;
+
+    --color-token-binary: #d9f5de;
+    --color-token-flag: #33d964;
+    --color-token-value: #ffb454;
+    --color-token-path: #9af0ae;
+    --color-token-transport: #5c8066;
+
+    /* Squared off. The world has no rounding and no shadows. */
+    --radius-well: 0px;
+    --radius-control: 2px;
+    --radius-button: 0px;
+  }
+
+  /* The chrome speaks mono; body copy stays Switzer. The header and the rail
+     are chrome, so the rule covers everything inside them. */
+  :root[data-theme='phosphor'] :is(.text-heading, .text-label, .text-micro, header, nav) {
+    font-family: var(--font-mono);
   }
 }
 
@@ -266,6 +319,56 @@
   animation: scrub-token-change 120ms ease-out;
 }
 
+/* The power-on overlay. Reduced motion gets a fade instead of the expand. */
+.power-on-screen {
+  background: var(--color-paper);
+  animation: scrub-power-on 300ms ease-out both;
+}
+
+.power-on-screen::before {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  top: 50%;
+  height: 2px;
+  background: var(--color-ink);
+  box-shadow: 0 0 12px 1px color-mix(in oklab, var(--color-ink) 60%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .power-on-screen {
+    animation: scrub-power-on-fade 120ms ease-out both;
+  }
+}
+
+/* The focus ring keeps its 2px solid ring and gains a soft halo in Tube.
+   The ring stays; the halo is added, never substituted. */
+:root[data-theme='phosphor'] :focus-visible {
+  box-shadow:
+    0 0 0 1px var(--color-accent),
+    0 0 10px 1px color-mix(in oklab, var(--color-ink) 35%, transparent);
+}
+
+/* The prompt's block cursor: 7x13, sitting on the baseline like a real one. */
+@utility cursor-block {
+  display: inline-block;
+  width: 7px;
+  height: 13px;
+  margin-left: 3px;
+  vertical-align: -2px;
+  flex-shrink: 0;
+}
+
+/* Faint scanlines, for the empty well only. Cleared the moment a file loads,
+   and never over text or a playing video. */
+@utility scanlines {
+  background-image: repeating-linear-gradient(
+    0deg,
+    color-mix(in oklab, var(--color-ink) 8%, transparent) 0 1px,
+    transparent 1px 3px
+  );
+}
+
 /**
  * A pass ffmpeg cannot report a fraction for. The band crosses the button and
  * starts again; it never suggests a position, because there is none to suggest.
@@ -288,6 +391,55 @@
   }
 }
 
+/* The prompt's block cursor. Opacity-only, so reduced motion keeps it. */
+@keyframes scrub-cursor-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* The running queue chip's halo. Dim: a breathing glow, not a beacon. */
+@keyframes scrub-chip-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 rgba(255, 180, 84, 0);
+  }
+  50% {
+    box-shadow: 0 0 9px rgba(255, 180, 84, 0.5);
+  }
+}
+
+/* The one orchestrated moment in Tube: switching in opens a phosphor line
+   that expands to reveal the app, then lets go. */
+@keyframes scrub-power-on {
+  0% {
+    transform: scaleY(0.05);
+    opacity: 1;
+  }
+  70% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scaleY(1);
+    opacity: 0;
+  }
+}
+
+@keyframes scrub-power-on-fade {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
 @theme {
   --animate-pass-working: scrub-pass-working 1.4s ease-in-out infinite;
+  --animate-cursor-blink: scrub-cursor-blink 1.1s steps(1) infinite;
+  --animate-chip-glow: scrub-chip-glow 1.6s ease-in-out infinite;
 }
+
+/* No `--animate-power-on` token: the overlay's `.power-on-screen` rule carries
+   its own animation, and an unused token invites a second consumer. */
