@@ -104,7 +104,11 @@ export function Rail() {
               )}
             />
           )}
-          <GroupLegend label={group.label} spaced={index > 0} />
+          {/* The strip has no room for the legends; the hairline above carries
+              the group split. Hidden at the call site rather than by class,
+              because `workspace:flex` inside the legend would show it again at
+              desktop width in Tube. */}
+          {!phosphor && <GroupLegend label={group.label} spaced={index > 0} />}
           <div className={cn('flex shrink-0 items-center gap-1', !phosphor && 'workspace:block')}>
             {OPERATIONS.filter((op) => op.group === group.id).map((op) => {
               // Nothing loaded yet, so nothing is ruled out.
@@ -183,7 +187,10 @@ export function Rail() {
          */
         <div
           aria-hidden
-          className="from-paper pointer-events-none sticky bottom-0 -mt-6 hidden h-6 bg-gradient-to-t to-transparent workspace:block"
+          className={cn(
+            'from-paper pointer-events-none sticky bottom-0 -mt-6 hidden h-6 bg-gradient-to-t to-transparent',
+            !phosphor && 'workspace:block',
+          )}
         />
       )}
     </nav>

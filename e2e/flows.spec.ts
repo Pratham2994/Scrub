@@ -1148,6 +1148,10 @@ test.describe('the Tube theme', () => {
     if (strip === null) throw new Error('the rail rendered with no bounding box');
     // Wide and short: the strip. The vertical rail is tall and narrow.
     expect(strip.width).toBeGreaterThan(strip.height * 4);
+    // The group legends belong to the vertical rail. In the strip they used
+    // to leak back in with their column margins, sitting at odd heights.
+    await expect(rail.getByText('Video', { exact: true })).toHaveCount(0);
+    await expect(rail.getByText('Audio', { exact: true })).toHaveCount(0);
 
     // Light restores the vertical rail.
     await page.getByRole('button', { name: 'Light', exact: true }).click();
