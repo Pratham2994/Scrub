@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useSyncExternalStore } from 'react';
 
 export type Theme = 'system' | 'light' | 'dark' | 'phosphor';
 
@@ -32,23 +32,49 @@ function apply(theme: Theme): void {
 }
 
 /**
+ * The one live copy of the choice, shared by every consumer.
+ *
+ * Before Tube this file could get away with a per-instance `useState`: no
+ * component rendered differently by theme, so the only thing that had to
+ * update was the attribute, and the instance that ran `setTheme` did that.
+ * Tube components branch their classes on the theme, and a per-instance copy
+ * meant each of them kept the value from its own mount while the attribute
+ * moved on without them - the rail stayed vertical after a switch because it
+ * never heard about it.
+ *
+ * A theme preference is about the person, not about a component, so it lives
+ * at module scope behind `useSyncExternalStore`: SettingsPanel sets it, every
+ * consumer re-renders, and `apply` runs exactly once per change.
+ */
+let current: Theme = read();
+const listeners = new Set<() => void>();
+
+/**
  * Persisted in localStorage rather than sessionStorage: the loaded file belongs
  * to one tab, but a theme preference is about the person.
  */
 export function useTheme(): { readonly theme: Theme; readonly setTheme: (next: Theme) => void } {
-  const [theme, setThemeState] = useState<Theme>(read);
-
-  useEffect(() => {
-    apply(theme);
-  }, [theme]);
+  const theme = useSyncExternalStore(
+    (listener) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+    () => current,
+  );
 
   const setTheme = useCallback((next: Theme) => {
-    setThemeState(next);
+    current = next;
+    apply(next);
     try {
       localStorage.setItem(KEY, next);
     } catch {
       // Storage can be refused. The choice still applies for this session.
     }
+    listeners.forEach((listener) => {
+      listener();
+    });
   }, []);
 
   return { theme, setTheme };

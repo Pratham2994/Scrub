@@ -3,6 +3,7 @@ import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink } from 'react-router';
 
 import { cn } from '@/lib/utils';
+import { useTheme } from '@/lib/use-theme';
 import { useScrubStore } from '@/store/use-scrub-store';
 
 const GROUPS: readonly { readonly id: OperationGroup; readonly label: string }[] = [
@@ -29,6 +30,8 @@ const GROUPS: readonly { readonly id: OperationGroup; readonly label: string }[]
  */
 export function Rail() {
   const meta = useScrubStore((state) => state.meta);
+  const { theme } = useTheme();
+  const phosphor = theme === 'phosphor';
   const railRef = useRef<HTMLElement>(null);
   /**
    * Whether there are operations below the fold.
@@ -65,24 +68,44 @@ export function Rail() {
       aria-label="Operations"
       className={cn(
         'border-line bg-paper flex min-w-0 shrink-0 gap-1 overflow-x-auto border-b px-3 py-2',
-        'workspace:w-rail workspace:flex-col workspace:gap-0 workspace:overflow-x-visible',
-        'workspace:overflow-y-auto workspace:border-r workspace:border-b-0 workspace:px-3',
         /**
-         * Tighter on a short screen. Fourteen operations plus two legends need
-         * about 540px, and a 1366x768 laptop leaves the rail roughly 478 - so
-         * Loudness sat below the fold with nothing saying there was more. The
-         * padding goes before the labels do.
+         * The strip is the default (it is also the below-900px layout), and
+         * the `workspace:` classes turn it into the vertical rail at desktop
+         * width. Tube keeps the strip at every width, so the classes are
+         * dropped entirely rather than fought by the media query.
          */
-        'workspace:py-2 tall:workspace:py-4',
+        !phosphor && [
+          'workspace:w-rail workspace:flex-col workspace:gap-0 workspace:overflow-x-visible',
+          'workspace:overflow-y-auto workspace:border-r workspace:border-b-0 workspace:px-3',
+          /**
+           * Tighter on a short screen. Fourteen operations plus two legends need
+           * about 540px, and a 1366x768 laptop leaves the rail roughly 478 - so
+           * Loudness sat below the fold with nothing saying there was more. The
+           * padding goes before the labels do.
+           */
+          'workspace:py-2 tall:workspace:py-4',
+        ],
       )}
     >
       {GROUPS.map((group, index) => (
         <Fragment key={group.id}>
           {index > 0 && (
-            <div aria-hidden className="bg-line mx-2 w-px shrink-0 self-stretch workspace:hidden" />
+            /**
+             * The bare hairline between the groups. In the vertical rail the
+             * groups are far enough apart to not need it, so `workspace:hidden`
+             * removes it at desktop width - which Tube must not inherit, since
+             * its strip is the below-900px layout at every width.
+             */
+            <div
+              aria-hidden
+              className={cn(
+                'bg-line mx-2 w-px shrink-0 self-stretch',
+                !phosphor && 'workspace:hidden',
+              )}
+            />
           )}
           <GroupLegend label={group.label} spaced={index > 0} />
-          <div className="flex shrink-0 items-center gap-1 workspace:block">
+          <div className={cn('flex shrink-0 items-center gap-1', !phosphor && 'workspace:block')}>
             {OPERATIONS.filter((op) => op.group === group.id).map((op) => {
               // Nothing loaded yet, so nothing is ruled out.
               const status = meta === null ? null : availabilityOf(op.kind, meta);
@@ -108,9 +131,15 @@ export function Rail() {
                   className={({ isActive }) =>
                     cn(
                       'text-body relative block shrink-0 rounded-button px-2 whitespace-nowrap transition-colors duration-100',
-                      'py-1.5 short:workspace:py-1',
+                      phosphor ? 'py-1.5' : 'py-1.5 short:workspace:py-1',
                       isActive
-                        ? 'bg-well text-white font-medium'
+                        ? /**
+                           * Inverted against the invert tokens, which light and
+                           * dark keep at the well colours and Tube sets to
+                           * white phosphor: a world where everything is dark
+                           * needs a selection that is not.
+                           */
+                          'bg-invert text-on-invert font-medium'
                         : blocked
                           ? /**
                              * Struck through rather than faded.
