@@ -111,6 +111,42 @@ export function useCommand(kind: OperationKind | null): LiveCommand {
         ...(params.replaceAudio.audioPath === null
           ? {}
           : { secondaryInputPath: params.replaceAudio.audioPath }),
+        /**
+         * The multi-input operations need the extras' paths AND probes, because
+         * merge's offsets are arithmetic on the other files' durations. Same
+         * call the server makes, same values.
+         */
+        ...(kind === 'merge'
+          ? {
+              secondaryInputs: params.merge.clips.map((clip) => ({
+                path: clip.path,
+                meta: clip.meta,
+              })),
+            }
+          : kind === 'merge-audio'
+            ? {
+                secondaryInputs: params.mergeAudio.clips.map((clip) => ({
+                  path: clip.path,
+                  meta: clip.meta,
+                })),
+              }
+            : kind === 'add-music' &&
+                params.addMusic.musicPath !== null &&
+                params.addMusic.musicMeta !== null
+              ? {
+                  secondaryInputs: [
+                    { path: params.addMusic.musicPath, meta: params.addMusic.musicMeta },
+                  ],
+                }
+              : kind === 'watermark' &&
+                  params.watermark.imagePath !== null &&
+                  params.watermark.imageMeta !== null
+                ? {
+                    secondaryInputs: [
+                      { path: params.watermark.imagePath, meta: params.watermark.imageMeta },
+                    ],
+                  }
+                : {}),
       });
       const passes = plan.passes.map((pass) => ({ argv: pass.argv, label: pass.label }));
       const [first] = passes;
@@ -205,6 +241,62 @@ function operationFor(
         targetTP: params.loudness.targetTP,
         targetLRA: params.loudness.targetLRA,
       };
+    case 'merge':
+      return params.merge.clipIds.length === 0
+        ? null
+        : {
+            kind,
+            clipIds: params.merge.clipIds,
+            crossfadeSec: params.merge.crossfadeSec,
+            fadeInSec: params.merge.fadeInSec,
+            fadeOutSec: params.merge.fadeOutSec,
+            crf: params.merge.crf,
+          };
+    case 'merge-audio':
+      return params.mergeAudio.clipIds.length === 0
+        ? null
+        : {
+            kind,
+            clipIds: params.mergeAudio.clipIds,
+            crossfadeSec: params.mergeAudio.crossfadeSec,
+            fadeInSec: params.mergeAudio.fadeInSec,
+            fadeOutSec: params.mergeAudio.fadeOutSec,
+            bitrateKbps: params.mergeAudio.bitrateKbps,
+          };
+    case 'add-music':
+      return params.addMusic.musicId === null
+        ? null
+        : {
+            kind,
+            musicId: params.addMusic.musicId,
+            originalPercent: params.addMusic.originalPercent,
+            musicPercent: params.addMusic.musicPercent,
+          };
+    case 'watermark':
+      return params.watermark.imageId === null
+        ? null
+        : {
+            kind,
+            imageId: params.watermark.imageId,
+            position: params.watermark.position,
+            opacity: params.watermark.opacity,
+          };
+    case 'fade':
+      return { kind, fadeInSec: params.fade.fadeInSec, fadeOutSec: params.fade.fadeOutSec };
+    case 'audio-fade':
+      return {
+        kind,
+        fadeInSec: params.audioFade.fadeInSec,
+        fadeOutSec: params.audioFade.fadeOutSec,
+      };
+    case 'loop':
+      return { kind, times: params.loop.times };
+    case 'audio-loop':
+      return { kind, times: params.audioLoop.times };
+    case 'volume':
+      return { kind, gainDb: params.volume.gainDb };
+    case 'audio-volume':
+      return { kind, gainDb: params.audioVolume.gainDb };
   }
 }
 
