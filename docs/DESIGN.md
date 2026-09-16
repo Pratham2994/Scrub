@@ -63,6 +63,34 @@ value     #E8A33D   00:00:12, libx264, 28
 path      #7FD1A8   input and output filenames
 ```
 
+### Tube
+
+Light and dark are two ways to light one room. Tube is a different room: the whole app becomes the CRT the command bar has been quoting. It is a fourth option in Settings, not a replacement, and it changes the layout and the motion, not just the tokens.
+
+```
+--paper        #071008   green-cast black, a tube in a dark room
+--surface      #0D1810   panels, raised slightly lighter
+--line         #1D3324   hairlines
+--line-strong  #3A7A52   control borders, 3.54:1 on surface
+--ink          #33D964   the phosphor, 10.35:1 on paper
+--muted        #5F9D74   5.68:1 on surface
+--well         #030604   the deepest surface
+--well-edge    #1D3324   the well earns a hairline, as in dark mode
+--accent       #EAFFF2   white phosphor: interactive things
+--on-accent    #04301A   13.92:1
+--signal       #FFB454   amber stays reserved for running states
+```
+
+Command tokens on the well: binary #D9F5DE, flag #33D964, value #FFB454, path #9AF0AE, transport #5C8066.
+
+The selection inverts against two new tokens, `--invert` and `--on-invert`, which light and dark keep at the well colours and Tube sets to white phosphor. The active rail chip uses them; the Run key stays on `--accent`, which is already the same appearance in every world.
+
+Layout: the rail becomes a horizontal strip under the header at every width, the meta readout moves to the header's right end, the well takes the full width, the queue reads as scrollback lines, and the command bar becomes the prompt with `scrub$` and a block cursor. The chrome speaks mono; body copy stays Switzer. Radii drop to 0 on the well and buttons and 2 on controls, and there are no shadows.
+
+Motion: the power-on line expands open when switching in, the cursor blinks on 1.1s steps and goes solid while a run is in progress, the running queue chip breathes a dim amber halo, focus keeps its ring and gains a soft green halo. Scanlines exist inside the empty well only and clear the moment a file loads. Reduced motion drops everything to static or opacity-only.
+
+That makes the motion doctrine "one orchestrated moment per world": the handoff in light and dark, the power-on when arriving in Tube, and neither plays during work.
+
 ### Type
 
 **Switzer** (Fontshare, free) for the interface. **Commit Mono** (free) for commands, timecodes, durations, bitrates, file sizes.

@@ -13,6 +13,8 @@ export default tseslint.config(
       '.tmp/**',
       'playwright-report/**',
       'test-results/**',
+      // Plain Node scripts outside any TS project; eslint has no project to parse them with.
+      'client/scripts/**',
     ],
   },
 

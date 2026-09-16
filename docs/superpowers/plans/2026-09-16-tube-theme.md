@@ -25,9 +25,11 @@
 ### Task 1: The Tube e2e block, written first and red
 
 **Files:**
+
 - Modify: `e2e/flows.spec.ts` (append a new describe at the end of the file)
 
 **Interfaces:**
+
 - Consumes: existing helpers `loadFixture(page)`, `FIXTURE`, `page.getByRole('button', { name: 'Settings' })` (SettingsPanel's gear), `page.locator('nav')` (the rail).
 - Produces: the acceptance tests every later task must turn green. Selectors the app must expose: a Settings button named `Tube`, `data-theme="phosphor"` on `<html>`, the text `scrub$`, an element with class `cursor-block`, an element with class `scanlines`, and a horizontal rail at desktop width.
 
@@ -76,9 +78,7 @@ test.describe('the Tube theme', () => {
     await expect(page.locator('code .cursor-block')).toBeVisible();
   });
 
-  test('shows scanlines on the empty well and clears them once a file loads', async ({
-    page,
-  }) => {
+  test('shows scanlines on the empty well and clears them once a file loads', async ({ page }) => {
     await switchToTube(page);
     await expect(page.locator('.scanlines')).toBeVisible();
 
@@ -108,11 +108,13 @@ git commit -m "Add the Tube theme e2e block, red until the theme exists"
 ### Task 2: The Theme union, the early apply, and the Settings tile
 
 **Files:**
+
 - Modify: `client/src/lib/use-theme.ts:3-17`
 - Modify: `client/index.html:28` (the early-apply script)
 - Modify: `client/src/components/SettingsPanel.tsx:4-23` (imports, THEMES array), `:101` (the grid), `:122-125` (the caption)
 
 **Interfaces:**
+
 - Consumes: nothing new.
 - Produces: `Theme = 'system' | 'light' | 'dark' | 'phosphor'`; `isTheme` accepts `'phosphor'`; a Settings button named `Tube`. Tasks 3-8 all read `useTheme()` to decide styling.
 
@@ -124,9 +126,7 @@ In `client/src/lib/use-theme.ts`, change the type and guard:
 export type Theme = 'system' | 'light' | 'dark' | 'phosphor';
 
 export function isTheme(value: string): value is Theme {
-  return (
-    value === 'system' || value === 'light' || value === 'dark' || value === 'phosphor'
-  );
+  return value === 'system' || value === 'light' || value === 'dark' || value === 'phosphor';
 }
 ```
 
@@ -135,13 +135,9 @@ export function isTheme(value: string): value is Theme {
 In `client/index.html`, the script currently only sets `light` or `dark`:
 
 ```html
-try {
-  var t = localStorage.getItem('scrub:theme');
-  if (t === 'light' || t === 'dark' || t === 'phosphor')
-    document.documentElement.setAttribute('data-theme', t);
-} catch (e) {
-  /* storage refused; the media query still applies */
-}
+try { var t = localStorage.getItem('scrub:theme'); if (t === 'light' || t === 'dark' || t ===
+'phosphor') document.documentElement.setAttribute('data-theme', t); } catch (e) { /* storage
+refused; the media query still applies */ }
 ```
 
 Without this, a reload flashes the light palette before React applies Tube, which is the one thing a theme switch must never do.
@@ -180,17 +176,19 @@ The tile grid goes from three columns to four:
 Replace the caption under the grid:
 
 ```tsx
-{theme === 'phosphor' ? (
-  <p className="text-micro text-muted mt-2">
-    Tube is the whole app as one CRT terminal: green phosphor on black, and the command bar is
-    the prompt. Light and dark keep their argument for the rest of the day.
-  </p>
-) : (
-  <p className="text-micro text-muted mt-2">
-    Light is the default, because Scrub is a utility you open for a minute rather than a suite
-    you sit in. The video well stays the darkest thing on screen either way.
-  </p>
-)}
+{
+  theme === 'phosphor' ? (
+    <p className="text-micro text-muted mt-2">
+      Tube is the whole app as one CRT terminal: green phosphor on black, and the command bar is the
+      prompt. Light and dark keep their argument for the rest of the day.
+    </p>
+  ) : (
+    <p className="text-micro text-muted mt-2">
+      Light is the default, because Scrub is a utility you open for a minute rather than a suite you
+      sit in. The video well stays the darkest thing on screen either way.
+    </p>
+  );
+}
 ```
 
 - [ ] **Step 5: Run the block**
@@ -212,9 +210,11 @@ git commit -m "Add Tube to the theme choices and the no-flash early apply"
 ### Task 3: The phosphor token block, variant, and motion vocabulary in index.css
 
 **Files:**
+
 - Modify: `client/src/styles/index.css` (new variant near the `short:`/`tall:` definitions; invert tokens in `@theme`; the phosphor block next to the dark block; keyframes and utilities near the existing ones; a chrome-typography rule in the base layer)
 
 **Interfaces:**
+
 - Consumes: `data-theme="phosphor"` on `<html>` from Task 2.
 - Produces: `phosphor:` variant usable anywhere; classes `animate-cursor-blink`, `animate-chip-glow`, `power-on-screen`; utilities `cursor-block` and `scanlines`; tokens `--color-invert`/`--color-on-invert` in all three worlds. Tasks 4-8 consume these.
 
@@ -231,11 +231,11 @@ Next to the existing custom variants (after the `tall:` line):
 Inside the main `@theme` block (after `--color-signal`):
 
 ```css
-  /* What the selection inverts against. Light and dark invert against the
+/* What the selection inverts against. Light and dark invert against the
      well; Tube inverts against white phosphor, because in a world where
      everything is dark the selection cannot be darker. */
-  --color-invert: #0e1013;
-  --color-on-invert: #ffffff;
+--color-invert: #0e1013;
+--color-on-invert: #ffffff;
 ```
 
 - [ ] **Step 3: Add the same tokens to the dark blocks**
@@ -243,8 +243,8 @@ Inside the main `@theme` block (after `--color-signal`):
 In BOTH dark blocks (`:root[data-theme='dark']` and the `prefers-color-scheme` block), after `--color-signal`:
 
 ```css
-    --color-invert: #0b0d11;
-    --color-on-invert: #ffffff;
+--color-invert: #0b0d11;
+--color-on-invert: #ffffff;
 ```
 
 - [ ] **Step 4: Add the phosphor token block**
@@ -435,9 +435,11 @@ git commit -m "Add the phosphor token world, its variant, and its motion vocabul
 ### Task 4: The AppShell re-rack: layout branch, header readout, power-on
 
 **Files:**
+
 - Modify: `client/src/components/AppShell.tsx` (imports, the middle grid, the header, the overlay)
 
 **Interfaces:**
+
 - Consumes: `useTheme()` from `client/src/lib/use-theme.ts`, class `power-on-screen` from Task 3, `summarise()` already in the file.
 - Produces: in phosphor the rail sits in a full-width row and the meta readout moves to the header's right end; a `power-on-screen` overlay appears once per switch into Tube.
 
@@ -458,30 +460,30 @@ import { useTheme } from '@/lib/use-theme';
 At the top of `AppShell`, after the existing hooks:
 
 ```tsx
-  const { theme } = useTheme();
-  const phosphor = theme === 'phosphor';
-  /**
-   * Switching into Tube is the world's one orchestrated moment: a phosphor
-   * line expands open to reveal the app, once, about 300ms. It plays only on
-   * the way in; going back to light or dark is a plain swap, because the
-   * ceremony belongs to arriving in the machine.
-   */
-  const [poweringOn, setPoweringOn] = useState(false);
-  const previousTheme = useRef(theme);
+const { theme } = useTheme();
+const phosphor = theme === 'phosphor';
+/**
+ * Switching into Tube is the world's one orchestrated moment: a phosphor
+ * line expands open to reveal the app, once, about 300ms. It plays only on
+ * the way in; going back to light or dark is a plain swap, because the
+ * ceremony belongs to arriving in the machine.
+ */
+const [poweringOn, setPoweringOn] = useState(false);
+const previousTheme = useRef(theme);
 
-  useEffect(() => {
-    if (theme === 'phosphor' && previousTheme.current !== 'phosphor') {
-      previousTheme.current = theme;
-      setPoweringOn(true);
-      const timer = setTimeout(() => {
-        setPoweringOn(false);
-      }, 320);
-      return () => {
-        clearTimeout(timer);
-      };
-    }
+useEffect(() => {
+  if (theme === 'phosphor' && previousTheme.current !== 'phosphor') {
     previousTheme.current = theme;
-  }, [theme]);
+    setPoweringOn(true);
+    const timer = setTimeout(() => {
+      setPoweringOn(false);
+    }, 320);
+    return () => {
+      clearTimeout(timer);
+    };
+  }
+  previousTheme.current = theme;
+}, [theme]);
 ```
 
 - [ ] **Step 3: Branch the middle grid**
@@ -536,7 +538,11 @@ In the header, the centre block currently renders name plus summary. Branch it, 
 Just before the closing `</DropTarget>`:
 
 ```tsx
-      {poweringOn && <div aria-hidden className="power-on-screen pointer-events-none fixed inset-0 z-50" />}
+{
+  poweringOn && (
+    <div aria-hidden className="power-on-screen pointer-events-none fixed inset-0 z-50" />
+  );
+}
 ```
 
 - [ ] **Step 6: Run the e2e block and typecheck**
@@ -558,9 +564,11 @@ git commit -m "Re-rack the shell for Tube: horizontal rail row, status readout, 
 ### Task 5: The rail strip and the inverted chip
 
 **Files:**
+
 - Modify: `client/src/components/Rail.tsx` (import `useTheme`; branch the nav and link classes; swap the active chip colours to the invert tokens)
 
 **Interfaces:**
+
 - Consumes: `useTheme()`, tokens `--color-invert`/`--color-on-invert` from Task 3.
 - Produces: a horizontal strip at every width in Tube, with the active operation as a white-phosphor inverted chip; identical behaviour in light and dark.
 
@@ -573,8 +581,8 @@ import { useTheme } from '@/lib/use-theme';
 In `Rail`, before `measure`:
 
 ```tsx
-  const { theme } = useTheme();
-  const phosphor = theme === 'phosphor';
+const { theme } = useTheme();
+const phosphor = theme === 'phosphor';
 ```
 
 - [ ] **Step 2: Branch the nav classes**
@@ -632,9 +640,11 @@ git commit -m "Give Tube the horizontal rail strip and the inverted active chip"
 ### Task 6: The queue as scrollback, with the running halo
 
 **Files:**
+
 - Modify: `client/src/components/Queue.tsx` (import `useTheme`; container mono; chip chrome dropped in Tube; the glow on running chips)
 
 **Interfaces:**
+
 - Consumes: `useTheme()`, `animate-chip-glow` from Task 3, existing `JobChip` props.
 - Produces: in Tube the queue reads as scrollback lines: mono, no chip borders, an amber halo breathing on the running job.
 
@@ -647,8 +657,8 @@ import { useTheme } from '@/lib/use-theme';
 In `Queue`, above the early return:
 
 ```tsx
-  const { theme } = useTheme();
-  const phosphor = theme === 'phosphor';
+const { theme } = useTheme();
+const phosphor = theme === 'phosphor';
 ```
 
 The container gains the mono variant:
@@ -701,9 +711,11 @@ git commit -m "Turn the queue into scrollback lines under Tube"
 ### Task 7: The prompt prefix and the block cursor
 
 **Files:**
+
 - Modify: `client/src/components/CommandBar.tsx` (import `useTheme`; prefix span and cursor span inside the code element)
 
 **Interfaces:**
+
 - Consumes: `useTheme()`, utilities `cursor-block` and `animate-cursor-blink` from Task 3, the existing `run` prop (for the solid-while-running rule).
 - Produces: `scrub$` before the command and a `cursor-block` span at its end in Tube; nothing changes in light and dark.
 
@@ -716,8 +728,8 @@ import { useTheme } from '@/lib/use-theme';
 In `CommandBar`, after `const [passIndex, setPassIndex] = useState(0);`:
 
 ```tsx
-  const { theme } = useTheme();
-  const phosphor = theme === 'phosphor';
+const { theme } = useTheme();
+const phosphor = theme === 'phosphor';
 ```
 
 - [ ] **Step 2: Add the prefix before the command**
@@ -750,18 +762,23 @@ The `<code>` element, its contents, and the two `<Fade>` elements are exactly as
 After the `tokens.map(...)` inside the `<code>`, still inside it (so it scrolls with the command, like a real prompt's cursor):
 
 ```tsx
-            {phosphor && (
-              /**
-               * The block cursor, solid while a run is in progress: a blinking
-               * cursor next to the progress numbers competes with the one thing
-               * the user is watching. Empty, so it adds nothing to the copied
-               * or announced text.
-               */
-              <span
-                aria-hidden
-                className={cn('cursor-block bg-token-flag', run.status !== 'running' && 'animate-cursor-blink')}
-              />
-            )}
+{
+  phosphor && (
+    /**
+     * The block cursor, solid while a run is in progress: a blinking
+     * cursor next to the progress numbers competes with the one thing
+     * the user is watching. Empty, so it adds nothing to the copied
+     * or announced text.
+     */
+    <span
+      aria-hidden
+      className={cn(
+        'cursor-block bg-token-flag',
+        run.status !== 'running' && 'animate-cursor-blink',
+      )}
+    />
+  );
+}
 ```
 
 `cn` is already imported in this file.
@@ -785,11 +802,13 @@ git commit -m "Make the command bar the prompt in Tube: scrub$ and a block curso
 ### Task 8: Scanlines on the empty well
 
 **Files:**
+
 - Modify: `client/src/components/Dropzone.tsx` (import `useTheme`; `relative` on the container; the overlay)
 
 Deviation from the spec's file list, deliberate: the spec names `MediaWell.tsx` and `FileStatus.tsx`, but the empty well in both routes IS the `Dropzone` component, and `MediaWell` only ever renders with a file loaded. Putting the overlay in `Dropzone` gives "scanlines on the empty state, cleared on load" by construction, since the dropzone unmounts the moment a file lands.
 
 **Interfaces:**
+
 - Consumes: `useTheme()`, utility `scanlines` from Task 3.
 - Produces: a scanline overlay inside the dropzone, Tube only. The moment a file lands, `Dropzone` unmounts, which is how the lines clear.
 
@@ -802,8 +821,8 @@ import { useTheme } from '@/lib/use-theme';
 In `Dropzone`:
 
 ```tsx
-  const { theme } = useTheme();
-  const phosphor = theme === 'phosphor';
+const { theme } = useTheme();
+const phosphor = theme === 'phosphor';
 ```
 
 Add `relative` to the dropzone container's class list (it currently starts `'flex h-full min-h-48 flex-1 cursor-pointer ...'`):
@@ -817,14 +836,16 @@ Add `relative` to the dropzone container's class list (it currently starts `'fle
 As the first child of the dropzone container:
 
 ```tsx
-      {phosphor && (
-        /**
-         * Texture lives where the file isn't: faint scanlines on the empty
-         * well, the CRT's idle screen. The dropzone unmounts the moment a
-         * file lands, so the lines can never sit under a picture.
-         */
-        <div aria-hidden className="scanlines pointer-events-none absolute inset-0 rounded-well" />
-      )}
+{
+  phosphor && (
+    /**
+     * Texture lives where the file isn't: faint scanlines on the empty
+     * well, the CRT's idle screen. The dropzone unmounts the moment a
+     * file lands, so the lines can never sit under a picture.
+     */
+    <div aria-hidden className="scanlines pointer-events-none absolute inset-0 rounded-well" />
+  );
+}
 ```
 
 - [ ] **Step 3: Run the e2e block**
@@ -846,6 +867,7 @@ git commit -m "Give the empty well its idle scanlines under Tube"
 ### Task 9: The full suite, everything still standing
 
 **Files:**
+
 - None (verification only).
 
 - [ ] **Step 1: Run the whole e2e suite**
@@ -863,10 +885,12 @@ Expected: green, except the three pre-existing react-refresh warnings which stay
 ### Task 10: The contrast gate, wired into verify
 
 **Files:**
+
 - Create: `client/scripts/contrast-check.mjs`
 - Modify: `package.json:27-29` (add a `contrast` script, insert it into `verify`)
 
 **Interfaces:**
+
 - Consumes: nothing; standalone Node 22 script.
 - Produces: `npm run contrast` exits 1 when any palette token drops below its floor, printing the table and the failures. `npm run verify` runs it before the build.
 
@@ -909,7 +933,13 @@ const palettes = {
     accent: '#3a4fe0',
     onAccent: '#ffffff',
     signal: '#e8a33d',
-    tokens: { binary: '#e7e9ec', flag: '#8aa0ff', value: '#e8a33d', path: '#7fd1a8', transport: '#757d89' },
+    tokens: {
+      binary: '#e7e9ec',
+      flag: '#8aa0ff',
+      value: '#e8a33d',
+      path: '#7fd1a8',
+      transport: '#757d89',
+    },
   },
   dark: {
     paper: '#252833',
@@ -922,7 +952,13 @@ const palettes = {
     accent: '#8695ff',
     onAccent: '#0b0d11',
     signal: '#e8a33d',
-    tokens: { binary: '#e7e9ec', flag: '#8aa0ff', value: '#e8a33d', path: '#7fd1a8', transport: '#757d89' },
+    tokens: {
+      binary: '#e7e9ec',
+      flag: '#8aa0ff',
+      value: '#e8a33d',
+      path: '#7fd1a8',
+      transport: '#757d89',
+    },
   },
   phosphor: {
     paper: '#071008',
@@ -935,7 +971,13 @@ const palettes = {
     accent: '#eafff2',
     onAccent: '#04301a',
     signal: '#ffb454',
-    tokens: { binary: '#d9f5de', flag: '#33d964', value: '#ffb454', path: '#9af0ae', transport: '#5c8066' },
+    tokens: {
+      binary: '#d9f5de',
+      flag: '#33d964',
+      value: '#ffb454',
+      path: '#9af0ae',
+      transport: '#5c8066',
+    },
   },
 };
 
@@ -959,7 +1001,9 @@ for (const [name, p] of Object.entries(palettes)) {
     failed ||= !ok;
     console.log(`  ${label.padEnd(26)} ${r.toFixed(2)}:1  (floor ${floor}:1)${ok ? '' : '  FAIL'}`);
   }
-  console.log(`  line / paper            ${ratio(p.line, p.paper).toFixed(2)}:1  (hairline, informational)`);
+  console.log(
+    `  line / paper            ${ratio(p.line, p.paper).toFixed(2)}:1  (hairline, informational)`,
+  );
 }
 
 if (failed) {
@@ -1002,10 +1046,12 @@ git commit -m "Gate every palette's contrast floors in verify"
 ### Task 11: The design doc, and the final full verification
 
 **Files:**
+
 - Modify: `docs/DESIGN.md` (new `### Tube` section after `### Dark mode`; the motion doctrine line)
 - Modify: `client/src/lib/motion.ts:5-8` (the comment naming the one orchestrated moment)
 
 **Interfaces:**
+
 - Consumes: the spec, and the shipped values from Tasks 2-10.
 - Produces: docs that describe what the build actually does, which is the repo's convention.
 
