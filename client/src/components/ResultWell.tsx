@@ -107,7 +107,17 @@ export function ResultWell({
           // at, so the height would be empty black.
           showingAudio && !missing
             ? 'shrink-0 px-6 py-5'
-            : 'min-h-28 flex-1 tall:min-h-32 tall:workspace:min-h-48',
+            : /**
+               * Capped, not just floored.
+               *
+               * With only a minimum, the well took every pixel `main` had. On a
+               * 1500x900 window that put the summary row and the Save button at
+               * y=881 against a 900px fold, with 347px hidden below and no
+               * scroll cue: the last step of the task was the part that did not
+               * render. You pressed Run, got a picture, and could not see how
+               * to keep the file.
+               */
+              'min-h-28 max-h-[min(52vh,26rem)] flex-1 tall:min-h-32 tall:workspace:min-h-48',
         )}
       >
         {missing && side === 'result' ? (

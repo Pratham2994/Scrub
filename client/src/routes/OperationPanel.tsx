@@ -6,7 +6,7 @@ import {
 } from '@scrub/shared';
 import { ArrowRight } from 'lucide-react';
 import { Link } from 'react-router';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Navigate, useParams } from 'react-router';
 
 import { FileStatus } from '@/components/FileStatus';
@@ -14,6 +14,7 @@ import { Handoff } from '@/components/Handoff';
 import { MediaWell } from '@/components/MediaWell';
 import { OperationControls } from '@/components/OperationControls';
 import { ResultWell } from '@/components/ResultWell';
+import { cn } from '@/lib/utils';
 import { useScrubStore } from '@/store/use-scrub-store';
 
 /**
@@ -93,16 +94,21 @@ export function OperationPanel() {
         )}
       </Handoff>
 
-      <div className="border-line bg-surface rounded-control border p-4">
+      <div
+        className={cn(
+          'rounded-control border p-4',
+          /**
+           * A failure gets its own surface. It used to land in this same card,
+           * at the same weight and colour as "Set it up above, then Run", which
+           * made the loudest thing in the product the quietest on screen.
+           */
+          run.status === 'failed'
+            ? 'border-destructive/60 bg-destructive/[0.04]'
+            : 'border-line bg-surface',
+        )}
+      >
         {run.status === 'failed' ? (
-          <div>
-            <p className="text-label text-ink">{run.message}</p>
-            {run.detail.length > 0 && (
-              <pre className="text-mono text-muted mt-2 overflow-x-auto">
-                {run.detail.join('\n')}
-              </pre>
-            )}
-          </div>
+          <Failure message={run.message} detail={run.detail} />
         ) : run.status === 'cancelled' ? (
           <p className="text-label text-muted">Cancelled. Nothing was written.</p>
         ) : run.status === 'done' ? (
@@ -117,6 +123,44 @@ export function OperationPanel() {
           </p>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * What ffmpeg said when it refused.
+ *
+ * The content here was always right - the real message and the last lines of
+ * stderr, with no apology. The presentation was the problem: it rendered in the
+ * same card, weight and colour as the idle hint, below the fold, with nothing
+ * announcing it. For an audience defined by being able to read ffmpeg's output,
+ * that output was the hardest thing on the screen to find.
+ *
+ * `role="alert"` rather than a polite region, because a run that has stopped is
+ * not something to mention when convenient.
+ */
+function Failure({
+  message,
+  detail,
+}: {
+  readonly message: string;
+  readonly detail: readonly string[];
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Scrolled to, because it usually sits below a tall preview.
+  useEffect(() => {
+    ref.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [message]);
+
+  return (
+    <div ref={ref} role="alert">
+      <p className="text-label text-ink font-medium">{message}</p>
+      {detail.length > 0 && (
+        <pre className="text-mono text-ink/80 mt-2 overflow-x-auto rounded-control bg-black/[0.04] p-3">
+          {detail.join('\n')}
+        </pre>
+      )}
     </div>
   );
 }

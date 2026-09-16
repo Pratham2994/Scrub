@@ -1,7 +1,7 @@
 import type { ProbeResult } from '@scrub/shared';
 import { useEffect, useRef, useState } from 'react';
 
-import { sourceUrl } from '@/lib/api';
+import { sourceUrl, waveformUrl } from '@/lib/api';
 import { registerVideo } from '@/lib/playback';
 
 /**
@@ -22,11 +22,14 @@ type MediaWellProps = {
 
 export function MediaWell({ id, meta }: MediaWellProps) {
   const [failed, setFailed] = useState(false);
+  /** The waveform is drawn by ffmpeg; a file it cannot draw still plays. */
+  const [waveFailed, setWaveFailed] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   // A different file deserves a fresh attempt, even if the last one failed.
   useEffect(() => {
     setFailed(false);
+    setWaveFailed(false);
   }, [id]);
 
   /**
@@ -72,19 +75,38 @@ export function MediaWell({ id, meta }: MediaWellProps) {
 
   if (audioOnly) {
     /**
-     * Audio gets a short well, not a tall one.
+     * A file with no picture still has a shape, and this is it.
      *
-     * The well is sized for a picture, and a file with no picture left a huge
-     * black rectangle with a small player marooned in the middle of it. There
-     * is nothing to look at here, so the space goes to the waveform on the
-     * timeline below instead.
+     * DESIGN.md names the waveform as one of the three things carrying the
+     * identity and argues its scale at length, and it was only ever drawn on
+     * the trim timeline - so every other audio operation showed a stock browser
+     * pill on the darkest surface in the app and nothing else. The one thing on
+     * screen that comes from the user's own file was missing from the one place
+     * they look first.
+     *
+     * Short rather than tall: the well is sized for a picture, and there is no
+     * picture. Enough height to read the envelope, not enough to pretend it is
+     * a video.
      */
     return (
-      <div className="bg-well border-well-edge flex shrink-0 items-center justify-center rounded-well border px-6 py-5">
-        <div className="w-full max-w-xl">
+      <div className="bg-well border-well-edge flex shrink-0 flex-col justify-center rounded-well border px-6 py-5">
+        <div className="mx-auto w-full max-w-xl">
           <p className="text-micro text-token-transport mb-2.5 text-center tabular-nums">
             {describeAudio(meta)}
           </p>
+          {!waveFailed && (
+            <img
+              src={waveformUrl(id)}
+              alt=""
+              draggable={false}
+              onError={() => {
+                // ffmpeg could not draw it. The player below still works, and a
+                // broken image icon would be worse than no picture at all.
+                setWaveFailed(true);
+              }}
+              className="mb-2.5 h-16 w-full rounded-control object-fill opacity-80"
+            />
+          )}
           {/* No caption track: this is the user's own file, opened from their own
               disk seconds ago. There is nothing to caption it with. */}
           <audio src={sourceUrl(id)} controls className="w-full" />

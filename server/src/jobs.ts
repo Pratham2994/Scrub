@@ -367,7 +367,7 @@ async function runPasses(job: Job, options: StartJobOptions): Promise<void> {
         job.status = 'failed';
         emit(job, {
           type: 'error',
-          message: `ffmpeg exited with code ${String(exitCode(result.code))}.`,
+          message: failureMessage(result.code),
           detail: lastLines(result.stderr, 15),
         });
         await fs.rm(options.outputPath, { force: true }).catch(() => undefined);
@@ -421,6 +421,35 @@ type PassResult = { readonly code: number | null; readonly stderr: string };
 function exitCode(code: number | null): number | string {
   if (code === null) return 'unknown';
   return code > 0x7fffffff ? code - 0x100000000 : code;
+}
+
+/**
+ * What to call the failure, given what ffmpeg returned.
+ *
+ * A process exit status is a byte. ffmpeg on Windows often returns something
+ * else entirely: an AVERROR tag, which is four packed characters negated, so a
+ * missing encoder comes back as -1129203192 - that is `FFERRTAG(0xF8,'E','N','C')`,
+ * AVERROR_ENCODER_NOT_FOUND, spelled out in the low bytes.
+ *
+ * Printing "exit code -1129203192" is accurate and useless; it reads as
+ * corruption and buries the line below it, which is the one that actually says
+ * "Unknown encoder 'libx264zzz'". So a number outside the byte range is
+ * reported as what it is, and the stderr underneath carries the meaning.
+ */
+function failureMessage(code: number | null): string {
+  const normalised = exitCode(code);
+  if (typeof normalised !== 'number') return 'ffmpeg stopped without saying why.';
+  if (normalised >= 0 && normalised <= 255) {
+    return `ffmpeg exited with code ${String(normalised)}.`;
+  }
+  // The four characters an AVERROR packs, when they are printable.
+  const tag = Math.abs(normalised);
+  const letters = [8, 16, 24]
+    .map((shift) => String.fromCharCode((tag >> shift) & 0xff))
+    .filter((ch) => /[A-Za-z0-9]/.test(ch))
+    .join('');
+  const named = letters.length === 3 ? ` (AVERROR "${letters}")` : '';
+  return `ffmpeg stopped with an error${named}. Its own last words are below.`;
 }
 
 function runPass(

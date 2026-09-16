@@ -89,7 +89,11 @@ function JobChip({ job }: { readonly job: QueuedJob }) {
       {job.status === 'done' && (
         <Check aria-hidden size={12} className="text-token-path shrink-0" />
       )}
-      {job.status === 'failed' && <span className="text-micro shrink-0">failed</span>}
+      {job.status === 'failed' && (
+        // The only status word in the strip with no weight, while `done` gets a
+        // green check. A run that stopped should not be the quietest chip.
+        <span className="text-micro text-destructive shrink-0 font-medium">failed</span>
+      )}
       {job.status === 'cancelled' && <span className="text-micro shrink-0">cancelled</span>}
     </>
   );

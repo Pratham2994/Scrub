@@ -275,7 +275,19 @@ test.describe('running an operation', () => {
     await page.getByRole('button', { name: /Stop editing/ }).click();
     await page.getByRole('button', { name: 'Run' }).click();
 
-    await expect(page.getByText(/ffmpeg exited with code/)).toBeVisible({ timeout: 60_000 });
+    /**
+     * Asserted on the contract rather than the wording. ffmpeg's return value
+     * is a byte on some platforms and an AVERROR tag on others - Windows hands
+     * back -1129203192 for a missing encoder - so the heading legitimately
+     * differs. What must hold everywhere is that the failure announces itself
+     * and carries ffmpeg's own last words.
+     */
+    const alert = page.getByRole('alert');
+    await expect(alert).toBeVisible({ timeout: 60_000 });
+    await expect(alert).toContainText(/ffmpeg (exited with code|stopped with an error)/);
+    await expect(alert.locator('pre')).toContainText(
+      /libdefinitelynotacodec|Unknown encoder|Encoder not found/,
+    );
   });
 });
 

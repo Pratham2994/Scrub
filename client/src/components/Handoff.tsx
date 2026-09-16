@@ -29,7 +29,21 @@ export function Handoff({ mode, children }: HandoffProps) {
   const variants = handoffVariants(reduced);
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col">
+    /**
+     * No `min-h-0` on either box, deliberately.
+     *
+     * As a `flex-1` item its automatic minimum was zero, so the column shrank
+     * it well below its contents - measured at 256px around a 440px panel - and
+     * the controls simply overflowed it. Nothing clipped them, so they looked
+     * fine, but they were painted over whatever came next: the failure card sat
+     * correctly at 411..765 and was invisible underneath them. `will-change:
+     * transform` on the inner box makes that worse by promoting it above later
+     * siblings in paint order.
+     *
+     * Leaving the minimum at `auto` makes both boxes refuse to shrink below
+     * their content, and `main` scrolls instead, which is what it is for.
+     */
+    <div className="relative flex flex-1 flex-col">
       <AnimatePresence
         mode="popLayout"
         // No animation on the first paint. A reload with a file already restored
@@ -46,7 +60,7 @@ export function Handoff({ mode, children }: HandoffProps) {
           // Scale on a panel full of text softens the type for the length of the
           // transition; telling the browser in advance keeps it sharp.
           style={{ willChange: reduced ? 'opacity' : 'transform, opacity' }}
-          className="flex min-h-0 flex-1 flex-col gap-4"
+          className="flex flex-1 flex-col gap-4"
         >
           {children}
         </motion.div>

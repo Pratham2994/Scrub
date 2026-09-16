@@ -112,7 +112,19 @@ export function Rail() {
                       isActive
                         ? 'bg-well text-white font-medium'
                         : blocked
-                          ? 'text-muted/45 hover:text-muted'
+                          ? /**
+                             * Struck through rather than faded.
+                             *
+                             * `text-muted/45` measured 1.88:1 against paper in
+                             * both themes, and these are focusable links with a
+                             * tooltip, so that is an interactive control below
+                             * even the 3:1 floor. Opacity cannot carry
+                             * "unavailable" and stay legible: the band between
+                             * visibly dimmer and 4.5:1 is too narrow to read.
+                             * The line carries the meaning instead, which also
+                             * means it no longer depends on colour at all.
+                             */
+                            'text-muted line-through decoration-line-strong/70 hover:text-ink'
                           : 'text-muted hover:text-ink hover:bg-surface/70',
                     )
                   }

@@ -13,6 +13,9 @@ dist/
 # scrub working directory — uploaded sources and encoded outputs
 .tmp/
 
+# design tooling state and its saved reviews. Local notes, not project content.
+.impeccable/
+
 # test + tooling artefacts
 coverage/
 playwright-report/
