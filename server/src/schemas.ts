@@ -89,6 +89,48 @@ export const operationSchema = z.discriminatedUnion('kind', [
     targetTP: z.number().min(-9).max(0),
     targetLRA: z.number().min(1).max(50),
   }),
+  z.object({
+    kind: z.literal('merge'),
+    clipIds: z.array(idSchema).min(1).max(3),
+    crossfadeSec: z.number().min(0).max(2),
+    fadeInSec: z.number().min(0).max(5),
+    fadeOutSec: z.number().min(0).max(5),
+    crf: z.number().int().min(0).max(51),
+  }),
+  z.object({
+    kind: z.literal('merge-audio'),
+    clipIds: z.array(idSchema).min(1).max(11),
+    crossfadeSec: z.number().min(0).max(10),
+    fadeInSec: z.number().min(0).max(30),
+    fadeOutSec: z.number().min(0).max(30),
+    bitrateKbps: z.number().int().min(32).max(320),
+  }),
+  z.object({
+    kind: z.literal('add-music'),
+    musicId: idSchema,
+    originalPercent: z.number().int().min(0).max(100),
+    musicPercent: z.number().int().min(0).max(100),
+  }),
+  z.object({
+    kind: z.literal('watermark'),
+    imageId: idSchema,
+    position: z.enum(['nw', 'n', 'ne', 'w', 'center', 'e', 'sw', 's', 'se']),
+    opacity: z.number().int().min(0).max(100),
+  }),
+  z.object({
+    kind: z.literal('fade'),
+    fadeInSec: z.number().min(0).max(10),
+    fadeOutSec: z.number().min(0).max(10),
+  }),
+  z.object({
+    kind: z.literal('audio-fade'),
+    fadeInSec: z.number().min(0).max(10),
+    fadeOutSec: z.number().min(0).max(10),
+  }),
+  z.object({ kind: z.literal('loop'), times: z.number().int().min(2).max(16) }),
+  z.object({ kind: z.literal('audio-loop'), times: z.number().int().min(2).max(16) }),
+  z.object({ kind: z.literal('volume'), gainDb: z.number().min(-20).max(20) }),
+  z.object({ kind: z.literal('audio-volume'), gainDb: z.number().min(-20).max(20) }),
 ]) satisfies z.ZodType<Operation>;
 
 /**

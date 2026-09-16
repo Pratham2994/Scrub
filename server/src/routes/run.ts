@@ -7,6 +7,7 @@ import {
   operationDescriptor,
   outputNameFor,
   outputPathFor,
+  type ProbeResult,
 } from '@scrub/shared';
 import { Router } from 'express';
 
@@ -111,21 +112,41 @@ export function runRouter(tools: FfmpegTools): Router {
     try {
       // The same call the command bar made. If these ever produced different
       // argv, the preview would be a lie - which is the one thing Scrub must not do.
-      // replace-audio takes a second upload; resolve its id to a path here so
-      // buildArgs stays pure and never touches the store.
+      // The multi-input operations carry upload ids; resolve them to paths and
+      // probes here so buildArgs stays pure and never touches the store.
       let secondaryInputPath: string | undefined;
-      if (op.kind === 'replace-audio') {
-        const replacement = getFile(op.audioId);
-        if (!replacement) {
+      let secondaryInputs:
+        readonly { readonly path: string; readonly meta: ProbeResult }[] | undefined;
+
+      const resolve = (id: string, missing: string) => {
+        const file = getFile(id);
+        if (!file?.meta) {
           res.status(404).json({
-            error: {
-              code: 'NOT_FOUND',
-              message: 'That replacement audio file is no longer loaded.',
-            },
+            error: { code: 'NOT_FOUND', message: missing },
           } satisfies ApiError);
-          return;
+          return null;
         }
+        return { path: file.path, meta: file.meta };
+      };
+
+      if (op.kind === 'replace-audio') {
+        const replacement = resolve(op.audioId, 'That replacement audio file is no longer loaded.');
+        if (replacement === null) return;
         secondaryInputPath = replacement.path;
+      } else if (op.kind === 'merge' || op.kind === 'merge-audio') {
+        const files = op.clipIds.map((clipId) =>
+          resolve(clipId, 'One of those clips is no longer loaded. Add it again.'),
+        );
+        if (files.some((file) => file === null)) return;
+        secondaryInputs = files.filter((file) => file !== null);
+      } else if (op.kind === 'add-music') {
+        const music = resolve(op.musicId, 'That music file is no longer loaded.');
+        if (music === null) return;
+        secondaryInputs = [music];
+      } else if (op.kind === 'watermark') {
+        const image = resolve(op.imageId, 'That image is no longer loaded.');
+        if (image === null) return;
+        secondaryInputs = [image];
       }
 
       const plan = buildArgs(op, source.meta, {
@@ -133,6 +154,7 @@ export function runRouter(tools: FfmpegTools): Router {
         outputPath,
         workDir: config.tmpDir,
         ...(secondaryInputPath === undefined ? {} : { secondaryInputPath }),
+        ...(secondaryInputs === undefined ? {} : { secondaryInputs }),
       });
 
       const jobId = startJob({
