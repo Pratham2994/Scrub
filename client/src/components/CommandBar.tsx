@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { analyse, CommandEditor, hasBlockingError } from '@/components/CommandEditor';
 import { commandToString, type CommandToken, tokenizeCommand } from '@/lib/command-tokens';
 import { cn } from '@/lib/utils';
+import { useTheme } from '@/lib/use-theme';
 import type { CommandPassView } from '@/lib/use-command';
 import type { RunState } from '@/store/use-scrub-store';
 
@@ -61,6 +62,9 @@ export function CommandBar({
    */
   const [draft, setDraft] = useState<string | null>(null);
   const [passIndex, setPassIndex] = useState(0);
+
+  const { theme } = useTheme();
+  const phosphor = theme === 'phosphor';
 
   const generatedLine = useMemo(
     () => formatCommandLine(['ffmpeg', ...(passes[passIndex]?.argv ?? argv)]),
@@ -183,45 +187,73 @@ export function CommandBar({
       {editing && analysis !== null ? (
         <CommandEditor text={text} onTextChange={setDraft} result={analysis} />
       ) : (
-        <div className="relative min-w-0 grow basis-64 self-center">
-          <code
-            ref={scrollRef}
-            onScroll={measure}
-            tabIndex={0}
-            className={cn(
-              'text-mono block overflow-x-auto whitespace-nowrap tabular-nums',
-              // A thin visible track: with the scrollbar hidden entirely there is
-              // nothing telling a mouse user the rest of the command is there.
-              '[scrollbar-color:theme(colors.token-transport)_transparent] [scrollbar-width:thin]',
-              placeholder && 'opacity-60',
-            )}
-            aria-label={placeholder ? 'Example command' : 'Command that will run'}
-          >
-            {tokens.map((token, index) => (
-              /**
-               * The key is position *and* content, so a span survives as long as
-               * the argument at that position is unchanged and re-mounts the
-               * moment it is not. That re-mount is what runs `token-change`, and
-               * it is why moving one control fades one flag rather than the
-               * whole line: the other nineteen spans never went away.
-               *
-               * `data-motion` marks it as opacity-only, which is what keeps it
-               * alive under reduced motion.
-               */
-              <span
-                key={`${String(index)}-${token.full}`}
-                data-motion="opacity"
-                className={cn('token-change', ROLE_CLASS[token.role])}
-                title={token.text === token.full ? undefined : token.full}
-              >
-                {index > 0 ? ' ' : ''}
-                {token.text}
-              </span>
-            ))}
-          </code>
-          <Fade side="left" visible={edges.left} />
-          <Fade side="right" visible={edges.right} />
-        </div>
+        <>
+          {phosphor && (
+            /**
+             * The prompt. Green, like the command itself, because amber is
+             * reserved for running states and a permanent amber prefix would
+             * be the one misuse the palette rules out.
+             */
+            <span aria-hidden className="text-token-flag text-mono shrink-0 font-medium">
+              scrub$
+            </span>
+          )}
+          <div className="relative min-w-0 grow basis-64 self-center">
+            <code
+              ref={scrollRef}
+              onScroll={measure}
+              tabIndex={0}
+              className={cn(
+                'text-mono block overflow-x-auto whitespace-nowrap tabular-nums',
+                // A thin visible track: with the scrollbar hidden entirely there is
+                // nothing telling a mouse user the rest of the command is there.
+                '[scrollbar-color:theme(colors.token-transport)_transparent] [scrollbar-width:thin]',
+                placeholder && 'opacity-60',
+              )}
+              aria-label={placeholder ? 'Example command' : 'Command that will run'}
+            >
+              {tokens.map((token, index) => (
+                /**
+                 * The key is position *and* content, so a span survives as long as
+                 * the argument at that position is unchanged and re-mounts the
+                 * moment it is not. That re-mount is what runs `token-change`, and
+                 * it is why moving one control fades one flag rather than the
+                 * whole line: the other nineteen spans never went away.
+                 *
+                 * `data-motion` marks it as opacity-only, which is what keeps it
+                 * alive under reduced motion.
+                 */
+                <span
+                  key={`${String(index)}-${token.full}`}
+                  data-motion="opacity"
+                  className={cn('token-change', ROLE_CLASS[token.role])}
+                  title={token.text === token.full ? undefined : token.full}
+                >
+                  {index > 0 ? ' ' : ''}
+                  {token.text}
+                </span>
+              ))}
+              {phosphor && (
+                /**
+                 * The block cursor, solid while a run is in progress: a blinking
+                 * cursor next to the progress numbers competes with the one thing
+                 * the user is watching. Inside the code element, so it scrolls
+                 * with the command like a real prompt's cursor, and empty, so it
+                 * adds nothing to the copied or announced text.
+                 */
+                <span
+                  aria-hidden
+                  className={cn(
+                    'cursor-block bg-token-flag',
+                    run.status !== 'running' && 'animate-cursor-blink',
+                  )}
+                />
+              )}
+            </code>
+            <Fade side="left" visible={edges.left} />
+            <Fade side="right" visible={edges.right} />
+          </div>
+        </>
       )}
 
       <div className="ml-auto flex shrink-0 items-center gap-1 self-center">
