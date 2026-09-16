@@ -25,7 +25,8 @@
       // first, which is the one thing a theme switch must never do.
       try {
         var t = localStorage.getItem('scrub:theme');
-        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+        if (t === 'light' || t === 'dark' || t === 'phosphor')
+          document.documentElement.setAttribute('data-theme', t);
       } catch (e) {
         /* storage refused; the media query still applies */
       }

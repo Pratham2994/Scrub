@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 
-export type Theme = 'system' | 'light' | 'dark';
+export type Theme = 'system' | 'light' | 'dark' | 'phosphor';
 
 const KEY = 'scrub:theme';
 
 export function isTheme(value: string): value is Theme {
-  return value === 'system' || value === 'light' || value === 'dark';
+  return value === 'system' || value === 'light' || value === 'dark' || value === 'phosphor';
 }
 
 function read(): Theme {

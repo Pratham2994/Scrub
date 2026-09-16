@@ -1,4 +1,4 @@
-import { Monitor, Moon, Settings, Sun } from 'lucide-react';
+import { Monitor, Moon, Settings, Sun, Terminal } from 'lucide-react';
 import { Fragment, useEffect, useRef, useState } from 'react';
 
 import {
@@ -20,6 +20,7 @@ const THEMES: readonly {
   { value: 'system', label: 'System', icon: Monitor },
   { value: 'light', label: 'Light', icon: Sun },
   { value: 'dark', label: 'Dark', icon: Moon },
+  { value: 'phosphor', label: 'Tube', icon: Terminal },
 ];
 
 /**
@@ -98,7 +99,7 @@ export function SettingsPanel() {
         >
           <fieldset>
             <legend className="text-label text-muted mb-2">Appearance</legend>
-            <div className="border-line grid grid-cols-3 gap-1 rounded-control border p-1">
+            <div className="border-line grid grid-cols-4 gap-1 rounded-control border p-1">
               {THEMES.map(({ value, label, icon: Icon }) => (
                 <button
                   key={value}
@@ -119,10 +120,17 @@ export function SettingsPanel() {
                 </button>
               ))}
             </div>
-            <p className="text-micro text-muted mt-2">
-              Light is the default, because Scrub is a utility you open for a minute rather than a
-              suite you sit in. The video well stays the darkest thing on screen either way.
-            </p>
+            {theme === 'phosphor' ? (
+              <p className="text-micro text-muted mt-2">
+                Tube is the whole app as one CRT terminal: green phosphor on black, and the command
+                bar is the prompt. Light and dark keep their argument for the rest of the day.
+              </p>
+            ) : (
+              <p className="text-micro text-muted mt-2">
+                Light is the default, because Scrub is a utility you open for a minute rather than a
+                suite you sit in. The video well stays the darkest thing on screen either way.
+              </p>
+            )}
           </fieldset>
 
           <hr className="border-line my-4" />
