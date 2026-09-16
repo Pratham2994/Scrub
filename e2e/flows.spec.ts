@@ -1121,3 +1121,52 @@ test.describe('picking a file up again', () => {
     await expect(page.locator('header')).toContainText('clip.mp4');
   });
 });
+
+test.describe('the Tube theme', () => {
+  const switchToTube = async (page: Page): Promise<void> => {
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Settings' }).click();
+    await page.getByRole('button', { name: 'Tube', exact: true }).click();
+  };
+
+  test('applies the phosphor theme and keeps it across a reload', async ({ page }) => {
+    await switchToTube(page);
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'phosphor');
+
+    await page.reload();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'phosphor');
+  });
+
+  test('lays the rail out horizontally at desktop width, and back when switched away', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1366, height: 768 });
+    await switchToTube(page);
+
+    const rail = page.locator('nav');
+    const strip = await rail.boundingBox();
+    expect(strip).not.toBeNull();
+    // Wide and short: the strip. The vertical rail is tall and narrow.
+    expect(strip!.width).toBeGreaterThan(strip!.height * 4);
+
+    // Light restores the vertical rail.
+    await page.getByRole('button', { name: 'Light', exact: true }).click();
+    const column = await rail.boundingBox();
+    expect(column).not.toBeNull();
+    expect(column!.height).toBeGreaterThan(column!.width);
+  });
+
+  test('turns the command bar into a prompt with a block cursor', async ({ page }) => {
+    await switchToTube(page);
+    await expect(page.getByText('scrub$')).toBeVisible();
+    await expect(page.locator('code .cursor-block')).toBeVisible();
+  });
+
+  test('shows scanlines on the empty well and clears them once a file loads', async ({ page }) => {
+    await switchToTube(page);
+    await expect(page.locator('.scanlines')).toBeVisible();
+
+    await loadFixture(page);
+    await expect(page.locator('.scanlines')).toHaveCount(0);
+  });
+});
