@@ -97,7 +97,7 @@ describe('lintCommand - structure', () => {
   });
 
   /**
-   * CLAUDE.md's closed operation list is only acceptable because anything else
+   * docs/CLAUDE.md's closed operation list is only acceptable because anything else
    * goes through the command bar. A bar that refuses every flag outside Scrub's
    * few dozen is not that: ffmpeg has hundreds, and `-stream_loop` below is a
    * real one Scrub used to withhold Run for.

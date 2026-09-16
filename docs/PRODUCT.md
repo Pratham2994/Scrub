@@ -1,7 +1,5 @@
 # Product
 
-<!-- impeccable:product-schema 1 -->
-
 ## Platform
 
 web
@@ -13,7 +11,7 @@ thirty seconds out, make it small enough to send, turn it into a GIF, strip the
 audio - and who do not want to learn ffmpeg's flag grammar to get it.
 
 The defining trait is asymmetric: they **can read** ffmpeg's output but do not want
-to **write** its input. CLAUDE.md states both halves outright - "if the user has to
+to **write** its input. docs/CLAUDE.md states both halves outright - "if the user has to
 know ffmpeg to use it, it has failed", and "this tool's audience can read ffmpeg
 output". That is why failures surface raw stderr instead of "conversion failed", and
 why the generated command is shown rather than hidden.

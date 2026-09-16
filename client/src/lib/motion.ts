@@ -3,7 +3,7 @@ import type { Transition } from 'motion/react';
 /**
  * Every duration in the product, in one place.
  *
- * DESIGN.md allows exactly one orchestrated moment and otherwise only response
+ * docs/DESIGN.md allows exactly one orchestrated moment and otherwise only response
  * to an action. Keeping the numbers here rather than scattered through
  * components is what stops a second orchestrated moment appearing by accident.
  */

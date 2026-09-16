@@ -8,7 +8,7 @@ import { useScrubStore } from '@/store/use-scrub-store';
 /**
  * The crop rectangle, dragged over a real frame from the file.
  *
- * DESIGN.md's rule for what earns screen space is whether it comes from the
+ * docs/DESIGN.md's rule for what earns screen space is whether it comes from the
  * user's own data, and this is the clearest case of it in the product: the
  * thing you are cutting is drawn on the thing you are cutting it out of. A pair
  * of width and height boxes would be the same operation and a worse answer to

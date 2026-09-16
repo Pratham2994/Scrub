@@ -185,7 +185,7 @@ export function lintCommand(argv: readonly string[], context: LintContext): read
        * A flag Scrub has never heard of does not block the run.
        *
        * ffmpeg has hundreds of options and this list holds a few dozen, so
-       * refusing everything outside it would make CLAUDE.md's fourth
+       * refusing everything outside it would make docs/CLAUDE.md's fourth
        * non-negotiable untrue: the closed operation list is only acceptable
        * because "anything else goes through the editable command bar", and a
        * bar that runs a curated subset of ffmpeg is not that. `-stream_loop`

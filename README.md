@@ -193,27 +193,18 @@ server/   POST /upload       multipart -> tmp, ffprobe, returns { id, meta }
 shared/   Operation types and the buildArgs function. Imported by both.
 ```
 
-## Documentation
-
-- [`CLAUDE.md`](CLAUDE.md), the rules and what is non-negotiable
-- [`DESIGN.md`](DESIGN.md), tokens, layout, and what carries the identity
-- [`PRODUCT.md`](PRODUCT.md), who it is for and what it is
-- [`docs/OPERATIONS.md`](docs/OPERATIONS.md), every operation's command, the
-  reasoning behind each flag, and the traps. Read it before touching `buildArgs`.
-
 ## Status
 
-Done, against the operation list in [`CLAUDE.md`](CLAUDE.md). All fourteen
-operations are built, and each has been run through real ffmpeg with the output
-probed back.
+Done. All fourteen operations are built, and each has been run through real ffmpeg
+with the output probed back.
 
 Upload, probe, preview, run with live progress, cancel, compare against the
 original and save all work. Trim and GIF scrub against a filmstrip of real frames
 from your file with the waveform underneath, and an audio file gets the waveform as
 its whole timeline. The command bar shows every pass of a multi-pass operation and
-can be edited directly. What you type is linted against the traps in
-`docs/OPERATIONS.md`, and a flag Scrub doesn't recognise is passed through to
-ffmpeg rather than refused.
+can be edited directly. What you type is checked for the mistakes that cost an
+encode, and a flag Scrub doesn't recognise is passed through to ffmpeg rather than
+refused.
 
 An operation that can't apply to the loaded file says so and points at the one that
 does, instead of letting ffmpeg silently succeed at nothing. HEVC files, which
@@ -228,9 +219,11 @@ one button, so trim then compress doesn't mean saving a file and dropping it bac
 in, and the name carries the whole chain: `clip-trim-0s-2s-compress-crf23.mp4`.
 Settings are remembered between visits. The file is not.
 
-Not built, on purpose: concat, rotate, subtitle burn-in and batch, each with its
-reasoning in [`docs/OPERATIONS.md`](docs/OPERATIONS.md). They're reachable through
-the command bar, which is what it's for.
+Not built, on purpose: concat, rotate, subtitle burn-in and batch. Concat is only
+trivial when codecs and timebases already match, rotate is usually a metadata
+change rather than a filter, subtitles need libass and font resolution, and batch
+is a different shape of application. All four are reachable through the command
+bar, which is what it's for.
 
 ### Tests
 

@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
  * with a readout derived from the loaded file, in tabular figures, and each
  * choice carries the consequence of picking it rather than a generic label.
  *
- * DESIGN.md's test governs what is allowed here: does it come from the file, or
+ * docs/DESIGN.md's test governs what is allowed here: does it come from the file, or
  * is it decoration? Numbers in these readouts are computed from what ffprobe
  * actually found. Where a value genuinely cannot be known before the encode
  * runs, it says so instead of inventing one.
@@ -30,7 +30,7 @@ export function Row({ children }: { readonly children: React.ReactNode }) {
   return <div className="flex flex-wrap items-start gap-x-8 gap-y-5">{children}</div>;
 }
 
-/** A quiet section label. Sentence case, per DESIGN.md: no all-caps anywhere. */
+/** A quiet section label. Sentence case, per docs/DESIGN.md: no all-caps anywhere. */
 export function Legend({ children }: { readonly children: React.ReactNode }) {
   return <p className="text-micro text-muted mb-2 tracking-wide">{children}</p>;
 }

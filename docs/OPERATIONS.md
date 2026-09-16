@@ -1,6 +1,6 @@
 # Operations
 
-The reference for `buildArgs`. CLAUDE.md says to read this before touching that
+The reference for `buildArgs`. docs/CLAUDE.md says to read this before touching that
 function; this is that file.
 
 One entry per operation in the closed list. Each says what the command is, why the
@@ -22,7 +22,7 @@ Three things about this shape are load-bearing:
 **It returns passes, not a single argv.** GIF and loudnorm are genuinely two
 invocations. A single `string[]` would have forced those two operations to build
 their commands somewhere other than `buildArgs`, which is exactly the divergence
-between the previewed command and the executed one that CLAUDE.md's first
+between the previewed command and the executed one that docs/CLAUDE.md's first
 non-negotiable exists to prevent.
 
 **`argv` is complete and real.** It carries the actual tmp paths and the transport
@@ -34,7 +34,7 @@ yields the true command, and nothing is appended downstream.
 [Progress](#progress).
 
 `buildArgs` is pure: no I/O, no clock, no randomness. That is what makes every
-operation and parameter combination a snapshot test, and CLAUDE.md is right that
+operation and parameter combination a snapshot test, and docs/CLAUDE.md is right that
 this is the highest-value test surface in the project.
 
 ## What applies to what

@@ -42,7 +42,7 @@ describe('reading settings from the environment', () => {
 
 describe('what cannot be configured', () => {
   /**
-   * CLAUDE.md's third non-negotiable. The command bar is editable, so a bind on
+   * docs/CLAUDE.md's third non-negotiable. The command bar is editable, so a bind on
    * anything but loopback hands arbitrary ffmpeg argv to the network. Nothing
    * reads an environment variable to change this, and this test exists so that
    * stays true by accident as well as on purpose.

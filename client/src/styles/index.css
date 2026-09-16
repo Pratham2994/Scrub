@@ -16,7 +16,7 @@
 @custom-variant short (@media (max-height: 720px));
 @custom-variant tall (@media (min-height: 721px));
 
-/* ─── Scrub tokens, from DESIGN.md ───────────────────────────────────────────
+/* ─── Scrub tokens, from docs/DESIGN.md ───────────────────────────────────────────
    Light chrome, dark well. The dark is where the picture is and nowhere else.
    The palette is cool and neutral on purpose: the frame in the well is the only
    thing on screen that should carry colour, and warm chrome would shift how the
@@ -32,12 +32,12 @@
   --color-surface: #ffffff;
   /* Hairlines. Tuned against the paper above: ~1.26:1, quiet but present. */
   --color-line: #cfd4de;
-  /* Not in DESIGN.md's list. `--line` is far too faint for the border of a control
+  /* Not in docs/DESIGN.md's list. `--line` is far too faint for the border of a control
      the user is meant to find and operate, so interactive borders and the dropzone
      outline use this instead: 3.0:1 on white, which clears WCAG 1.4.11. */
   --color-line-strong: #8e949e;
   --color-ink: #14161a;
-  /* DESIGN.md's `--muted` is a *text* colour, so this reads as `text-muted`.
+  /* docs/DESIGN.md's `--muted` is a *text* colour, so this reads as `text-muted`.
      shadcn's `muted` is a background; if a generated component reaches for
      `bg-muted` it will be wrong and should use `bg-paper` instead. */
   --color-muted: #5e646e;
@@ -87,7 +87,7 @@
   --spacing-rail: 180px;
   --spacing-commandbar: 64px;
 
-  /* DESIGN.md: usable down to 900px, below which the rail becomes a horizontal
+  /* docs/DESIGN.md: usable down to 900px, below which the rail becomes a horizontal
      scroller. Mobile-first, so the `workspace:` variant is the full layout. */
   --breakpoint-workspace: 900px;
 }
@@ -109,7 +109,7 @@
   --color-secondary-foreground: var(--color-ink);
   --color-muted-foreground: var(--color-muted);
   --color-accent-foreground: var(--color-ink);
-  /* DESIGN.md has no error colour, deliberately: an ffmpeg failure is rendered as
+  /* docs/DESIGN.md has no error colour, deliberately: an ffmpeg failure is rendered as
      what ffmpeg printed, in mono, not as a red panel. This exists only because
      shadcn components reference it. */
   --color-destructive: #b4291d;
@@ -123,7 +123,7 @@
 }
 
 /* ─── Dark mode ──────────────────────────────────────────────────────────────
-   Light is the default and stays the default: DESIGN.md's argument is that Scrub
+   Light is the default and stays the default: docs/DESIGN.md's argument is that Scrub
    is a ninety-second utility next to a browser, not a suite you sit in.
 
    Dark is not that argument inverted. The rule "the dark is where the picture is"
@@ -152,7 +152,7 @@
     --color-well: #0b0d11;
     /* Two dark surfaces cannot separate by luminance the way near-white paper
        did (16:1 in light, 1.3:1 here), so the well earns its edge with a
-       hairline instead - the same way DESIGN.md separates everything else. */
+       hairline instead - the same way docs/DESIGN.md separates everything else. */
     --color-well-edge: #3a3f4f;
     /* #3A4FE0 is a light-mode accent; on a dark ground it reads as a hole.
        Lifted to stay recognisably the same indigo while clearing AA on paper. */
@@ -177,7 +177,7 @@
       --color-well: #0b0d11;
       /* Two dark surfaces cannot separate by luminance the way near-white paper
          did (16:1 in light, 1.3:1 here), so the well earns its edge with a
-         hairline instead - the same way DESIGN.md separates everything else. */
+         hairline instead - the same way docs/DESIGN.md separates everything else. */
       --color-well-edge: #3a3f4f;
       /* #3A4FE0 is a light-mode accent; on a dark ground it reads as a hole.
          Lifted to stay recognisably the same indigo while clearing AA on paper. */
@@ -210,7 +210,7 @@
     height: 100%;
   }
 
-  /* Visible everywhere, in accent, 2px, offset 2px. Non-negotiable in DESIGN.md's
+  /* Visible everywhere, in accent, 2px, offset 2px. Non-negotiable in docs/DESIGN.md's
      quality floor and the easiest thing in a build to lose by accident. */
   :focus-visible {
     outline: 2px solid var(--color-accent);

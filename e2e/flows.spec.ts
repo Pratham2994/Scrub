@@ -374,7 +374,7 @@ test.describe('the workspace', () => {
     });
   }
 
-  /** DESIGN.md's quality floor: below 900px the filmstrip halves in height. */
+  /** docs/DESIGN.md's quality floor: below 900px the filmstrip halves in height. */
   test('halves the filmstrip below the breakpoint', async ({ page }) => {
     const heightAt = async (width: number): Promise<number> => {
       await page.setViewportSize({ width, height: 800 });
@@ -474,7 +474,7 @@ test.describe('a result that is no longer there', () => {
 
 test.describe('motion', () => {
   /**
-   * DESIGN.md allows exactly one orchestrated moment, and these two tests are
+   * docs/DESIGN.md allows exactly one orchestrated moment, and these two tests are
    * the guard on both halves of the sentence describing it. The easy way to
    * lose either is a refactor that swaps the panels without the transition and
    * looks fine to whoever made the change, because they already knew a file had
@@ -729,7 +729,7 @@ test.describe('dropping the same file twice', () => {
 
 test.describe('the keyboard', () => {
   /**
-   * DESIGN.md's quality floor names these explicitly. They are also the most
+   * docs/DESIGN.md's quality floor names these explicitly. They are also the most
    * fragile thing in the app: a focused `<video controls>` answers Space and the
    * arrows from the browser's own shadow DOM, which the page cannot cancel even
    * from a capture listener. That bug has been here once already.

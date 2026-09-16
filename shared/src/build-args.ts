@@ -22,7 +22,7 @@ import { formatSeconds } from './time.js';
 
 /**
  * Tokens ffmpeg needs in order to talk to Scrub, as opposed to tokens that do the
- * user's work. They are part of `argv` - CLAUDE.md's first non-negotiable says the
+ * user's work. They are part of `argv` - docs/CLAUDE.md's first non-negotiable says the
  * displayed command and the executed command are the same array, and a prefix the
  * server appended behind the preview's back would break that. They are exported so
  * the command bar can render them dimmed and so "copy without them" stays a single
@@ -86,7 +86,7 @@ export type CommandIo = {
  * renders its output and `spawn` consumes it; there is no second code path.
  *
  * Pure: no I/O, no clock, no randomness. That is what makes the whole surface
- * snapshot-testable, which CLAUDE.md calls the highest-value test surface here.
+ * snapshot-testable, which docs/CLAUDE.md calls the highest-value test surface here.
  */
 export function buildArgs(op: Operation, meta: ProbeResult, io: CommandIo): CommandPlan {
   /**

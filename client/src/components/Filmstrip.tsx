@@ -21,7 +21,7 @@ type FilmstripProps = {
 /**
  * Real frames from the actual file, butted edge to edge under the range.
  *
- * DESIGN.md calls this one of the three things that carry the identity, and the
+ * docs/DESIGN.md calls this one of the three things that carry the identity, and the
  * reason is that it cannot look generated: every pixel came out of the user's
  * own video.
  *
@@ -106,7 +106,7 @@ export function Filmstrip({
       <div
         ref={trackRef}
         /**
-         * Half height below 900px, per DESIGN.md's quality floor. Vertical space
+         * Half height below 900px, per docs/DESIGN.md's quality floor. Vertical space
          * is what a short laptop window is short of, and the strip is the one
          * element here that reads perfectly well at half the size - it is a
          * ribbon of frames, not something you inspect.

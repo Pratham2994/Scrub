@@ -36,7 +36,7 @@ function typingInto(target: EventTarget | null): boolean {
 const CAPTURE = true;
 
 /**
- * The keyboard surface from DESIGN.md's quality floor.
+ * The keyboard surface from docs/DESIGN.md's quality floor.
  *
  * Landing on an exact frame with a mouse is the task Scrub exists to make less
  * painful, and for some users the keyboard is the only precise way to do it -

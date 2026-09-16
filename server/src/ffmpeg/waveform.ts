@@ -8,7 +8,7 @@ import type { FfmpegTool } from './locate.js';
 /**
  * The waveform, rendered by ffmpeg rather than in the browser.
  *
- * DESIGN.md names Wavesurfer for this, and the reason for not using it is
+ * docs/DESIGN.md names Wavesurfer for this, and the reason for not using it is
  * mechanical: Wavesurfer downloads and decodes the whole file in the page. That
  * is fine for a thirty-second clip and ruinous for a two-hour recording, which
  * would mean sending the entire file to the browser a second time and decoding

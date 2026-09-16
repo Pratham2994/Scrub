@@ -113,7 +113,7 @@ function isExecutableFile(candidate: string): boolean {
 function probeVersion(binaryPath: string): string | null {
   const result = spawnSync(binaryPath, ['-version'], {
     encoding: 'utf8',
-    // No shell. Ever. CLAUDE.md non-negotiable #2 applies to the health check too.
+    // No shell. Ever. docs/CLAUDE.md non-negotiable #2 applies to the health check too.
     shell: false,
     windowsHide: true,
     timeout: 10_000,

@@ -22,7 +22,7 @@ function intFromEnv(name: string, fallback: number): number {
 export const config = {
   /**
    * Loopback, always. The command bar is editable, so a bind on 0.0.0.0 would hand
-   * arbitrary ffmpeg argv to anyone on the network. CLAUDE.md makes this
+   * arbitrary ffmpeg argv to anyone on the network. docs/CLAUDE.md makes this
    * non-negotiable and nothing reads an env var to change it.
    */
   host: '127.0.0.1' as const,

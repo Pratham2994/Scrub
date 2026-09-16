@@ -60,7 +60,7 @@ export function AppShell({ children }: { readonly children: React.ReactNode }) {
   useRestoreUpload();
   // And the queue, which outlives the page because the jobs run on the server.
   useRestoreJobs();
-  // Space, [ and ], and the arrows. See DESIGN.md's quality floor.
+  // Space, [ and ], and the arrows. See docs/DESIGN.md's quality floor.
   useShortcuts();
 
   return (

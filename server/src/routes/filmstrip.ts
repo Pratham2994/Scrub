@@ -84,7 +84,7 @@ export function filmstripRouter(tools: FfmpegTools): Router {
    * The audio as a picture, for the timeline.
    *
    * Peak-level cuts are far easier to find by eye than by ear, which is the
-   * whole reason DESIGN.md wants a waveform. Same exemption and caching as the
+   * whole reason docs/DESIGN.md wants a waveform. Same exemption and caching as the
    * filmstrip: it is loaded by an <img>, which cannot set a header.
    */
   router.get('/waveform/:id', (req, res, next) => {

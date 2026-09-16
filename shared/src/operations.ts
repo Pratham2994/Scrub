@@ -1,5 +1,5 @@
 /**
- * The closed operation set. CLAUDE.md keeps this list closed on purpose: anything
+ * The closed operation set. docs/CLAUDE.md keeps this list closed on purpose: anything
  * not here is done by editing the command bar, not by growing a control panel.
  *
  * `kind` doubles as the route slug (`/op/:name`) so there is one spelling of an
