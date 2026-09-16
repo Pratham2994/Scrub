@@ -25,7 +25,7 @@ export default defineConfig({
   webServer: {
     /**
      * Both halves. These flows upload, probe and encode for real, so the API has
-     * to be up — and that means ffmpeg has to be installed. That is not an
+     * to be up - and that means ffmpeg has to be installed. That is not an
      * awkward dependency to work around: an ffmpeg GUI whose tests never run
      * ffmpeg would be testing the half of the product that was never in doubt.
      */
