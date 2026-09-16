@@ -4,6 +4,7 @@ import type {
   ProbeResult,
   TrimMode,
   VideoContainer,
+  WatermarkPosition,
 } from '@scrub/shared';
 import { create } from 'zustand';
 
@@ -160,6 +161,65 @@ export type OperationParams = {
     readonly targetTP: number;
     readonly targetLRA: number;
   };
+  readonly merge: {
+    /** Ids of the extra clips, in order. The loaded file is clip 0. */
+    readonly clipIds: readonly string[];
+    /** The extras' resolved facts, for the client-side preview buildArgs call. */
+    readonly clips: readonly {
+      readonly id: string;
+      readonly name: string;
+      readonly path: string;
+      readonly meta: ProbeResult;
+    }[];
+    readonly crossfadeSec: number;
+    readonly fadeInSec: number;
+    readonly fadeOutSec: number;
+    readonly crf: number;
+    /** Set while an extra clip is uploading, or when one failed. */
+    readonly status: 'idle' | 'loading' | 'failed';
+    readonly error: string | null;
+  };
+  readonly mergeAudio: {
+    readonly clipIds: readonly string[];
+    readonly clips: readonly {
+      readonly id: string;
+      readonly name: string;
+      readonly path: string;
+      readonly meta: ProbeResult;
+    }[];
+    readonly crossfadeSec: number;
+    readonly fadeInSec: number;
+    readonly fadeOutSec: number;
+    readonly bitrateKbps: number;
+    readonly status: 'idle' | 'loading' | 'failed';
+    readonly error: string | null;
+  };
+  readonly addMusic: {
+    readonly musicId: string | null;
+    readonly musicName: string | null;
+    readonly musicPath: string | null;
+    readonly musicMeta: ProbeResult | null;
+    readonly originalPercent: number;
+    readonly musicPercent: number;
+    readonly status: 'idle' | 'loading' | 'failed';
+    readonly error: string | null;
+  };
+  readonly watermark: {
+    readonly imageId: string | null;
+    readonly imageName: string | null;
+    readonly imagePath: string | null;
+    readonly imageMeta: ProbeResult | null;
+    readonly position: WatermarkPosition;
+    readonly opacity: number;
+    readonly status: 'idle' | 'loading' | 'failed';
+    readonly error: string | null;
+  };
+  readonly fade: { readonly fadeInSec: number; readonly fadeOutSec: number };
+  readonly audioFade: { readonly fadeInSec: number; readonly fadeOutSec: number };
+  readonly loop: { readonly times: number };
+  readonly audioLoop: { readonly times: number };
+  readonly volume: { readonly gainDb: number };
+  readonly audioVolume: { readonly gainDb: number };
 };
 
 /**
@@ -194,7 +254,14 @@ function loadParams(defaults: OperationParams): OperationParams {
         merged[key] = { ...value, ...savedValue };
       }
     }
-    return { ...(merged as OperationParams), replaceAudio: defaults.replaceAudio };
+    return {
+      ...(merged as OperationParams),
+      replaceAudio: defaults.replaceAudio,
+      merge: defaults.merge,
+      mergeAudio: defaults.mergeAudio,
+      addMusic: defaults.addMusic,
+      watermark: defaults.watermark,
+    };
   } catch {
     // Corrupt JSON, or a browser refusing storage. The defaults are fine.
     return defaults;
@@ -203,8 +270,15 @@ function loadParams(defaults: OperationParams): OperationParams {
 
 function saveParams(params: OperationParams): void {
   try {
-    // The second file belongs to one session, so it never goes in.
-    const { replaceAudio: _dropped, ...rest } = params;
+    // The extra files belong to one session, so they never go in.
+    const {
+      replaceAudio: _dropped1,
+      merge: _dropped2,
+      mergeAudio: _dropped3,
+      addMusic: _dropped4,
+      watermark: _dropped5,
+      ...rest
+    } = params;
     localStorage.setItem(PARAMS_KEY, JSON.stringify(rest));
   } catch {
     // Private modes refuse storage. Forgetting a preference is not worth failing over.
@@ -232,6 +306,52 @@ const DEFAULT_PARAMS: OperationParams = {
   crop: { x: 0.1, y: 0.1, width: 0.8, height: 0.8 },
   audioConvert: { format: 'mp3', bitrateKbps: 192 },
   loudness: { targetI: -16, targetTP: -1.5, targetLRA: 11 },
+  merge: {
+    clipIds: [],
+    clips: [],
+    crossfadeSec: 0.5,
+    fadeInSec: 0,
+    fadeOutSec: 0,
+    crf: 20,
+    status: 'idle',
+    error: null,
+  },
+  mergeAudio: {
+    clipIds: [],
+    clips: [],
+    crossfadeSec: 2,
+    fadeInSec: 0,
+    fadeOutSec: 0,
+    bitrateKbps: 192,
+    status: 'idle',
+    error: null,
+  },
+  addMusic: {
+    musicId: null,
+    musicName: null,
+    musicPath: null,
+    musicMeta: null,
+    originalPercent: 100,
+    musicPercent: 35,
+    status: 'idle',
+    error: null,
+  },
+  watermark: {
+    imageId: null,
+    imageName: null,
+    imagePath: null,
+    imageMeta: null,
+    position: 'se',
+    opacity: 100,
+    status: 'idle',
+    error: null,
+  },
+  fade: { fadeInSec: 1, fadeOutSec: 1 },
+  audioFade: { fadeInSec: 1, fadeOutSec: 1 },
+  loop: { times: 2 },
+  audioLoop: { times: 2 },
+  volume: { gainDb: 6 },
+  audioVolume: { gainDb: 6 },
 };
 
 /**
