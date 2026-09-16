@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
 
 import { formatTimecode, type LintContext, type ProbeResult } from '@scrub/shared';
@@ -10,6 +10,7 @@ import { Rail } from '@/components/Rail';
 import { SettingsPanel } from '@/components/SettingsPanel';
 import { useCommand } from '@/lib/use-command';
 import { useRun } from '@/lib/use-run';
+import { useTheme } from '@/lib/use-theme';
 import { useShortcuts } from '@/lib/use-shortcuts';
 import { useRestoreJobs } from '@/lib/use-restore-jobs';
 import { useRestoreUpload } from '@/lib/use-upload';
@@ -48,6 +49,31 @@ export function AppShell({ children }: { readonly children: React.ReactNode }) {
   const clearFile = useScrubStore((state) => state.clearFile);
   const command = useCommand(activeOperation);
   const { start, cancel } = useRun(command.operation);
+  const { theme } = useTheme();
+  const phosphor = theme === 'phosphor';
+  /**
+   * Switching into Tube is the world's one orchestrated moment: a phosphor
+   * line expands open to reveal the app, once, about 300ms. It plays only on
+   * the way in; going back to light or dark is a plain swap, because the
+   * ceremony belongs to arriving in the machine.
+   */
+  const [poweringOn, setPoweringOn] = useState(false);
+  const previousTheme = useRef(theme);
+
+  useEffect(() => {
+    if (theme === 'phosphor' && previousTheme.current !== 'phosphor') {
+      previousTheme.current = theme;
+      setPoweringOn(true);
+      const timer = setTimeout(() => {
+        setPoweringOn(false);
+      }, 320);
+      return () => {
+        clearTimeout(timer);
+      };
+    }
+    previousTheme.current = theme;
+    return undefined;
+  }, [theme]);
 
   // What the linter measures an edited command against: the file that is loaded
   // and the directory Scrub can actually offer a download from.
@@ -115,12 +141,23 @@ export function AppShell({ children }: { readonly children: React.ReactNode }) {
             {meta ? (
               <>
                 <p className="text-body text-ink truncate">{meta.displayName}</p>
-                <p className="text-micro text-muted truncate tabular-nums">{summarise(meta)}</p>
+                {!phosphor && (
+                  <p className="text-micro text-muted truncate tabular-nums">{summarise(meta)}</p>
+                )}
               </>
             ) : (
               <p className="text-label text-muted truncate">No file loaded</p>
             )}
           </div>
+          {phosphor && meta && (
+            /**
+             * The status-bar readout: the same facts, moved to the right end,
+             * like a deck's timecode display.
+             */
+            <div className="hidden shrink-0 text-right lg:block">
+              <p className="text-micro text-muted truncate tabular-nums">{summarise(meta)}</p>
+            </div>
+          )}
           {meta && (
             <button
               type="button"
@@ -133,7 +170,13 @@ export function AppShell({ children }: { readonly children: React.ReactNode }) {
           <SettingsPanel />
         </header>
 
-        <div className="grid min-h-0 grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)] workspace:grid-cols-[var(--spacing-rail)_minmax(0,1fr)] workspace:grid-rows-1">
+        <div
+          className={
+            phosphor
+              ? 'grid min-h-0 grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)]'
+              : 'grid min-h-0 grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)] workspace:grid-cols-[var(--spacing-rail)_minmax(0,1fr)] workspace:grid-rows-1'
+          }
+        >
           <Rail />
           <main className="min-h-0 overflow-auto p-3 tall:p-4 tall:workspace:p-6">{children}</main>
         </div>
@@ -151,6 +194,10 @@ export function AppShell({ children }: { readonly children: React.ReactNode }) {
           onCancel={cancel}
         />
       </div>
+
+      {poweringOn && (
+        <div aria-hidden className="power-on-screen pointer-events-none fixed inset-0 z-50" />
+      )}
     </DropTarget>
   );
 }

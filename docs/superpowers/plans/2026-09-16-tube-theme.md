@@ -435,7 +435,7 @@ git commit -m "Add the phosphor token world, its variant, and its motion vocabul
 ### Task 4: The AppShell re-rack: layout branch, header readout, power-on
 
 **Files:**
-- Modify: `client/src/AppShell.tsx` (imports, the middle grid, the header, the overlay)
+- Modify: `client/src/components/AppShell.tsx` (imports, the middle grid, the header, the overlay)
 
 **Interfaces:**
 - Consumes: `useTheme()` from `client/src/lib/use-theme.ts`, class `power-on-screen` from Task 3, `summarise()` already in the file.
@@ -542,14 +542,14 @@ Just before the closing `</DropTarget>`:
 - [ ] **Step 6: Run the e2e block and typecheck**
 
 Run: `npx playwright test e2e/flows.spec.ts --grep "Tube theme" && npm run typecheck`
-Expected: the rail test now PASSES (full-width row at desktop, vertical again on Light). The prompt and scanline tests still FAIL. Typecheck green.
+Expected: 1 passes, 3 fail. The rail test is still red here: this task widens the row, but the rail's own `workspace:` classes still turn it into a 180px column inside it. That is Task 5's job. Typecheck green.
 
 - [ ] **Step 7: Format and commit**
 
-Run: `npx prettier --write client/src/AppShell.tsx`
+Run: `npx prettier --write client/src/components/AppShell.tsx`
 
 ```bash
-git add client/src/AppShell.tsx
+git add client/src/components/AppShell.tsx
 git commit -m "Re-rack the shell for Tube: horizontal rail row, status readout, power-on"
 ```
 
