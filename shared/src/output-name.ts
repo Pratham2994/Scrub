@@ -55,7 +55,20 @@ export function outputExtension(op: Operation, sourcePath: string): string {
     case 'target-size':
     case 'speed':
     case 'crop':
+    case 'add-music':
+    case 'watermark':
+    case 'fade':
+    case 'loop':
+    case 'volume':
+    case 'audio-fade':
+    case 'audio-loop':
+    case 'audio-volume':
       return splitPath(sourcePath).ext || '.mp4';
+    case 'merge':
+      // A merge is a new composition and owns its container: mp4 everywhere.
+      return '.mp4';
+    case 'merge-audio':
+      return '.m4a';
   }
 }
 
@@ -123,6 +136,27 @@ export function operationSuffix(op: Operation): string {
       // The target is negative and a minus sign in the middle of a filename
       // reads as a separator, so the unit carries the sign instead.
       return `loudness-${String(Math.abs(op.targetI))}lufs`;
+    case 'merge':
+      // The number of clips and the fade carry the settings; the stems would
+      // overflow a filename on three clips.
+      return `merge-${String(op.clipIds.length + 1)}-clips-${stamp(op.crossfadeSec)}`;
+    case 'merge-audio':
+      return `mix-${String(op.clipIds.length + 1)}-tracks-${stamp(op.crossfadeSec)}`;
+    case 'add-music':
+      // The song's stem names the mix; ids are meaningless in a downloads folder.
+      return 'music';
+    case 'watermark':
+      return 'watermarked';
+    case 'fade':
+    case 'audio-fade':
+      return `fade-${stamp(op.fadeInSec)}-${stamp(op.fadeOutSec)}`;
+    case 'loop':
+    case 'audio-loop':
+      return `loop-${String(op.times)}x`;
+    case 'volume':
+    case 'audio-volume':
+      // A minus sign in a filename reads as a separator, so the sign is a letter.
+      return `volume-${op.gainDb < 0 ? `m${String(Math.abs(op.gainDb))}` : `p${String(op.gainDb)}`}db`;
   }
 }
 

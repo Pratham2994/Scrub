@@ -1,18 +1,28 @@
 import { availabilityOf } from './availability.js';
 import {
+  buildAddMusic,
   buildAudioConvert,
+  buildAudioFade,
+  buildAudioLoop,
   buildAudioTrim,
+  buildAudioVolume,
   buildCompress,
   buildConvert,
   buildCrop,
   buildExtractAudio,
+  buildFade,
   buildGif,
+  buildLoop,
   buildLoudness,
+  buildMerge,
+  buildMergeAudio,
   buildMute,
   buildReplaceAudio,
   buildResize,
   buildSpeed,
   buildTargetSize,
+  buildVolume,
+  buildWatermark,
   trimWindow,
 } from './build-operations.js';
 import { InvalidOperation } from './errors.js';
@@ -79,6 +89,12 @@ export type CommandIo = {
   readonly workDir: string;
   /** Second input, for the one operation that takes one: replace-audio. */
   readonly secondaryInputPath?: string;
+  /**
+   * Ordered extra inputs for the multi-input operations. Each carries its own
+   * probe, because merge's offsets and normalization are arithmetic on the
+   * *other* files' durations and streams, not on the loaded one's.
+   */
+  readonly secondaryInputs?: readonly { readonly path: string; readonly meta: ProbeResult }[];
 };
 
 /**
@@ -134,6 +150,26 @@ export function buildArgs(op: Operation, meta: ProbeResult, io: CommandIo): Comm
       return buildAudioTrim(op.startSec, op.endSec, meta, io);
     case 'loudness':
       return buildLoudness(op.targetI, op.targetTP, op.targetLRA, meta, io);
+    case 'merge':
+      return buildMerge(op, meta, io);
+    case 'merge-audio':
+      return buildMergeAudio(op, meta, io);
+    case 'add-music':
+      return buildAddMusic(op, meta, io);
+    case 'watermark':
+      return buildWatermark(op, meta, io);
+    case 'fade':
+      return buildFade(op, meta, io);
+    case 'audio-fade':
+      return buildAudioFade(op, meta, io);
+    case 'loop':
+      return buildLoop(op, meta, io);
+    case 'audio-loop':
+      return buildAudioLoop(op, meta, io);
+    case 'volume':
+      return buildVolume(op, meta, io);
+    case 'audio-volume':
+      return buildAudioVolume(op, meta, io);
   }
 }
 

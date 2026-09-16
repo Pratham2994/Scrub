@@ -103,6 +103,64 @@ export function availabilityOf(kind: OperationKind, meta: ProbeResult): Availabi
     // it corrects the sound and copies the picture across untouched.
     case 'loudness':
       return hasAudio ? AVAILABLE : no('This file has no audio to measure.', null);
+
+    // Merging joins pictures; the audio version is its own operation.
+    case 'merge':
+      return hasVideo
+        ? AVAILABLE
+        : no(
+            'This file has no picture, and joining songs is a different operation.',
+            'merge-audio',
+          );
+
+    case 'merge-audio':
+      if (!hasAudio) return no('This file has no sound to join.', null);
+      return hasVideo
+        ? no('This would drop the picture, which is what Merge is for.', 'merge')
+        : AVAILABLE;
+
+    case 'add-music':
+      return hasVideo
+        ? AVAILABLE
+        : no(
+            'There is no picture here to put music under. Extract the audio and merge songs instead.',
+            null,
+          );
+
+    case 'watermark':
+      return hasVideo ? AVAILABLE : no('There is no picture here to stamp.', null);
+
+    // Fade is the whole clip: picture and sound together. Sound-only fading is
+    // Audio fade, which also works on a video with the picture copied across.
+    case 'fade':
+      return hasVideo
+        ? AVAILABLE
+        : no('This file has nothing to fade but sound, which is Audio fade.', 'audio-fade');
+
+    case 'audio-fade':
+      return hasAudio ? AVAILABLE : no('This file has no sound to fade.', null);
+
+    // Looping loops the whole file. Two routes to one result would rot the list.
+    case 'loop':
+      return hasVideo
+        ? AVAILABLE
+        : no('This file is audio only, so Audio loop is the operation you want.', 'audio-loop');
+
+    case 'audio-loop':
+      return !hasVideo && hasAudio
+        ? AVAILABLE
+        : no('This loops the whole file, picture and sound, which is Loop.', 'loop');
+
+    case 'volume':
+      return hasVideo
+        ? AVAILABLE
+        : no('This file is audio only, so Audio volume is the operation you want.', 'audio-volume');
+
+    case 'audio-volume':
+      if (!hasAudio) return no('This file has no sound to change.', null);
+      return hasVideo
+        ? no("Changing this file's volume keeps the picture, which is Volume.", 'volume')
+        : AVAILABLE;
   }
 }
 

@@ -11,11 +11,22 @@ import type { CommandIo, CommandPlan } from './build-args.js';
 import { OVERWRITE_ARG, TRANSPORT_ARGS } from './build-args.js';
 import { InvalidOperation } from './errors.js';
 import type {
+  AudioFade,
   AudioFormat,
+  AudioLoop,
+  AudioMerge,
+  AudioVolume,
+  VideoAddMusic,
   VideoContainer,
   VideoCrop,
+  VideoFade,
   VideoGif,
+  VideoLoop,
+  VideoMerge,
   VideoTargetSize,
+  VideoVolume,
+  VideoWatermark,
+  WatermarkPosition,
 } from './operations.js';
 import type { ProbeResult } from './probe.js';
 import { maxDurationSec, videoBitrateKbps } from './size-presets.js';
@@ -804,4 +815,532 @@ export function buildCrop(op: VideoCrop, meta: ProbeResult, io: CommandIo): Comm
       },
     ],
   };
+}
+
+/* ─── The merge suite ───────────────────────────────────────────────────── */
+
+/** The extras an operation was given, or a refusal it cannot run without them. */
+export function secondaryMetas(
+  io: CommandIo,
+  operation: string,
+): readonly { readonly path: string; readonly meta: ProbeResult }[] {
+  if (io.secondaryInputs === undefined) {
+    throw new InvalidOperation(operation, 'the extra files were not provided');
+  }
+  return io.secondaryInputs;
+}
+
+/** The container an output path implies, from its extension. */
+export function containerFromPath(outputPath: string): VideoContainer | null {
+  const ext = outputPath.toLowerCase().match(/\.(\w+)$/)?.[1];
+  if (ext === 'mp4') return 'mp4';
+  if (ext === 'webm') return 'webm';
+  if (ext === 'mkv') return 'mkv';
+  if (ext === 'mov') return 'mov';
+  return null;
+}
+
+/**
+ * xfade and acrossfade share one offset rule: each overlap starts where the
+ * previous clip ends, minus this overlap. Accumulated, not per-pair, which is
+ * the trap: the second junction counts both earlier clips.
+ */
+function crossfadeOffsets(durations: readonly number[], fade: number): number[] {
+  const offsets: number[] = [];
+  let cursor = 0;
+  for (let i = 0; i < durations.length - 1; i++) {
+    offsets.push(cursor + (durations[i] ?? 0) - fade);
+    cursor = offsets[offsets.length - 1] ?? 0;
+  }
+  return offsets;
+}
+
+/** The joined length: everything added up, minus one fade per junction. */
+function joinedDuration(durations: readonly number[], fade: number): number {
+  return durations.reduce((sum, value) => sum + value, 0) - fade * (durations.length - 1);
+}
+
+export function buildMerge(op: VideoMerge, meta: ProbeResult, io: CommandIo): CommandPlan {
+  const extras = secondaryMetas(io, 'merge');
+  const clips = [meta, ...extras.map((extra) => extra.meta)];
+  if (clips.some((clip) => clip.video === null)) {
+    throw new InvalidOperation('merge', 'every clip must have a picture');
+  }
+  const first = clips[0]?.video;
+  if (!first) throw new InvalidOperation('merge', 'the first clip has no picture');
+  if (clips.length < 2) throw new InvalidOperation('merge', 'merge needs at least two clips');
+
+  // xfade demands identical geometry and constant frame rate, so everything is
+  // normalized to the first clip. Even numbers: libx264 refuses odd ones.
+  const w = first.width - (first.width % 2);
+  const h = first.height - (first.height % 2);
+  const fps = first.fps ?? 30;
+  const fade = op.crossfadeSec;
+  const rate = clips[0]?.audio?.sampleRate ?? 48_000;
+  const durations = clips.map((clip) => clip.durationSec);
+  const offsets = crossfadeOffsets(durations, fade);
+  const total = joinedDuration(durations, fade);
+
+  const paths = [io.inputPath, ...extras.map((extra) => extra.path)];
+  const video: string[] = [];
+  const audio: string[] = [];
+  let lastVideo = '[v0]';
+  let lastAudio = '[a0]';
+
+  clips.forEach((clip, i) => {
+    if (i === 0) {
+      video.push(`[0:v]scale=${String(w)}:${String(h)},setsar=1,fps=${String(fps)}[v0]`);
+      // A clip with no audio gets silence of exactly its length, so the chain
+      // stays continuous and the picture never loses its place.
+      audio.push(
+        clip.audio === null
+          ? `anullsrc=r=${String(rate)}:d=${String(durations[0])}[a0]`
+          : `[0:a]aresample=${String(rate)}[a0]`,
+      );
+      return;
+    }
+    const offset = offsets[i - 1] ?? 0;
+    video.push(
+      `[${String(i)}:v]scale=${String(w)}:${String(h)},setsar=1,fps=${String(fps)}[v${String(i)}]`,
+    );
+    video.push(
+      `[v${String(i - 1)}][v${String(i)}]xfade=transition=fade:duration=${String(fade)}:offset=${String(offset)}[xv${String(i)}]`,
+    );
+    lastVideo = `[xv${String(i)}]`;
+    audio.push(
+      clip.audio === null
+        ? `anullsrc=r=${String(rate)}:d=${String(durations[i] ?? 0)}[a${String(i)}]`
+        : `[${String(i)}:a]aresample=${String(rate)}[a${String(i)}]`,
+    );
+    audio.push(
+      `[a${String(i - 1)}][a${String(i)}]acrossfade=d=${String(fade)}:o=${String(offset)}[xa${String(i)}]`,
+    );
+    lastAudio = `[xa${String(i)}]`;
+  });
+
+  if (op.fadeInSec > 0) {
+    video.push(`${lastVideo}fade=t=in:st=0:d=${String(op.fadeInSec)}[vfin]`);
+    audio.push(`${lastAudio}afade=t=in:st=0:d=${String(op.fadeInSec)}[afin]`);
+    lastVideo = '[vfin]';
+    lastAudio = '[afin]';
+  }
+  if (op.fadeOutSec > 0) {
+    video.push(
+      `${lastVideo}fade=t=out:st=${String(total - op.fadeOutSec)}:d=${String(op.fadeOutSec)}[vout]`,
+    );
+    audio.push(
+      `${lastAudio}afade=t=out:st=${String(total - op.fadeOutSec)}:d=${String(op.fadeOutSec)}[aout]`,
+    );
+    lastVideo = '[vout]';
+    lastAudio = '[aout]';
+  }
+
+  return {
+    passes: [
+      {
+        label: 'Merge',
+        outputDurationSec: total,
+        argv: [
+          ...TRANSPORT_ARGS,
+          ...paths.flatMap((path) => ['-i', path]),
+          '-filter_complex',
+          [...video, ...audio].join(';'),
+          '-map',
+          lastVideo,
+          '-map',
+          lastAudio,
+          '-c:v',
+          'libx264',
+          '-crf',
+          String(op.crf),
+          '-preset',
+          'medium',
+          '-c:a',
+          'aac',
+          '-b:a',
+          '192k',
+          '-movflags',
+          '+faststart',
+          OVERWRITE_ARG,
+          io.outputPath,
+        ],
+      },
+    ],
+  };
+}
+
+export function buildMergeAudio(op: AudioMerge, meta: ProbeResult, io: CommandIo): CommandPlan {
+  const extras = secondaryMetas(io, 'merge-audio');
+  const clips = [meta, ...extras.map((extra) => extra.meta)];
+  if (clips.some((clip) => clip.audio === null)) {
+    throw new InvalidOperation('merge-audio', 'every file must have sound to join');
+  }
+  if (clips.some((clip) => clip.video !== null)) {
+    throw new InvalidOperation(
+      'merge-audio',
+      'joining songs keeps no picture; use Merge for video',
+    );
+  }
+  if (clips.length < 2) throw new InvalidOperation('merge-audio', 'join needs at least two files');
+
+  const rate = clips[0]?.audio?.sampleRate ?? 48_000;
+  const durations = clips.map((clip) => clip.durationSec);
+  const offsets = crossfadeOffsets(durations, op.crossfadeSec);
+  const total = joinedDuration(durations, op.crossfadeSec);
+  const paths = [io.inputPath, ...extras.map((extra) => extra.path)];
+
+  const chain: string[] = [];
+  let last = '[a0]';
+  clips.forEach((_clip, i) => {
+    if (i === 0) {
+      chain.push(`[0:a]aresample=${String(rate)}[a0]`);
+      return;
+    }
+    const offset = offsets[i - 1] ?? 0;
+    chain.push(`[${String(i)}:a]aresample=${String(rate)}[a${String(i)}]`);
+    chain.push(
+      `[a${String(i - 1)}][a${String(i)}]acrossfade=d=${String(op.crossfadeSec)}:o=${String(offset)}[xa${String(i)}]`,
+    );
+    last = `[xa${String(i)}]`;
+  });
+  if (op.fadeInSec > 0) {
+    chain.push(`${last}afade=t=in:st=0:d=${String(op.fadeInSec)}[afin]`);
+    last = '[afin]';
+  }
+  if (op.fadeOutSec > 0) {
+    chain.push(
+      `${last}afade=t=out:st=${String(total - op.fadeOutSec)}:d=${String(op.fadeOutSec)}[aout]`,
+    );
+    last = '[aout]';
+  }
+
+  return {
+    passes: [
+      {
+        label: 'Merge audio',
+        outputDurationSec: total,
+        argv: [
+          ...TRANSPORT_ARGS,
+          ...paths.flatMap((path) => ['-i', path]),
+          '-filter_complex',
+          chain.join(';'),
+          '-map',
+          last,
+          '-c:a',
+          'aac',
+          '-b:a',
+          `${String(op.bitrateKbps)}k`,
+          OVERWRITE_ARG,
+          io.outputPath,
+        ],
+      },
+    ],
+  };
+}
+
+export function buildAddMusic(op: VideoAddMusic, meta: ProbeResult, io: CommandIo): CommandPlan {
+  const extras = secondaryMetas(io, 'add-music');
+  const music = extras[0];
+  if (!music || music.meta.audio === null) {
+    throw new InvalidOperation('add-music', 'the music file has no sound');
+  }
+
+  // The picture is copied bit for bit; only the mix is encoded. Without audio
+  // of its own, the music alone becomes the track.
+  const filter =
+    meta.audio === null
+      ? `[1:a]volume=${String(op.musicPercent / 100)}[aout]`
+      : `[0:a]volume=${String(op.originalPercent / 100)}[a0];[1:a]volume=${String(op.musicPercent / 100)}[a1];[a0][a1]amix=inputs=2:duration=first:dropout_transition=0[aout]`;
+
+  return {
+    passes: [
+      {
+        label: 'Add music',
+        outputDurationSec: meta.durationSec,
+        argv: [
+          ...TRANSPORT_ARGS,
+          '-i',
+          io.inputPath,
+          '-i',
+          music.path,
+          '-filter_complex',
+          filter,
+          '-map',
+          '0:v:0',
+          '-map',
+          '[aout]',
+          '-c:v',
+          'copy',
+          '-c:a',
+          'aac',
+          '-b:a',
+          '192k',
+          OVERWRITE_ARG,
+          io.outputPath,
+        ],
+      },
+    ],
+  };
+}
+
+const WATERMARK_XY: Record<WatermarkPosition, string> = {
+  nw: '10:10',
+  n: '(W-w)/2:10',
+  ne: 'W-w-10:10',
+  w: '10:(H-h)/2',
+  center: '(W-w)/2:(H-h)/2',
+  e: 'W-w-10:(H-h)/2',
+  sw: '10:H-h-10',
+  s: '(W-w)/2:H-h-10',
+  se: 'W-w-10:H-h-10',
+};
+
+export function buildWatermark(op: VideoWatermark, meta: ProbeResult, io: CommandIo): CommandPlan {
+  const source = meta.video;
+  if (source === null) {
+    throw new InvalidOperation('watermark', 'this file has no picture to stamp');
+  }
+  const extras = secondaryMetas(io, 'watermark');
+  const image = extras[0];
+  if (!image) throw new InvalidOperation('watermark', 'no image was provided');
+
+  // The mark is capped at a quarter of the frame so it never takes over, and
+  // must not be upscaled past its own size.
+  const cap = Math.floor(source.width / 4);
+  const filter = `[1:v]scale=min(iw\\,${String(cap)}):-2,format=rgba,colorchannelmixer=aa=${String(op.opacity / 100)}[wm];[0:v][wm]overlay=${WATERMARK_XY[op.position]}[vout]`;
+
+  const codecs = CODEC_MAP[containerFromPath(io.outputPath) ?? 'mp4'];
+
+  return {
+    passes: [
+      {
+        label: 'Watermark',
+        outputDurationSec: meta.durationSec,
+        argv: [
+          ...TRANSPORT_ARGS,
+          '-i',
+          io.inputPath,
+          '-i',
+          image.path,
+          '-filter_complex',
+          filter,
+          '-map',
+          '[vout]',
+          ...(meta.audio === null ? ['-an'] : ['-map', '0:a:0', '-c:a', 'copy']),
+          '-c:v',
+          codecs.video,
+          '-crf',
+          '20',
+          '-preset',
+          'medium',
+          OVERWRITE_ARG,
+          io.outputPath,
+        ],
+      },
+    ],
+  };
+}
+
+export function buildFade(op: VideoFade, meta: ProbeResult, io: CommandIo): CommandPlan {
+  if (op.fadeInSec <= 0 && op.fadeOutSec <= 0) {
+    throw new InvalidOperation('fade', 'both fades are zero, so there is nothing to fade');
+  }
+  const video: string[] = [];
+  if (op.fadeInSec > 0) video.push(`fade=t=in:st=0:d=${String(op.fadeInSec)}`);
+  if (op.fadeOutSec > 0) {
+    video.push(
+      `fade=t=out:st=${String(meta.durationSec - op.fadeOutSec)}:d=${String(op.fadeOutSec)}`,
+    );
+  }
+
+  const audio: string[] = [];
+  if (op.fadeInSec > 0) audio.push(`afade=t=in:st=0:d=${String(op.fadeInSec)}`);
+  if (op.fadeOutSec > 0) {
+    audio.push(
+      `afade=t=out:st=${String(meta.durationSec - op.fadeOutSec)}:d=${String(op.fadeOutSec)}`,
+    );
+  }
+
+  const codecs = CODEC_MAP[containerFromPath(io.outputPath) ?? 'mp4'];
+
+  return {
+    passes: [
+      {
+        label: 'Fade',
+        outputDurationSec: meta.durationSec,
+        argv: [
+          ...TRANSPORT_ARGS,
+          '-i',
+          io.inputPath,
+          '-vf',
+          video.join(','),
+          '-c:v',
+          codecs.video,
+          '-crf',
+          '20',
+          '-preset',
+          'medium',
+          ...(meta.audio === null
+            ? ['-an']
+            : ['-af', audio.join(','), '-c:a', codecs.audio, '-b:a', '192k']),
+          OVERWRITE_ARG,
+          io.outputPath,
+        ],
+      },
+    ],
+  };
+}
+
+export function buildAudioFade(op: AudioFade, meta: ProbeResult, io: CommandIo): CommandPlan {
+  if (meta.audio === null) {
+    throw new InvalidOperation('audio-fade', 'this file has no sound to fade');
+  }
+  if (op.fadeInSec <= 0 && op.fadeOutSec <= 0) {
+    throw new InvalidOperation('audio-fade', 'both fades are zero, so there is nothing to fade');
+  }
+  const chain: string[] = [];
+  if (op.fadeInSec > 0) chain.push(`afade=t=in:st=0:d=${String(op.fadeInSec)}`);
+  if (op.fadeOutSec > 0) {
+    chain.push(
+      `afade=t=out:st=${String(meta.durationSec - op.fadeOutSec)}:d=${String(op.fadeOutSec)}`,
+    );
+  }
+
+  return {
+    passes: [
+      {
+        label: 'Fade audio',
+        outputDurationSec: meta.durationSec,
+        argv: [
+          ...TRANSPORT_ARGS,
+          '-i',
+          io.inputPath,
+          '-af',
+          chain.join(','),
+          ...(meta.video === null ? [] : ['-c:v', 'copy']),
+          '-c:a',
+          'aac',
+          '-b:a',
+          '192k',
+          OVERWRITE_ARG,
+          io.outputPath,
+        ],
+      },
+    ],
+  };
+}
+
+export function buildLoop(op: VideoLoop, meta: ProbeResult, io: CommandIo): CommandPlan {
+  loopTimes(op.times, 'loop');
+  return {
+    passes: [
+      {
+        label: 'Loop',
+        // Stream copy: instant, and byte-faithful. -stream_loop counts *extra*
+        // plays, so "3 times" is 2 loops.
+        outputDurationSec: meta.durationSec * op.times,
+        argv: [
+          ...TRANSPORT_ARGS,
+          '-stream_loop',
+          String(op.times - 1),
+          '-i',
+          io.inputPath,
+          '-c',
+          'copy',
+          OVERWRITE_ARG,
+          io.outputPath,
+        ],
+      },
+    ],
+  };
+}
+
+export function buildAudioLoop(op: AudioLoop, meta: ProbeResult, io: CommandIo): CommandPlan {
+  loopTimes(op.times, 'audio-loop');
+  return {
+    passes: [
+      {
+        label: 'Loop audio',
+        outputDurationSec: meta.durationSec * op.times,
+        argv: [
+          ...TRANSPORT_ARGS,
+          '-stream_loop',
+          String(op.times - 1),
+          '-i',
+          io.inputPath,
+          '-c',
+          'copy',
+          OVERWRITE_ARG,
+          io.outputPath,
+        ],
+      },
+    ],
+  };
+}
+
+function loopTimes(times: number, operation: string): void {
+  if (!Number.isInteger(times) || times < 2 || times > 16) {
+    throw new InvalidOperation(operation, `loops must be between 2 and 16, got ${String(times)}`);
+  }
+}
+
+export function buildVolume(op: VideoVolume, meta: ProbeResult, io: CommandIo): CommandPlan {
+  gainCheck(op.gainDb, 'volume');
+  return {
+    passes: [
+      {
+        label: 'Volume',
+        outputDurationSec: meta.durationSec,
+        argv: [
+          ...TRANSPORT_ARGS,
+          '-i',
+          io.inputPath,
+          '-c:v',
+          'copy',
+          '-af',
+          `volume=${String(op.gainDb)}dB`,
+          '-c:a',
+          'aac',
+          '-b:a',
+          '192k',
+          OVERWRITE_ARG,
+          io.outputPath,
+        ],
+      },
+    ],
+  };
+}
+
+export function buildAudioVolume(op: AudioVolume, meta: ProbeResult, io: CommandIo): CommandPlan {
+  gainCheck(op.gainDb, 'audio-volume');
+  return {
+    passes: [
+      {
+        label: 'Volume',
+        outputDurationSec: meta.durationSec,
+        argv: [
+          ...TRANSPORT_ARGS,
+          '-i',
+          io.inputPath,
+          '-af',
+          `volume=${String(op.gainDb)}dB`,
+          '-c:a',
+          'aac',
+          '-b:a',
+          '192k',
+          OVERWRITE_ARG,
+          io.outputPath,
+        ],
+      },
+    ],
+  };
+}
+
+function gainCheck(gainDb: number, operation: string): void {
+  if (!Number.isFinite(gainDb) || gainDb < -20 || gainDb > 20 || gainDb === 0) {
+    throw new InvalidOperation(
+      operation,
+      `gain must be between -20 and 20 dB and not zero, got ${String(gainDb)}`,
+    );
+  }
 }

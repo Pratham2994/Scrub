@@ -134,6 +134,76 @@ export type AudioLoudness = {
   readonly targetLRA: number;
 };
 
+export type WatermarkPosition = 'nw' | 'n' | 'ne' | 'w' | 'center' | 'e' | 'sw' | 's' | 'se';
+
+export type VideoMerge = {
+  readonly kind: 'merge';
+  /** Upload ids of the clips after the first, in order. The loaded file is clip 0. */
+  readonly clipIds: readonly string[];
+  /** One global crossfade, 0 is a hard cut. */
+  readonly crossfadeSec: number;
+  readonly fadeInSec: number;
+  readonly fadeOutSec: number;
+  readonly crf: number;
+};
+
+export type AudioMerge = {
+  readonly kind: 'merge-audio';
+  readonly clipIds: readonly string[];
+  readonly crossfadeSec: number;
+  readonly fadeInSec: number;
+  readonly fadeOutSec: number;
+  readonly bitrateKbps: number;
+};
+
+export type VideoAddMusic = {
+  readonly kind: 'add-music';
+  readonly musicId: string;
+  /** Volume as a percentage, so the UI slider never touches dB. */
+  readonly originalPercent: number;
+  readonly musicPercent: number;
+};
+
+export type VideoWatermark = {
+  readonly kind: 'watermark';
+  readonly imageId: string;
+  readonly position: WatermarkPosition;
+  readonly opacity: number;
+};
+
+export type VideoFade = {
+  readonly kind: 'fade';
+  readonly fadeInSec: number;
+  readonly fadeOutSec: number;
+};
+
+export type AudioFade = {
+  readonly kind: 'audio-fade';
+  readonly fadeInSec: number;
+  readonly fadeOutSec: number;
+};
+
+export type VideoLoop = {
+  readonly kind: 'loop';
+  /** How many times the whole file plays, 2 to 16. */
+  readonly times: number;
+};
+
+export type AudioLoop = {
+  readonly kind: 'audio-loop';
+  readonly times: number;
+};
+
+export type VideoVolume = {
+  readonly kind: 'volume';
+  readonly gainDb: number;
+};
+
+export type AudioVolume = {
+  readonly kind: 'audio-volume';
+  readonly gainDb: number;
+};
+
 export type Operation =
   | VideoTrim
   | VideoCompress
@@ -146,6 +216,16 @@ export type Operation =
   | VideoSpeed
   | VideoCrop
   | VideoReplaceAudio
+  | VideoMerge
+  | AudioMerge
+  | VideoAddMusic
+  | VideoWatermark
+  | VideoFade
+  | AudioFade
+  | VideoLoop
+  | AudioLoop
+  | VideoVolume
+  | AudioVolume
   | AudioConvert
   | AudioTrim
   | AudioLoudness;
@@ -199,6 +279,37 @@ export const OPERATIONS: readonly OperationDescriptor[] = [
     group: 'video',
     blurb: 'Swap in a different audio track.',
   },
+  {
+    kind: 'merge',
+    label: 'Merge',
+    group: 'video',
+    blurb: 'Join clips, with a crossfade between them.',
+  },
+  {
+    kind: 'add-music',
+    label: 'Add music',
+    group: 'video',
+    blurb: 'Put a song under the video, both at your volumes.',
+  },
+  {
+    kind: 'watermark',
+    label: 'Watermark',
+    group: 'video',
+    blurb: 'Stamp an image over the picture.',
+  },
+  { kind: 'fade', label: 'Fade', group: 'video', blurb: 'Fade the picture and sound in and out.' },
+  {
+    kind: 'loop',
+    label: 'Loop',
+    group: 'video',
+    blurb: 'Play the whole file again, several times.',
+  },
+  {
+    kind: 'volume',
+    label: 'Volume',
+    group: 'video',
+    blurb: 'Louder or quieter, picture untouched.',
+  },
   { kind: 'audio-convert', label: 'Convert', group: 'audio', blurb: 'Change the audio format.' },
   { kind: 'audio-trim', label: 'Trim', group: 'audio', blurb: 'Cut a section out of audio.' },
   {
@@ -207,6 +318,20 @@ export const OPERATIONS: readonly OperationDescriptor[] = [
     group: 'audio',
     blurb: 'Two-pass loudnorm to a LUFS target.',
   },
+  {
+    kind: 'merge-audio',
+    label: 'Merge',
+    group: 'audio',
+    blurb: 'Join songs, with a crossfade between them.',
+  },
+  { kind: 'audio-fade', label: 'Fade', group: 'audio', blurb: 'Fade the sound in and out.' },
+  {
+    kind: 'audio-loop',
+    label: 'Loop',
+    group: 'audio',
+    blurb: 'Play the file again, several times.',
+  },
+  { kind: 'audio-volume', label: 'Volume', group: 'audio', blurb: 'Louder or quieter.' },
 ];
 
 const OPERATION_KINDS: ReadonlySet<string> = new Set(OPERATIONS.map((op) => op.kind));
