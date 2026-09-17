@@ -468,14 +468,22 @@ function RunControl({
      */
     const waiting = !run.determinate;
     /**
-     * Elapsed answers "has it hung". Remaining answers "do I wait", which is
-     * the question on anything longer than a few seconds, and it comes from
-     * ffmpeg's own reported speed rather than from arithmetic on the clock.
-     * It is left out under ten seconds, where it changes faster than it reads.
+     * Remaining once it is known, elapsed until then.
+     *
+     * Both used to show, elapsed first, and elapsed is the number people read
+     * as "how much longer" - which is the one thing it does not say. It answers
+     * "has it hung", and the percentage answers that better by moving. The
+     * question during a run is whether to wait or come back later, and only the
+     * estimate answers it.
+     *
+     * It is absent for the first tenth of a pass, because ffmpeg's reported
+     * speed is a cumulative average that starts out carrying the cost of
+     * starting the process, and for a pass with no timeline to measure against
+     * at all. Elapsed covers both, so there is always a number moving.
      */
-    const remaining =
-      run.etaMs !== null && run.etaMs > 10_000 ? `  ${formatElapsed(run.etaMs)} left` : '';
-    const label = `${run.passCount > 1 ? `${run.passLabel} · ` : ''}${waiting ? '' : `${String(percent)}%  `}${formatElapsed(run.elapsedMs)}${remaining}`;
+    const time =
+      run.etaMs === null ? formatElapsed(run.elapsedMs) : `${formatRemaining(run.etaMs)} left`;
+    const label = `${run.passCount > 1 ? `${run.passLabel} · ` : ''}${waiting ? '' : `${String(percent)}%  `}${time}`;
     return (
       <div className="flex shrink-0 items-center gap-1">
         <div
@@ -549,6 +557,20 @@ function RunControl({
       <Play aria-hidden size={13} fill="currentColor" />
     </button>
   );
+}
+
+/**
+ * Whole seconds, never tenths.
+ *
+ * An estimate is recomputed several times a second, and a tenth of a second
+ * flickering under a progress bar reads as instability rather than precision -
+ * which is what kept this hidden below ten seconds before it was the only
+ * number on show.
+ */
+function formatRemaining(ms: number): string {
+  const seconds = Math.max(1, Math.round(ms / 1000));
+  if (seconds < 60) return `${String(seconds)}s`;
+  return `${String(Math.floor(seconds / 60))}m ${String(seconds % 60)}s`;
 }
 
 function formatElapsed(ms: number): string {

@@ -83,10 +83,9 @@ function JobChip({ job, phosphor }: { readonly job: QueuedJob; readonly phosphor
       {job.status === 'running' && (
         <span className="text-micro text-muted shrink-0 tabular-nums">
           {job.determinate ? `${String(percent)}%` : job.passLabel || 'working'}
-          {/* Only on the long ones. Under ten seconds it changes faster than
-              it can be read, and a number flickering next to a progress bar
-              reads as instability rather than as information. */}
-          {job.etaMs !== null && job.etaMs > 10_000 && ` · ${formatShort(job.etaMs)}`}
+          {/* The same figure the command bar shows, and the same reason: what a
+              queued job needs to say is how much longer, not how long so far. */}
+          {job.etaMs !== null && ` · ${formatShort(job.etaMs)} left`}
         </span>
       )}
       {job.status === 'done' && (
