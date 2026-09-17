@@ -131,7 +131,11 @@ export function Rail() {
                    * two identical links, so the accessible name carries the group
                    * even though the visible label stays the short verb.
                    */
-                  aria-label={group.id === 'audio' ? `${op.label} audio` : op.label}
+                  aria-label={
+                    group.id === 'audio' && !/\baudio\b/i.test(op.label)
+                      ? `${op.label} audio`
+                      : op.label
+                  }
                   className={({ isActive }) =>
                     cn(
                       'text-body relative block shrink-0 rounded-button px-2 whitespace-nowrap transition-colors duration-100',

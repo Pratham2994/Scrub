@@ -125,7 +125,16 @@ export async function probeFile(
     : null;
 
   const durationSec = toNumber(format.duration);
-  if (durationSec === null || durationSec <= 0) {
+  /**
+   * A still image has no timeline, which ffprobe reports as no duration at all.
+   * Everything downstream assumes a positive duration, so a file that has one
+   * still requires it; a picture gets zero, which the watermark operation reads
+   * and the timeline operations refuse naturally (a trim window needs an end
+   * after its start). Only a lone video stream with no audio and no duration
+   * counts as a picture: a duration-less audio file is still refused.
+   */
+  const isStillImage = video !== null && audio === null && durationSec === null;
+  if ((durationSec === null || durationSec <= 0) && !isStillImage) {
     throw new ProbeFailed('ffprobe could not determine a duration', stderr);
   }
 
@@ -133,7 +142,7 @@ export async function probeFile(
     path: filePath,
     displayName,
     container: format.format_name ?? path.extname(displayName).replace('.', ''),
-    durationSec,
+    durationSec: isStillImage ? 0 : (durationSec ?? 0),
     sizeBytes: toNumber(format.size) ?? 0,
     bitrate: toNumber(format.bit_rate),
     video,

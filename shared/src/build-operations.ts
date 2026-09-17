@@ -841,9 +841,13 @@ export function containerFromPath(outputPath: string): VideoContainer | null {
 }
 
 /**
- * xfade and acrossfade share one offset rule: each overlap starts where the
- * previous clip ends, minus this overlap. Accumulated, not per-pair, which is
- * the trap: the second junction counts both earlier clips.
+ * xfade's offset rule: each overlap starts where the previous clip ends, minus
+ * this overlap. Accumulated, not per-pair, which is the trap: the second
+ * junction counts both earlier clips.
+ *
+ * acrossfade has no offset option at all (its `o` is a boolean `overlap`,
+ * default true). With overlap on it natively trims the tail of one stream and
+ * the head of the next, so the audio chain needs no arithmetic.
  */
 function crossfadeOffsets(durations: readonly number[], fade: number): number[] {
   const offsets: number[] = [];
@@ -912,9 +916,7 @@ export function buildMerge(op: VideoMerge, meta: ProbeResult, io: CommandIo): Co
         ? `anullsrc=r=${String(rate)}:d=${String(durations[i] ?? 0)}[a${String(i)}]`
         : `[${String(i)}:a]aresample=${String(rate)}[a${String(i)}]`,
     );
-    audio.push(
-      `[a${String(i - 1)}][a${String(i)}]acrossfade=d=${String(fade)}:o=${String(offset)}[xa${String(i)}]`,
-    );
+    audio.push(`[a${String(i - 1)}][a${String(i)}]acrossfade=d=${String(fade)}[xa${String(i)}]`);
     lastAudio = `[xa${String(i)}]`;
   });
 
@@ -985,7 +987,6 @@ export function buildMergeAudio(op: AudioMerge, meta: ProbeResult, io: CommandIo
 
   const rate = clips[0]?.audio?.sampleRate ?? 48_000;
   const durations = clips.map((clip) => clip.durationSec);
-  const offsets = crossfadeOffsets(durations, op.crossfadeSec);
   const total = joinedDuration(durations, op.crossfadeSec);
   const paths = [io.inputPath, ...extras.map((extra) => extra.path)];
 
@@ -996,10 +997,9 @@ export function buildMergeAudio(op: AudioMerge, meta: ProbeResult, io: CommandIo
       chain.push(`[0:a]aresample=${String(rate)}[a0]`);
       return;
     }
-    const offset = offsets[i - 1] ?? 0;
     chain.push(`[${String(i)}:a]aresample=${String(rate)}[a${String(i)}]`);
     chain.push(
-      `[a${String(i - 1)}][a${String(i)}]acrossfade=d=${String(op.crossfadeSec)}:o=${String(offset)}[xa${String(i)}]`,
+      `[a${String(i - 1)}][a${String(i)}]acrossfade=d=${String(op.crossfadeSec)}[xa${String(i)}]`,
     );
     last = `[xa${String(i)}]`;
   });

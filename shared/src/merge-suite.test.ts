@@ -46,7 +46,7 @@ describe('merge', () => {
     expect(plan.passes[0]?.argv.join(' ')).toContain(
       'xfade=transition=fade:duration=0.5:offset=2.5',
     );
-    expect(plan.passes[0]?.argv.join(' ')).toContain('acrossfade=d=0.5:o=2.5');
+    expect(plan.passes[0]?.argv.join(' ')).toContain('acrossfade=d=0.5');
     // Output runs for 3 + 4 - 0.5 = 6.5 seconds.
     expect(plan.passes[0]?.outputDurationSec).toBe(6.5);
   });
@@ -149,7 +149,7 @@ describe('merge audio', () => {
       io([songB]),
     );
     const argv = plan.passes[0]?.argv.join(' ') ?? '';
-    expect(argv).toContain('acrossfade=d=2:o=1');
+    expect(argv).toContain('acrossfade=d=2');
     expect(argv).toContain('-b:a');
     expect(argv).toContain('256k');
   });

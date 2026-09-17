@@ -38,7 +38,7 @@ All seven follow the existing operation contract: a pure `buildArgs` in shared, 
 - Crossfade: one global duration, 0 to 2s, 0 = hard cut.
 - Fade in and fade out on the joined result, 0 to 5s each, 0 = none.
 - Quality: crf field, default 20, preset medium.
-- Mechanics: every clip is normalized to the first clip's dimensions, frame rate, pixel aspect, and audio rate before the graph (`scale`, `fps`, `setsar`, `aresample`). Video chain: `[0:v][1:v]xfade=transition=fade:duration=d:offset=o1[x1]; [x1][2:v]xfade=...`. Audio chain: `acrossfade` with the same overlaps. A clip with no audio gets `anullsrc` spliced in so the chain stays continuous. The offsets are accumulated durations minus overlaps, computed in `buildMerge` from the probes, and snapshot-tested, because getting one of them wrong fails the graph or drops frames silently. Fade in/out are `fade`/`afade` appended at the ends of the joined chain. Output: `<first>-<second>-merge-<n>clips-<fade>s.mp4` next to the first clip.
+- Mechanics: every clip is normalized to the first clip's dimensions, frame rate, pixel aspect, and audio rate before the graph (`scale`, `fps`, `setsar`, `aresample`). Video chain: `[0:v][1:v]xfade=transition=fade:duration=d:offset=o1[x1]; [x1][2:v]xfade=...`. Audio chain: chained `acrossfade=d=...` with no offset, because the filter has none: its `o` is a boolean `overlap` (default true) and natively trims the tail of one stream and the head of the next. A clip with no audio gets `anullsrc` spliced in so the chain stays continuous. The xfade offsets are accumulated durations minus overlaps, computed in `buildMerge` from the probes, and snapshot-tested, because getting one of them wrong fails the graph or drops frames silently. Fade in/out are `fade`/`afade` appended at the ends of the joined chain. Output: `<first>-<second>-merge-<n>clips-<fade>s.mp4` next to the first clip.
 - Hard rule: all inputs must have video. Audio-only files are refused with the pointer to Merge audio.
 
 ### Merge audio
@@ -47,7 +47,7 @@ All seven follow the existing operation contract: a pure `buildArgs` in shared, 
 - Crossfade: 0 to 10s (songs crossfade longer than clips), 0 = hard cut.
 - Fade in and out on the joined result, 0 to 30s.
 - Bitrate field, default 192k.
-- Mechanics: everything `aresample`d to the first file's rate, then `acrossfade` chained with accumulated offsets. Output: m4a, named `mix-<n>tracks-<fade>s.m4a` next to the first file.
+- Mechanics: everything `aresample`d to the first file's rate, then `acrossfade` chained back to back (the filter's overlap mode handles the trim; it has no offset option). Output: m4a, named `mix-<n>tracks-<fade>s.m4a` next to the first file.
 - Hard rule: audio-only inputs. Video files are refused with the pointer to Merge.
 
 ### Add music

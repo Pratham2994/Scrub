@@ -320,7 +320,7 @@ export const OPERATIONS: readonly OperationDescriptor[] = [
   },
   {
     kind: 'merge-audio',
-    label: 'Merge',
+    label: 'Merge audio',
     group: 'audio',
     blurb: 'Join songs, with a crossfade between them.',
   },

@@ -173,7 +173,7 @@ In `shared/src/availability.ts`, add cases before the closing of the switch:
     case 'loop':
       return hasVideo
         ? AVAILABLE
-        : no('Looping the whole file keeps the picture too, which is Loop.', 'loop');
+        : no('This file is audio only, so Audio loop is the operation you want.', 'audio-loop');
 
     case 'audio-loop':
       return !hasVideo && hasAudio

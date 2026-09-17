@@ -25,6 +25,12 @@ const AUDIO_FIXTURE = path.join(FIXTURES, 'tone.m4a');
  * work and the operation still must".
  */
 const HEVC_FIXTURE = path.join(FIXTURES, 'hevc-clip.mp4');
+/** A second clip, visually distinct, for the operations that join files. */
+const CLIP_B = path.join(FIXTURES, 'clip-b.mp4');
+/** A tiny 64x64 PNG, for the watermark operation. */
+const MARK = path.join(FIXTURES, 'mark.png');
+/** A second tone. Two uploads of one file dedupe into one id, which would make a merge of one file twice. */
+const TONE_B = path.join(FIXTURES, 'tone-b.m4a');
 
 /** The rail, so "Convert" does not also match the audio one or a quick pick. */
 const railLink = (page: Page, slug: string) => page.locator(`nav a[href="/op/${slug}"]`);
@@ -996,28 +1002,32 @@ test.describe('remembering how you like things', () => {
 
 test.describe('the rail on a short screen', () => {
   /**
-   * Fourteen operations plus two legends need about 540px, and a 1366x768
-   * laptop leaves the rail roughly 478. Adding three operations pushed Loudness
-   * below the fold with nothing saying there was more, which makes an operation
-   * that exists look like one that does not.
+   * Fourteen operations used to fit a 1366x768 laptop's rail, roughly 478px.
+   * The merge suite made it twenty-four entries, which can never fit that
+   * budget at any legible density, so the contract changed: the most common
+   * laptop gets a rail that says there is more, and every operation is one
+   * scroll away. An operation that exists must never look like one that does
+   * not.
    */
-  test('shows every operation on the most common laptop', async ({ page }) => {
+  test('marks the rail as scrollable on the most common laptop, and the last operation is reachable', async ({
+    page,
+  }) => {
     await page.setViewportSize({ width: 1366, height: 625 });
     await page.goto('/op/trim');
 
-    const clipped = await page.evaluate(() => {
+    // The list genuinely does not fit, so the sticky fade says so.
+    await expect(page.locator('nav div[aria-hidden].sticky')).toBeAttached();
+
+    const reached = await page.evaluate(() => {
       const nav = document.querySelector('nav');
       if (!nav) return null;
+      nav.scrollTop = nav.scrollHeight;
       const links = Array.from(nav.querySelectorAll('a'));
       const last = links[links.length - 1];
       if (!last) return null;
-      return {
-        hidden: nav.scrollHeight - nav.clientHeight,
-        lastInView: last.getBoundingClientRect().bottom <= nav.getBoundingClientRect().bottom + 1,
-      };
+      return last.getBoundingClientRect().bottom <= nav.getBoundingClientRect().bottom + 1;
     });
-    expect(clipped?.hidden).toBeLessThanOrEqual(0);
-    expect(clipped?.lastInView).toBe(true);
+    expect(reached).toBe(true);
   });
 
   /** Shorter than that it genuinely does not fit, and has to say so. */
@@ -1172,5 +1182,118 @@ test.describe('the Tube theme', () => {
 
     await loadFixture(page);
     await expect(page.locator('.scanlines')).toHaveCount(0);
+  });
+});
+
+test.describe('the merge suite', () => {
+  /**
+   * Adds an extra input by clicking the Inputs card's own drop zone and feeding
+   * the file chooser. `setInputFiles` on the raw selector is a trap here: the
+   * empty-state dropzone lingers in the DOM through its exit animation, and
+   * Playwright silently targets the first matching input, which would replace
+   * the loaded file instead of joining it.
+   */
+  const addExtra = async (page: Page, zoneText: string, filePath: string): Promise<void> => {
+    const chooser = page.waitForEvent('filechooser');
+    await page.getByText(zoneText).click();
+    await (await chooser).setFiles(filePath);
+  };
+
+  test('merges two clips with a crossfade', async ({ page }) => {
+    await page.goto('/op/merge');
+    await loadFixture(page);
+    await addExtra(page, 'Drop or click to add a clip. The loaded file goes first.', CLIP_B);
+
+    await expect(page.locator('ol li')).toHaveCount(2);
+    await page.getByRole('button', { name: 'Run' }).click();
+    await expect(page.getByRole('link', { name: 'Save', exact: true })).toBeVisible({
+      timeout: 120_000,
+    });
+
+    // The bar showed the real graph: crossfade on both streams.
+    const command = await commandText(page);
+    expect(command).toContain('xfade=transition=fade');
+    expect(command).toContain('acrossfade');
+  });
+
+  test('merges two songs', async ({ page }) => {
+    await page.goto('/op/merge-audio');
+    await page.setInputFiles('input[type=file]', AUDIO_FIXTURE);
+    await expect(page.locator('audio')).toBeVisible({ timeout: 30_000 });
+    await addExtra(page, 'Drop or click to add a song. The loaded file goes first.', TONE_B);
+
+    await page.getByRole('button', { name: 'Run' }).click();
+    await expect(page.getByRole('link', { name: 'Save', exact: true })).toBeVisible({
+      timeout: 120_000,
+    });
+  });
+
+  test('puts music under a video', async ({ page }) => {
+    await page.goto('/op/add-music');
+    await loadFixture(page);
+    await addExtra(page, 'Drop or click to add a music file.', AUDIO_FIXTURE);
+
+    await page.getByRole('button', { name: 'Run' }).click();
+    await expect(page.getByRole('link', { name: 'Save', exact: true })).toBeVisible({
+      timeout: 120_000,
+    });
+    expect(await commandText(page)).toContain('amix=inputs=2');
+  });
+
+  test('stamps an image over the picture', async ({ page }) => {
+    await page.goto('/op/watermark');
+    await loadFixture(page);
+    await addExtra(page, 'Drop or click to add an image.', MARK);
+
+    await page.getByRole('button', { name: 'Run' }).click();
+    await expect(page.getByRole('link', { name: 'Save', exact: true })).toBeVisible({
+      timeout: 120_000,
+    });
+    expect(await commandText(page)).toContain('overlay=');
+  });
+
+  test('fades, loops, and turns the volume up', async ({ page }) => {
+    await page.goto('/op/fade');
+    await loadFixture(page);
+    await page.getByRole('button', { name: 'Run' }).click();
+    await expect(page.getByRole('link', { name: 'Save', exact: true })).toBeVisible({
+      timeout: 120_000,
+    });
+    expect(await commandText(page)).toContain('fade=t=in');
+
+    await page.goto('/op/loop');
+    await page.getByRole('button', { name: 'Run' }).click();
+    await expect(page.getByRole('link', { name: 'Save', exact: true })).toBeVisible({
+      timeout: 120_000,
+    });
+    expect(await commandText(page)).toContain('-stream_loop');
+
+    await page.goto('/op/volume');
+    await page.getByRole('button', { name: 'Run' }).click();
+    await expect(page.getByRole('link', { name: 'Save', exact: true })).toBeVisible({
+      timeout: 120_000,
+    });
+    expect(await commandText(page)).toContain('volume=6dB');
+  });
+
+  test('points audio files at the audio variants', async ({ page }) => {
+    await page.goto('/op/merge');
+    await page.setInputFiles('input[type=file]', AUDIO_FIXTURE);
+    await expect(page.locator('audio')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText(/joining songs/i)).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Use merge audio instead' })).toBeVisible();
+  });
+
+  test('saves the frame under the playhead', async ({ page }) => {
+    await page.goto('/');
+    await loadFixture(page);
+    await page.getByRole('button', { name: 'Save this frame' }).click();
+    // Queue chips name their Save link "Save <filename>", unlike the result
+    // panel's bare Save.
+    await expect(page.getByRole('link', { name: /Save .*frame-.*\.png/ })).toBeVisible({
+      timeout: 60_000,
+    });
+    // The queue recorded it as a Frame job.
+    await expect(page.getByText(/Frame ·/)).toBeVisible();
   });
 });
