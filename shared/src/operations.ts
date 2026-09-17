@@ -244,13 +244,14 @@ export type OperationDescriptor = {
 };
 
 /**
- * Rail order. Fourteen operations.
+ * Rail order. Twenty-four operations.
  *
  * The list is still closed - it is not a settings panel and it does not grow to
- * cover ffmpeg - but it is closed around what people actually do, and three
- * things were missing from that. "Under 10 MB" is the most common video request
- * there is and compress could not answer it; speed and crop are in the same
- * everyday category as trim and resize.
+ * cover ffmpeg - but it is closed around what people actually do. "Under 10 MB"
+ * is the most common video request there is and compress could not answer it.
+ * Speed and crop are in the same everyday category as trim and resize. The merge
+ * suite is the other category: what people do with more than one file, where
+ * doing it by hand is the point most people give up and open an editor.
  */
 export const OPERATIONS: readonly OperationDescriptor[] = [
   { kind: 'trim', label: 'Trim', group: 'video', blurb: 'Cut a clip out of a video.' },

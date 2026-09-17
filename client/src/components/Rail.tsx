@@ -12,7 +12,7 @@ const GROUPS: readonly { readonly id: OperationGroup; readonly label: string }[]
 ];
 
 /**
- * Labels, no icons. Eleven operations would mean eleven icons that each
+ * Labels, no icons. Twenty-four operations would mean twenty-four icons that each
  * half-describe a verb, and "compress" has no good glyph. Words are unambiguous
  * and this audience reads.
  *
@@ -36,7 +36,7 @@ export function Rail() {
   /**
    * Whether there are operations below the fold.
    *
-   * Fourteen of them do not fit a laptop shorter than about 560px once the
+   * Twenty-four of them do not fit a laptop shorter than about 560px once the
    * header and command bar have taken their share, and a list that is quietly
    * cut off is worse than one that is visibly scrollable: the operation you are
    * looking for appears not to exist.
@@ -78,7 +78,7 @@ export function Rail() {
           'workspace:w-rail workspace:flex-col workspace:gap-0 workspace:overflow-x-visible',
           'workspace:overflow-y-auto workspace:border-r workspace:border-b-0 workspace:px-3',
           /**
-           * Tighter on a short screen. Fourteen operations plus two legends need
+           * Tighter on a short screen. Twenty-four operations plus two legends need
            * about 540px, and a 1366x768 laptop leaves the rail roughly 478 - so
            * Loudness sat below the fold with nothing saying there was more. The
            * padding goes before the labels do.

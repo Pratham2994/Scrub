@@ -67,10 +67,11 @@ feature, not a defect to be hardened away.
 
 ## Capabilities and Constraints
 
-Fourteen operations, closed. Video: trim (fast and precise), compress, fit a size,
-convert, resize, crop, speed, GIF, extract audio, mute, replace audio. Audio:
-convert, trim, normalise loudness. Deferred with reasons in `docs/OPERATIONS.md`:
-concat, rotate, subtitle burn-in, batch.
+Twenty-four operations, closed. Video: trim (fast and precise), compress, fit a
+size, convert, resize, crop, speed, GIF, extract audio, mute, replace audio, merge,
+add music, watermark, fade, loop, volume. Audio: convert, trim, normalise loudness,
+merge, fade, loop, volume. Deferred with reasons in `docs/OPERATIONS.md`: rotate,
+subtitle burn-in, batch.
 
 "Fit a size" is the one that answers the question people actually arrive with.
 Every other compression control asks how good; a platform limit asks how big, and
@@ -108,7 +109,8 @@ Zustand, Python.
 
 ## Evidence on Hand
 
-- `docs/OPERATIONS.md` - the command, flag reasoning and traps for all eleven
+- `docs/OPERATIONS.md` - the command, flag reasoning and traps for all
+  twenty-four
   operations. Authoritative for anything touching `buildArgs`.
 - `shared/src/build-args.test.ts` - argv snapshots. A refactor cannot silently
   change what gets executed.

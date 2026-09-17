@@ -5,8 +5,8 @@ function; this is that file.
 
 One entry per operation in the closed list. Each says what the command is, why the
 flags are the ones they are, and what goes wrong if you reach for the obvious
-alternative. All eleven are implemented. Each entry is the reasoning behind its flags, and
-the trap it exists to avoid.
+alternative. All twenty-four are implemented, and each has been run through real
+ffmpeg with its output probed back.
 
 ## The contract
 
@@ -500,10 +500,6 @@ set up.
 
 Not in the closed list, with reasons.
 
-- **Concat** - only trivial with identical codecs, timebases and resolutions. Doing
-  it properly means either the concat demuxer plus a compatibility check, or
-  re-encoding everything through `concat` filter. Both are a second file-management
-  UI, which is a different product.
 - **Rotate** - mostly a metadata problem, not a filter problem. Phone video carries a
   rotation tag and the correct fix is usually to change the tag, not re-encode.
   Getting that wrong produces silently sideways video.

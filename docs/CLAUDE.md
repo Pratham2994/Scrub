@@ -26,11 +26,11 @@ Video: trim (fast/precise), compress, fit a size, convert, resize, crop, speed, 
 extract audio, mute, replace audio, merge, add music, watermark, fade, loop, volume.
 Audio: convert, trim, normalise loudness, merge, fade, loop, volume.
 
-The list is closed, and closed does not mean frozen - it means it grows only for something people already do, never to expose more of ffmpeg. Fit a size, speed and crop were added because "get this under 10 MB" is the most common video request there is and compress could not answer it, and because speed and crop sit in the same everyday category as trim and resize. A tenth checkbox inside an operation is still the failure mode.
+The list is closed, and closed does not mean frozen - it means it grows only for something people already do, never to expose more of ffmpeg. Fit a size was added because "get this under 10 MB" is the most common video request there is and compress could not answer it. Speed and crop sit in the same everyday category as trim and resize. The merge suite arrived because joining clips, mixing songs, music under a video, a logo stamp, fades, loops and volume are what people do with more than one file, and doing them by hand is where most people give up and open an editor. A tenth checkbox inside an operation is still the failure mode.
 
 Details, exact commands, and the traps in each live in `docs/OPERATIONS.md`. Read that before touching `buildArgs`.
 
-Deferred with reasons in that file: concat, rotate, subtitle burn-in, batch.
+Deferred with reasons in that file: rotate, subtitle burn-in, batch.
 
 ## Architecture
 

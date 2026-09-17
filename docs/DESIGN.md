@@ -133,7 +133,7 @@ One workspace. Left rail of operations, centre well, fixed command bar. Left ali
 └──────────┴───────────────────────────────────────────┘
 ```
 
-Rail: 180px, labels only, no icons. Eleven operations with icons would mean eleven icons that each half-describe a verb, and "compress" has no good glyph. Words are unambiguous and this audience reads. The groups are marked by micro labels sitting in hairlines - "Video" above the video operations, "Audio" between the groups. They are separators with a word in them, not headings, so they mark the split without competing with the verbs. The active operation is a dark chip with an accent tick on its left edge, matching the well and the bar: the dark marks where the work is, and the tick is the same accent as the focus ring.
+Rail: 180px, labels only, no icons. Twenty-four operations with icons would mean twenty-four icons that each half-describe a verb, and "compress" has no good glyph. Words are unambiguous and this audience reads. The groups are marked by micro labels sitting in hairlines - "Video" above the video operations, "Audio" between the groups. They are separators with a word in them, not headings, so they mark the split without competing with the verbs. The active operation is a dark chip with an accent tick on its left edge, matching the well and the bar: the dark marks where the work is, and the tick is the same accent as the focus ring.
 
 Well: `--well` background, 6px radius, and the video letterboxed inside it. The well keeps its size when the operation changes so the layout does not jump.
 

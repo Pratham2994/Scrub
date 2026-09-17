@@ -134,7 +134,7 @@ export const operationSchema = z.discriminatedUnion('kind', [
 ]) satisfies z.ZodType<Operation>;
 
 /**
- * A run is either one of the eleven operations, or a command the user edited by
+ * A run is either one of the twenty-four operations, or a command the user edited by
  * hand. The second form is what keeps the operation list closed: anything Scrub
  * does not offer is reachable by typing it, and that is a feature rather than a
  * gap.

@@ -1,21 +1,37 @@
 # Scrub
 
-A local ffmpeg GUI. Drop a file in, pick one of a handful of operations, get a file
-out.
+A local ffmpeg GUI. Drop a file in, pick an operation, get a file out. It runs on
+your own machine and nothing goes to the internet.
 
 Most ffmpeg front-ends just expose ffmpeg's flags, which means you still have to
-know ffmpeg. Scrub covers the dozen or so things people actually do with it. Three
-reasons to use it over a terminal:
+know ffmpeg. Scrub covers the things people actually do with it, across twenty-four
+operations. Some work on one file and some join several:
 
-- It can hit a file size. Pick Discord, WhatsApp or an email attachment and Scrub
-  works out the bitrate from the limit and the length, then encodes in two passes to
-  get under it. Every other compression control asks how good you want it and gives
-  you whatever size that takes, which is no help when something has a hard limit.
-- The exact command is on screen before it runs, and you can copy or edit it. One
-  function builds the argv that the preview shows and that `spawn` executes, so they
-  can't drift apart.
-- Trimming is done by dragging over real frames from your file, which is the part
-  that's genuinely painful to do by hand. Crop works the same way.
+**One video.** Trim by dragging over real frames from your file. Compress. Convert
+between mp4, webm, mkv and mov. Resize. Crop. Speed up or slow down with the sound
+kept in step. Make a GIF in two passes. Pull the audio out, swap it for a different
+track, or drop it. Fade the picture and sound in and out. Loop. Change the volume.
+Save the frame under the playhead as a PNG.
+
+**One audio file.** Convert between mp3, aac, opus, wav and flac. Trim. Normalise to
+a broadcast or streaming loudness target. Fade. Loop. Change the volume.
+
+**Several files.** Join clips with a crossfade. Join songs the same way, which is
+how a dance mix gets built. Put a song under a video, with the original and the
+music balanced against each other. Stamp an image over the picture as a watermark.
+
+Three things make it worth using instead of a terminal:
+
+- **It can hit a file size.** Pick Discord, WhatsApp or an email attachment and
+  Scrub works out the bitrate from the limit and the length, then encodes in two
+  passes to get under it. Every other compression control asks how good you want it
+  and gives you whatever size that takes, which is no help when something has a
+  hard limit.
+- **The exact command is on screen before it runs**, and you can copy or edit it.
+  One function builds the argv that the preview shows and that `spawn` executes, so
+  they can't drift apart.
+- **Trimming is done by dragging over real frames** from your file, which is the
+  part that's genuinely painful to do by hand. Crop works the same way.
 
 The operation list is closed on purpose. Anything not on it goes through the
 editable command bar.
@@ -195,8 +211,8 @@ shared/   Operation types and the buildArgs function. Imported by both.
 
 ## Status
 
-Done. All fourteen operations are built, and each has been run through real ffmpeg
-with the output probed back.
+Done. All twenty-four operations are built, and each has been run through real
+ffmpeg with the output probed back.
 
 Upload, probe, preview, run with live progress, cancel, compare against the
 original and save all work. Trim and GIF scrub against a filmstrip of real frames
@@ -212,18 +228,23 @@ browsers can't decode, explain that it's the preview that failed and not the
 operation.
 
 Encodes queue instead of competing for the CPU. Start one, set the next up while it
-runs, and both show in a strip above the command bar with their own progress, time
-remaining and cancel. The queue survives a reload, because the jobs are the
+runs, and both show in a strip above the command bar with their own progress, the
+time remaining and cancel. The queue survives a reload, because the jobs are the
 server's rather than the page's. A finished result can become the next source with
 one button, so trim then compress doesn't mean saving a file and dropping it back
 in, and the name carries the whole chain: `clip-trim-0s-2s-compress-crf23.mp4`.
 Settings are remembered between visits. The file is not.
 
-Not built, on purpose: concat, rotate, subtitle burn-in and batch. Concat is only
-trivial when codecs and timebases already match, rotate is usually a metadata
-change rather than a filter, subtitles need libass and font resolution, and batch
-is a different shape of application. All four are reachable through the command
-bar, which is what it's for.
+Appearance has four choices, not two. Light and dark, following the system or
+picked by hand, and **Tube**, which re-racks the whole app as a green phosphor CRT:
+the rail becomes one horizontal strip, the command bar becomes a prompt with a
+block cursor, and the layout and radii change with it. It is a different room
+rather than a darker one.
+
+Not built, on purpose: rotate, subtitle burn-in and batch. Rotate is usually a
+metadata change rather than a filter, subtitles need libass and font resolution,
+and batch is a different shape of application. All three are reachable through the
+command bar, which is what it's for.
 
 ### Tests
 
@@ -232,9 +253,12 @@ test suites.
 
 | Suite    | Count | What it covers                                       |
 | -------- | ----- | ---------------------------------------------------- |
-| `shared` | 163   | `buildArgs` argv snapshots, availability, the linter |
-| `server` | 57    | The tmp sweeper, the store, the CSRF guard, loudnorm |
-| `e2e`    | 48    | Real flows against real ffmpeg, in a real browser    |
+| `shared` | 207   | `buildArgs` argv snapshots, availability, the linter |
+| `server` | 64    | The tmp sweeper, the store, the CSRF guard, loudnorm |
+| `e2e`    | 67    | Real flows against real ffmpeg, in a real browser    |
+
+There is also a contrast check on every palette, in every theme, so a colour cannot
+drop below its accessibility floor without failing the build.
 
 The end-to-end tests aren't mocked. The whole product is that the command Scrub
 shows is the command that runs, and a suite that stubbed the server out would be
