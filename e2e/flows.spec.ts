@@ -1219,6 +1219,39 @@ test.describe('the Tube theme', () => {
   });
 });
 
+test.describe('the landing page', () => {
+  /**
+   * The invitation to drop a file is the whole screen on this route, so it has to
+   * fill the panel whether or not the working folder has anything to offer.
+   *
+   * It did not. `main` is a block container, so the wrapper's `flex-1` had nothing
+   * to stretch against and the box sat at its `min-h` floor, which on a 1366x768
+   * laptop is less than half the space. The recent-files list padded it out and
+   * hid that completely, until the folder was emptied and the list went away.
+   */
+  test('the dropzone fills the panel, with or without recent files', async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 768 });
+    await page.goto('/');
+
+    const fill = await page.evaluate(() => {
+      const zone = document.querySelector('[class*="border-dashed"]');
+      const main = document.querySelector('main');
+      if (!zone || !main) return null;
+      const style = getComputedStyle(main);
+      // Main's content box, which is what a full-height child should occupy.
+      const inner =
+        main.getBoundingClientRect().height -
+        Number.parseFloat(style.paddingTop) -
+        Number.parseFloat(style.paddingBottom);
+      return { zone: zone.getBoundingClientRect().height, inner };
+    });
+
+    if (fill === null) throw new Error('no dropzone on the landing page');
+    // A pixel of slack: subpixel layout, not a gap.
+    expect(fill.inner - fill.zone).toBeLessThanOrEqual(1);
+  });
+});
+
 test.describe('the merge suite', () => {
   /**
    * Adds an extra input by clicking the Inputs card's own drop zone and feeding
