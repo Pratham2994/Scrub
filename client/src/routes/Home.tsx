@@ -5,7 +5,6 @@ import { Link } from 'react-router';
 import { FileStatus } from '@/components/FileStatus';
 import { Handoff } from '@/components/Handoff';
 import { MediaWell } from '@/components/MediaWell';
-import { cn } from '@/lib/utils';
 import { useScrubStore } from '@/store/use-scrub-store';
 
 /**
@@ -24,22 +23,17 @@ export function Home() {
 
   return (
     /**
-     * The empty state fills the panel deliberately, and the loaded state does not.
+     * `h-full` plus a flex column, the same shape OperationPanel uses, and for
+     * the same reason: `main` is a block container, so a child's `flex-1` has
+     * nothing to stretch against and the page collapses to the height of its
+     * content. The dropzone has a `min-h` floor, so it never looked broken, it
+     * just sat at the floor, and the recent-files list padded it out enough to
+     * hide that until the working folder was emptied.
      *
-     * `main` is a block container, so a child's `flex-1` has nothing to stretch
-     * against and the page collapses to the height of its content. The dropzone
-     * has a `min-h` floor, so it never looked broken, it just sat at the floor,
-     * and the recent-files list padded it out enough to hide that until the
-     * working folder was emptied.
-     *
-     * The invitation to drop a file is the whole screen, so it takes the whole
-     * screen. Once a file is in, the point of this route is the card underneath
-     * ("Ready. Pick an operation."), and filling the height would push it below
-     * the fold: the well is as tall as the video's aspect makes it, and a flex
-     * item will not shrink below its own content, so a tall well forces a scroll
-     * that hides the only thing on the page worth reading.
+     * This route is the whole screen either way: the invitation before a file
+     * lands, and the file with the next step under it afterwards.
      */
-    <div className={cn('flex flex-col', !hasFile && 'h-full min-h-0')}>
+    <div className="flex h-full min-h-0 flex-col">
       <Handoff mode={hasFile ? 'loaded' : 'empty'}>
         {hasFile ? (
           <Loaded id={uploadId} />

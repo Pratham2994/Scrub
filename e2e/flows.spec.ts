@@ -1250,6 +1250,75 @@ test.describe('the landing page', () => {
     // A pixel of slack: subpixel layout, not a gap.
     expect(fill.inner - fill.zone).toBeLessThanOrEqual(1);
   });
+
+  /**
+   * The picture must not decide how tall the well is.
+   *
+   * The video was `w-full`, so its height followed from its aspect ratio, and a
+   * flex item will not shrink below its content. A 16:9 clip in a wide panel
+   * therefore made a well taller than the window: 953px on a 1920x937 laptop,
+   * which pushed the next step off the screen on every size of laptop, and the
+   * controls off the operation pages with it. Chromium decodes a 16:9 frame
+   * happily at any of these sizes, so only a measurement catches it.
+   */
+  test('the preview well never grows taller than the panel, at any laptop size', async ({
+    page,
+  }) => {
+    for (const size of [
+      { width: 1920, height: 937 },
+      { width: 1536, height: 749 },
+      { width: 1280, height: 624 },
+      { width: 1366, height: 625 },
+    ]) {
+      await page.setViewportSize(size);
+      await page.goto('/op/trim');
+      await loadFixture(page);
+      await page.waitForTimeout(600);
+
+      const measured = await page.evaluate(() => {
+        const main = document.querySelector('main');
+        const well = document.querySelector('[class*="rounded-well"]');
+        if (!main || !well) return null;
+        return {
+          well: well.getBoundingClientRect().height,
+          main: main.getBoundingClientRect().height,
+        };
+      });
+
+      if (measured === null) throw new Error('no well on the trim page');
+      expect(
+        measured.well,
+        `well ${String(Math.round(measured.well))}px vs panel ${String(Math.round(measured.main))}px at ${String(size.width)}x${String(size.height)}`,
+      ).toBeLessThanOrEqual(measured.main);
+    }
+  });
+
+  /**
+   * And the consequence on this route: the line that says what to do next has to
+   * be readable without hunting for it.
+   */
+  test('shows the next step after loading, without scrolling', async ({ page }) => {
+    for (const size of [
+      { width: 1920, height: 937 },
+      { width: 1280, height: 624 },
+    ]) {
+      await page.setViewportSize(size);
+      await page.goto('/');
+      await page.evaluate(() => {
+        sessionStorage.clear();
+      });
+      await page.reload();
+      await loadFixture(page);
+      await page.waitForTimeout(900);
+
+      const card = page.getByText('Ready. Pick an operation.');
+      await expect(card).toBeVisible();
+      const below = await card.evaluate(
+        (node) => node.getBoundingClientRect().bottom > window.innerHeight,
+      );
+      expect(below, `the next step was below the fold at ${String(size.width)} wide`).toBe(false);
+    }
+  });
 });
 
 test.describe('the merge suite', () => {

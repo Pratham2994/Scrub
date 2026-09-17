@@ -119,42 +119,54 @@ export function MediaWell({ id, meta }: MediaWellProps) {
 
   return (
     <Well saving={frame.saving} onSaveFrame={frame.save}>
-      {/* Letterboxed inside the well: `object-contain` so the frame is never
-          cropped, and the well keeps its size so the layout does not jump. */}
-      <video
-        ref={(node) => {
-          videoRef.current = node;
-          // The filmstrip's playhead and the keyboard shortcuts both drive the
-          // element through this, rather than reaching across the component tree.
-          registerVideo(node);
-        }}
-        key={id}
-        src={sourceUrl(id)}
-        controls
-        playsInline
-        preload="metadata"
-        onPointerUp={(event) => {
-          /**
-           * Hand keyboard focus back after a click.
-           *
-           * A focused `<video controls>` answers Space and the arrows from the
-           * browser's own shadow DOM, which the page cannot cancel - not even
-           * from a capture-phase listener. So clicking the picture silently
-           * changed what every shortcut did: Space stopped working and an arrow
-           * moved the native seek step instead of one frame.
-           *
-           * Only pointer focus is dropped. Someone who deliberately Tabs to the
-           * video still gets the native controls and their keys.
-           */
-          event.currentTarget.blur();
-        }}
-        onError={() => {
-          // The allowlist above catches the known cases; this catches the rest,
-          // so an exotic codec degrades to the explanation instead of a void.
-          setFailed(true);
-        }}
-        className="h-full max-h-full w-full object-contain"
-      />
+      {/**
+       * Absolutely positioned, so the picture does not decide the well's height.
+       *
+       * Left in flow, `w-full` gave the video the well's full width and its
+       * height followed from its aspect ratio, which a flex item will not shrink
+       * below. A 16:9 clip in a wide panel therefore forced a well taller than
+       * the window: on a 1920x937 laptop the well measured 953px, pushing the
+       * "Ready. Pick an operation." card off the screen at every size, and the
+       * controls off the operation pages with it. Taking the video out of flow
+       * lets the well take the height it is given and `object-contain` letterbox
+       * the picture inside it, which is what it was written to do.
+       */}
+      <div className="absolute inset-0">
+        <video
+          ref={(node) => {
+            videoRef.current = node;
+            // The filmstrip's playhead and the keyboard shortcuts both drive the
+            // element through this, rather than reaching across the component tree.
+            registerVideo(node);
+          }}
+          key={id}
+          src={sourceUrl(id)}
+          controls
+          playsInline
+          preload="metadata"
+          onPointerUp={(event) => {
+            /**
+             * Hand keyboard focus back after a click.
+             *
+             * A focused `<video controls>` answers Space and the arrows from the
+             * browser's own shadow DOM, which the page cannot cancel - not even
+             * from a capture-phase listener. So clicking the picture silently
+             * changed what every shortcut did: Space stopped working and an arrow
+             * moved the native seek step instead of one frame.
+             *
+             * Only pointer focus is dropped. Someone who deliberately Tabs to the
+             * video still gets the native controls and their keys.
+             */
+            event.currentTarget.blur();
+          }}
+          onError={() => {
+            // The allowlist above catches the known cases; this catches the rest,
+            // so an exotic codec degrades to the explanation instead of a void.
+            setFailed(true);
+          }}
+          className="h-full w-full object-contain"
+        />
+      </div>
     </Well>
   );
 }
