@@ -5,27 +5,14 @@ your own machine and nothing goes to the internet.
 
 Most ffmpeg front-ends just expose ffmpeg's flags, which means you still have to
 know ffmpeg. Scrub covers the things people actually do with it, across twenty-four
-operations. Some work on one file and some join several:
-
-**One video.** Trim by dragging over real frames from your file. Compress. Convert
-between mp4, webm, mkv and mov. Resize. Crop. Speed up or slow down with the sound
-kept in step. Make a GIF in two passes. Pull the audio out, swap it for a different
-track, or drop it. Fade the picture and sound in and out. Loop. Change the volume.
-Save the frame under the playhead as a PNG.
-
-**One audio file.** Convert between mp3, aac, opus, wav and flac. Trim. Normalise to
-a broadcast or streaming loudness target. Fade. Loop. Change the volume.
-
-**Several files.** Join clips with a crossfade. Join songs the same way, which is
-how a dance mix gets built. Put a song under a video, with the original and the
-music balanced against each other. Stamp an image over the picture as a watermark.
+operations.
 
 Three things make it worth using instead of a terminal:
 
 - **It can hit a file size.** Pick Discord, WhatsApp or an email attachment and
   Scrub works out the bitrate from the limit and the length, then encodes in two
-  passes to get under it. Every other compression control asks how good you want it
-  and gives you whatever size that takes, which is no help when something has a
+  passes to get under it. Every other compression control asks how good you want
+  it and gives you whatever size that takes, which is no help when something has a
   hard limit.
 - **The exact command is on screen before it runs**, and you can copy or edit it.
   One function builds the argv that the preview shows and that `spawn` executes, so
@@ -36,26 +23,68 @@ Three things make it worth using instead of a terminal:
 The operation list is closed on purpose. Anything not on it goes through the
 editable command bar.
 
-## Size presets
+## What it does
 
-These were checked in September 2026. Limits move, so each one records why it is
-what it is.
+Video, on one file:
 
-| Where               | Limit   | Scrub aims at | Why                                                                             |
-| ------------------- | ------- | ------------- | ------------------------------------------------------------------------------- |
-| Discord             | 10 MB   | 9.5 MB        | The free tier was moving from 10 MB toward 20 during 2026. 10 works everywhere. |
-| WhatsApp            | 16 MB   | 15 MB         | For a video sent as media. Sent as a document it allows 2 GB and needs nothing. |
-| Email attachment    | 18.8 MB | 17.5 MB       | Gmail and Outlook say 25 MB, but that's the base64 size, about a third bigger.  |
-| Discord Nitro Basic | 50 MB   | 48 MB         | Full Nitro is 500 MB, which almost nothing needs compressing to reach.          |
-| X / Twitter         | 512 MB  | 500 MB        | Size is generous. The limit that bites is 2m20s without Premium, so trim first. |
+| Operation     | What it does                                                               |
+| ------------- | -------------------------------------------------------------------------- |
+| Trim          | Cut a section out. Drag handles over real frames, or type the timecodes.   |
+| Compress      | Smaller file, at a quality you choose.                                     |
+| Fit a size    | Come in under a hard limit. Two passes, budget worked out from the length. |
+| Convert       | mp4, webm, mkv or mov. Remuxes instead of re-encoding when it can.         |
+| Resize        | Scale to a target width, aspect and even dimensions kept.                  |
+| Crop          | Drag a rectangle out of the picture.                                       |
+| Speed         | Faster or slower, sound stretched to match so it stays in step.            |
+| GIF           | Two-pass palette, so it does not come out banded.                          |
+| Extract audio | Pull the sound out as mp3, aac, opus, wav or flac.                         |
+| Mute          | Drop the audio, copy the picture.                                          |
+| Replace audio | Swap in a different track, ending at the shorter of the two.               |
+| Fade          | Fade picture and sound in and out.                                         |
+| Loop          | Play the whole file again, up to sixteen times. No re-encode.              |
+| Volume        | Louder or quieter, picture untouched.                                      |
 
-Scrub aims a little under the limit, because container overhead can land on the
-wrong side of it and a file refused after the upload is worse than one that came
-out slightly smaller than it needed to be. For anywhere else, type the number.
+Video, across several files:
 
-If the target can't hold the length, Scrub says so and tells you roughly how long
+| Operation | What it does                                                                          |
+| --------- | ------------------------------------------------------------------------------------- |
+| Merge     | Join up to four clips, with a crossfade between them, and optional fades on the ends. |
+| Add music | Put a song under a clip, with the original and the music balanced separately.         |
+| Watermark | Stamp an image over the picture. Nine positions, adjustable opacity.                  |
+
+Audio:
+
+| Operation | What it does                                                             |
+| --------- | ------------------------------------------------------------------------ |
+| Convert   | mp3, aac, opus, wav or flac.                                             |
+| Trim      | Cut a section out. Sample accurate, so there is no fast/precise choice.  |
+| Loudness  | Two-pass normalise to a LUFS target, broadcast or streaming.             |
+| Merge     | Join up to twelve songs with a crossfade, which is how a mix gets built. |
+| Fade      | Fade the sound in and out. On a video the picture is copied untouched.   |
+| Loop      | Play the whole file again, up to sixteen times. No re-encode.            |
+| Volume    | Louder or quieter. On a video the picture is copied untouched.           |
+
+There is also **Save this frame** on the video well: the frame under the playhead,
+written out as a lossless PNG. It is a button rather than an operation, because the
+frame you want is the one already on screen.
+
+## Fitting a size
+
+Fit a size is the operation that answers a different question from every other
+compression control. They ask how good you want it. A platform limit asks how big.
+Those are not the same question, and only the second one tells you whether the
+upload will be refused.
+
+Scrub carries the limits for the places that reject a file outright, each with the
+date it was last checked, because they move: Discord, WhatsApp, an email
+attachment, Discord Nitro Basic, and X. If your copy of the file lands a little
+under the number, that is deliberate. Container overhead can fall on the wrong side
+of a hard limit, and a file refused after you waited for the upload is worse than
+one that came out slightly small. For anywhere else, type the number yourself.
+
+If the target cannot hold the length, Scrub says so and tells you roughly how long
 would have fitted. Below about 100 kbit/s h264 stops looking like a picture, so
-there's no point encoding a smear that happens to be the right size.
+there is no point encoding a smear that happens to be the right size.
 
 ## What this is
 
