@@ -187,9 +187,21 @@ export function NumberField({
               return (
                 <span
                   key={tick.label}
-                  style={{ left: `${String(at)}%` }}
+                  /**
+                   * Pulled back by its own position rather than by half its
+                   * width: at the start of the scale the label's left edge sits
+                   * on the start, at the end its right edge sits on the end, and
+                   * in the middle it is centred as before.
+                   *
+                   * A flat `-50%` centres every label on the point it names,
+                   * which is right until a tick names an end - then half of it
+                   * hangs outside the field, which is what "hard cut" did on the
+                   * merge panel. Every tick set before that happened to sit
+                   * comfortably inside its own range, so nothing caught it.
+                   */
+                  style={{ left: `${String(at)}%`, transform: `translateX(-${String(at)}%)` }}
                   className={cn(
-                    'text-micro absolute -translate-x-1/2 whitespace-nowrap transition-colors duration-100',
+                    'text-micro absolute whitespace-nowrap transition-colors duration-100',
                     near ? 'text-ink' : 'text-muted',
                   )}
                 >

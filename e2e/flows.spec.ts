@@ -1297,3 +1297,45 @@ test.describe('the merge suite', () => {
     await expect(page.getByText(/Frame ·/)).toBeVisible();
   });
 });
+
+test.describe('the annotated sliders', () => {
+  /**
+   * A tick label names a position on the scale, and the ones at either end name
+   * the ends. Centring every label on its own position put half of "hard cut"
+   * outside the panel, because the position it names is the very start of the
+   * track. Every tick set before the merge suite happened to sit comfortably
+   * inside its range, so nothing caught it.
+   */
+  const escapedLabels = (page: Page) =>
+    page.evaluate(() => {
+      const escaped: { label: string; left: number; right: number }[] = [];
+      for (const slider of Array.from(document.querySelectorAll('input[type=range]'))) {
+        const track = slider.parentElement;
+        const field = track?.parentElement;
+        if (!track || !field) continue;
+        const bounds = field.getBoundingClientRect();
+        for (const tick of Array.from(track.querySelectorAll('span'))) {
+          const rect = tick.getBoundingClientRect();
+          const left = bounds.left - rect.left;
+          const right = rect.right - bounds.right;
+          // A pixel of slack: subpixel layout, not an escape.
+          if (left > 1 || right > 1) {
+            escaped.push({ label: tick.textContent, left, right });
+          }
+        }
+      }
+      return escaped;
+    });
+
+  test('keeps every tick label inside its own field', async ({ page }) => {
+    // Merge puts ticks on both ends of the crossfade scale, and Loop pairs that
+    // with the longest label in the product.
+    await page.goto('/op/merge');
+    await loadFixture(page);
+    expect(await escapedLabels(page)).toEqual([]);
+
+    await page.goto('/op/loop');
+    await expect(page.locator('input[type=range]').first()).toBeVisible();
+    expect(await escapedLabels(page)).toEqual([]);
+  });
+});
