@@ -61,6 +61,16 @@ show you one that cannot work.
 | Audio: Convert            | yes                        | no track        | use Extract audio |
 | Audio: Trim               | yes                        | no track        | use Trim          |
 | Loudness                  | yes                        | no track        | yes               |
+| Merge                     | use Merge audio            | yes             | yes               |
+| Merge audio               | yes                        | no sound        | use Merge         |
+| Add music                 | no picture                 | yes             | yes               |
+| Watermark                 | no picture                 | yes             | yes               |
+| Fade                      | use Audio fade             | yes             | yes               |
+| Audio fade                | yes                        | no sound        | yes               |
+| Loop                      | use Audio loop             | yes             | yes               |
+| Audio loop                | yes                        | use Loop        | use Loop          |
+| Volume                    | use Audio volume           | no sound        | yes               |
+| Audio volume              | yes                        | no sound        | use Volume        |
 
 Two entries are about avoiding duplicates rather than impossibility. On a video,
 **Audio: Trim** is Trim under another name, because trimming a container cuts
@@ -392,6 +402,89 @@ Two-pass is a linear gain calculated from real measurements.
 
 Pass 1's `outputDurationSec` is the source duration - it decodes the whole file even
 though it writes nothing, so progress is meaningful.
+
+---
+
+## The merge suite
+
+Ten operations and one button, added for the everyday things people do with
+more than one file: joining clips, mixing songs, music under a video, a logo
+stamp, fades, loops, volume, and grabbing a frame.
+
+### Merge ✅
+
+Joins the loaded clip plus up to three more, each crossfaded into the next.
+Normalizes every clip to the first one (`scale` to its even dimensions,
+`setsar=1`, `fps`, `aresample`), because `xfade` demands identical geometry and
+constant frame rate. The audio chain is `acrossfade` chained back to back.
+
+The traps:
+
+- **`xfade` offsets accumulate.** Each junction's offset is the previous offset
+  plus the previous clip's duration minus the fade. The second junction counts
+  both earlier clips; doing it per-pair drops frames or refuses the graph.
+- **`acrossfade` has no offset option.** Its `o` is a boolean `overlap`, default
+  true, and with it the filter natively trims the tail of one stream and the
+  head of the next. Passing `o=2.5` fails with "Unable to parse o option value
+  as boolean" - the real-ffmpeg e2e test caught exactly this.
+- **A clip with no audio** gets `anullsrc=r=<rate>:d=<its duration>` spliced
+  into the chain, or the picture loses its place against the sound.
+- The joined length is the sum minus one fade per junction, and it is the
+  progress denominator.
+- Fade in and out are `fade`/`afade` appended at the ends of the joined chain.
+- The output owns its container: always mp4 + h264 + aac, because a composition
+  of several files has no single owner.
+
+### Merge audio ✅
+
+The same shape for songs: up to twelve files, `aresample`d to the first one's
+rate, `acrossfade` chained, optional `afade` ends, aac at the chosen bitrate,
+written as m4a next to the first file. Refuses anything with a picture.
+
+### Add music ✅
+
+Video stream `-c copy`, so the picture is never re-encoded; the mix is
+`[0:a]volume=a[a0];[1:a]volume=b[a1];[a0][a1]amix=inputs=2:duration=first`.
+Without the video's own audio, the music alone becomes the track. The mix ends
+with the shorter of the two sounds.
+
+### Watermark ✅
+
+`[1:v]scale=min(iw\,<quarter frame>):-2,format=rgba,colorchannelmixer=aa=<opacity>`
+overlayed at one of nine positions, video re-encoded at CRF 20 in the source
+container's codec family, audio copied. The mark is capped at a quarter of the
+frame so it never takes over.
+
+Still images probe with `durationSec: 0`: ffprobe reports no timeline for a
+picture, and the server accepts that only when the file has a video stream, no
+audio, and no duration. Timeline operations on such a file refuse naturally (a
+trim window needs an end after its start).
+
+### Fade ✅ and Audio fade ✅
+
+Fade touches both streams: `fade`/`afade` in and out at the clip's ends, both
+re-encoded per the codec map. Audio fade copies the picture through untouched,
+the same argument as Loudness. Both refuse the no-op (both fades zero), which
+would write an identical file.
+
+### Loop ✅ and Audio loop ✅
+
+`-stream_loop <times - 1> -i in -c copy`. The trap: `-stream_loop` counts
+_extra_ plays, so "3 times" is 2 loops. Pure stream copy, near-instant,
+byte-faithful.
+
+### Volume ✅ and Audio volume ✅
+
+`-c:v copy` with `-af volume=<gain>dB`: the picture is never touched. Refuses
+zero gain, which would just waste an encode.
+
+### Save this frame
+
+Not an operation: a button on the video well that grabs the frame under the
+playhead as a lossless PNG. It rides the edited-command path of POST /run with a
+hand-built argv (`-ss <t> -i <source> -frames:v 1 <out>.png`), so it appears in
+the queue and downloads like any result, without disturbing the operation being
+set up.
 
 ---
 

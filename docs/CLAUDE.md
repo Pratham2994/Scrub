@@ -22,8 +22,9 @@ Deliberately not used: `fluent-ffmpeg` (it hides the command, which is the featu
 
 ## Operations
 
-Video: trim (fast/precise), compress, fit a size, convert, resize, crop, speed, GIF, extract audio, mute, replace audio.
-Audio: convert, trim, normalise loudness.
+Video: trim (fast/precise), compress, fit a size, convert, resize, crop, speed, GIF,
+extract audio, mute, replace audio, merge, add music, watermark, fade, loop, volume.
+Audio: convert, trim, normalise loudness, merge, fade, loop, volume.
 
 The list is closed, and closed does not mean frozen - it means it grows only for something people already do, never to expose more of ffmpeg. Fit a size, speed and crop were added because "get this under 10 MB" is the most common video request there is and compress could not answer it, and because speed and crop sit in the same everyday category as trim and resize. A tenth checkbox inside an operation is still the failure mode.
 
@@ -56,6 +57,7 @@ shared/   Operation types and the buildArgs function. Imported by both.
 - **loudnorm is two passes.** Measure with `print_format=json`, parse the JSON from stderr, feed the measured values back into the second pass.
 - **`-ss` before `-i`** seeks to the nearest keyframe and is fast but not frame-accurate. After `-i` it is accurate but re-encodes. The trim UI exposes this as a toggle; do not pick for the user.
 - **Browsers cannot preview HEVC**, which is the default on iPhone recordings. Detect the codec on upload and show a clear message where the preview would be. The operation still works; only the preview does not.
+- **Multi-input operations** carry upload ids in the operation; the server resolves them into `io.secondaryInputs` so buildArgs stays pure. Streams are copied unless ffmpeg forces a re-encode; forced re-encodes use the codec map and default to crf 20 / aac 192k.
 - **Clean the tmp directory.** Video files are large. TTL sweep on an interval and on boot.
 
 ## Errors

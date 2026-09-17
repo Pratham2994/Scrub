@@ -832,7 +832,7 @@ export function secondaryMetas(
 
 /** The container an output path implies, from its extension. */
 export function containerFromPath(outputPath: string): VideoContainer | null {
-  const ext = outputPath.toLowerCase().match(/\.(\w+)$/)?.[1];
+  const ext = /\.(\w+)$/.exec(outputPath.toLowerCase())?.[1];
   if (ext === 'mp4') return 'mp4';
   if (ext === 'webm') return 'webm';
   if (ext === 'mkv') return 'mkv';
@@ -1041,7 +1041,7 @@ export function buildMergeAudio(op: AudioMerge, meta: ProbeResult, io: CommandIo
 export function buildAddMusic(op: VideoAddMusic, meta: ProbeResult, io: CommandIo): CommandPlan {
   const extras = secondaryMetas(io, 'add-music');
   const music = extras[0];
-  if (!music || music.meta.audio === null) {
+  if (music?.meta.audio == null) {
     throw new InvalidOperation('add-music', 'the music file has no sound');
   }
 
