@@ -429,6 +429,14 @@ The traps:
   as boolean" - the real-ffmpeg e2e test caught exactly this.
 - **A clip with no audio** gets `anullsrc=r=<rate>:d=<its duration>` spliced
   into the chain, or the picture loses its place against the sound.
+- **`-pix_fmt yuv420p` is not optional.** xfade blends in a wider pixel format
+  than it is handed and libx264 encodes whatever it is offered, so joining two
+  ordinary 4:2:0 clips came out `yuv444p`, profile High 4:4:4 Predictive.
+  ffmpeg reports success; Windows Media Player refuses the file outright
+  (0x80004005, "unsupported encoding settings") and no hardware decoder
+  anywhere will touch 4:4:4, so phones and TVs refuse it too. Chromium decodes
+  it in software, which is exactly why the browser tests did not catch it -
+  the e2e now reads the written file back with ffprobe instead.
 - The joined length is the sum minus one fade per junction, and it is the
   progress denominator.
 - Fade in and out are `fade`/`afade` appended at the ends of the joined chain.

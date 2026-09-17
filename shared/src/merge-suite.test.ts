@@ -51,6 +51,22 @@ describe('merge', () => {
     expect(plan.passes[0]?.outputDurationSec).toBe(6.5);
   });
 
+  /**
+   * xfade blends in a wider format than it is given, so an ordinary yuv420p
+   * source came out High 4:4:4 Predictive: ffmpeg succeeded and Windows Media
+   * Player refused the file. Nothing in the picture wanted 4:4:4; the filter
+   * simply offered it and libx264 took it.
+   */
+  it('pins the pixel format so the joined file plays where clips play', () => {
+    const plan = buildArgs(
+      { kind: 'merge', clipIds: ['b'], crossfadeSec: 0.5, fadeInSec: 0, fadeOutSec: 0, crf: 20 },
+      probe(),
+      io([B]),
+    );
+    const argv = plan.passes[0]?.argv ?? [];
+    expect(argv[argv.indexOf('-pix_fmt') + 1]).toBe('yuv420p');
+  });
+
   it('accumulates the offsets across three clips', () => {
     const plan = buildArgs(
       {

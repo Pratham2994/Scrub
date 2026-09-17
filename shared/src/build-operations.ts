@@ -957,6 +957,26 @@ export function buildMerge(op: VideoMerge, meta: ProbeResult, io: CommandIo): Co
           String(op.crf),
           '-preset',
           'medium',
+          /**
+           * Pinned, because xfade will not leave it alone.
+           *
+           * The filter blends in a higher-precision format than it was handed
+           * and libx264 encodes whatever it is given, so joining two ordinary
+           * yuv420p clips came out yuv444p, profile High 4:4:4 Predictive.
+           * ffmpeg reports success and Windows Media Player refuses the file
+           * outright (0x80004005, "unsupported encoding settings"), which is
+           * the worst failure this product can have: a run that says it worked
+           * and a file that will not open. 4:4:4 has no hardware decoder
+           * anywhere, so phones and TVs refuse it too. Chromium does decode it
+           * in software, which is exactly why it survived the browser tests.
+           *
+           * A merge already owns its container for the same reason it owns
+           * this: a composition of several files has no single source to
+           * inherit from, and the point of joining clips is a file you can
+           * send someone.
+           */
+          '-pix_fmt',
+          'yuv420p',
           '-c:a',
           'aac',
           '-b:a',

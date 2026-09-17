@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -46,6 +47,39 @@ async function loadFixture(page: Page): Promise<void> {
    * once clipped to the selection - so "the video" is ambiguous there.
    */
   await expect(page.locator('video').first()).toBeVisible({ timeout: 30_000 });
+}
+
+/**
+ * What Scrub actually wrote, read back with ffprobe.
+ *
+ * A run that exits zero is not proof of a usable file. Merge once produced
+ * High 4:4:4 Predictive: ffmpeg called it success, Windows Media Player refused
+ * to open it, and Chromium decoded it in software - so neither the exit code
+ * nor the browser preview could have caught it. Only the file can.
+ */
+function probeNewestOutput(match: RegExp, fields: string): string {
+  const workDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '.tmp');
+  const newest = fs
+    .readdirSync(workDir)
+    .filter((name) => match.test(name))
+    .map((name) => ({ name, at: fs.statSync(path.join(workDir, name)).mtimeMs }))
+    .sort((a, b) => b.at - a.at)[0];
+  if (!newest) throw new Error(`no output in .tmp matching ${String(match)}`);
+  return execFileSync(
+    'ffprobe',
+    [
+      '-v',
+      'error',
+      '-select_streams',
+      'v:0',
+      '-show_entries',
+      fields,
+      '-of',
+      'csv=p=0',
+      path.join(workDir, newest.name),
+    ],
+    { encoding: 'utf8' },
+  ).trim();
 }
 
 test.describe('loading a file', () => {
@@ -1214,6 +1248,15 @@ test.describe('the merge suite', () => {
     const command = await commandText(page);
     expect(command).toContain('xfade=transition=fade');
     expect(command).toContain('acrossfade');
+
+    /**
+     * And the file it wrote is one other players will open. xfade offers
+     * libx264 a wider pixel format than the clips had, and taking it produces
+     * a 4:4:4 file that no hardware decoder anywhere will touch.
+     */
+    const probed = probeNewestOutput(/-merge-.*\.mp4$/, 'stream=profile,pix_fmt');
+    expect(probed).toContain('yuv420p');
+    expect(probed).not.toContain('4:4:4');
   });
 
   test('merges two songs', async ({ page }) => {

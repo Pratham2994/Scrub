@@ -28,6 +28,8 @@ Re-encoding operations that keep a single source's container (watermark, add mus
 
 Crf 20 is the default rather than compress's 23 because a merge is the final assembly, and the point of assembling is to keep the quality you started with.
 
+Merge also pins `-pix_fmt yuv420p`. xfade offers libx264 a wider pixel format than the clips had, and taking it produces a High 4:4:4 Predictive file that ffmpeg calls a success and Windows Media Player will not open. The same argument that gives merge its own container gives it its own pixel format: a composition has no single source to inherit from, and the point of joining clips is a file you can send someone.
+
 ## The operations
 
 All seven follow the existing operation contract: a pure `buildArgs` in shared, a zod schema mirroring it, availability rules, an output name that says what it is, and a command bar that shows the exact filter graph.
