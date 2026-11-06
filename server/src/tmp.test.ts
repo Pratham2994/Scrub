@@ -179,6 +179,27 @@ describe('clearing on request', () => {
       `waveform-${id}.png`,
     ]);
   });
+
+  it('keeps the file on screen, whose name does not contain its id', async () => {
+    // Uploads are named `<stem>-<8 hex>.<ext>` and get a separate uuid id.
+    const id = '11111111-2222-4333-8444-555555555555';
+    const full = await write('holiday-3036c17e.mp4', 10, 1);
+    await write(`filmstrip-${id}.jpg`, 10, 1);
+    await write('other-9f8e7d6c.mp4', 10, 1);
+    putFile({
+      id,
+      path: full,
+      displayName: 'holiday.mp4',
+      meta: null,
+      kind: 'source',
+      createdAt: NOW,
+    });
+
+    await clearTmpDir(id);
+
+    expect(await listing()).toEqual([`filmstrip-${id}.jpg`, 'holiday-3036c17e.mp4']);
+    expect(getFile(id)?.path).toBe(full);
+  });
 });
 
 describe('what the storage panel reports', () => {

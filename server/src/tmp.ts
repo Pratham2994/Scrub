@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 import { config } from './config.js';
-import { forgetFile } from './store.js';
+import { forgetFile, getFile } from './store.js';
 
 export async function ensureTmpDir(): Promise<string> {
   await fs.mkdir(config.tmpDir, { recursive: true });
@@ -130,9 +130,14 @@ export async function clearTmpDir(
   const entries = await listEntries();
   let removed = 0;
   let freed = 0;
+  // An upload's name carries its own short random suffix, not its id
+  // (`clip-3036c17e.mp4`), so the kept file is found through the store.
+  const keptPath = keepId === null ? null : (getFile(keepId)?.path ?? null);
+  const keptName = keptPath === null ? null : path.basename(keptPath);
 
   for (const entry of entries) {
     if (keepId !== null) {
+      if (entry.name === keptName) continue;
       if (entry.name.includes(keepId)) continue;
       if (derivedFrom(entry.name) === keepId) continue;
     }

@@ -1,5 +1,7 @@
 import express, { type Express, type NextFunction, type Request, type Response } from 'express';
+import multer from 'multer';
 
+import { config } from './config.js';
 import type { FfmpegTools } from './ffmpeg/locate.js';
 import { downloadRouter } from './routes/download.js';
 import { filmstripRouter } from './routes/filmstrip.js';
@@ -42,6 +44,16 @@ export function createApp(tools: FfmpegTools): Express {
   app.use((err: unknown, _req: Request, res: Response, next: NextFunction) => {
     if (res.headersSent) {
       next(err);
+      return;
+    }
+    // Over the upload ceiling is the user's file, not a server fault.
+    if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+      res.status(413).json({
+        error: {
+          code: 'TOO_LARGE',
+          message: `That file is over the ${String(config.maxUploadBytes / 1024 / 1024)} MB upload limit.`,
+        },
+      } satisfies ApiError);
       return;
     }
     const message = err instanceof Error ? err.message : 'Unknown server error.';
